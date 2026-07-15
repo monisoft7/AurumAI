@@ -1,15 +1,8 @@
 from pathlib import Path
 import json
 import shutil
-import sys
 
 import pandas as pd
-
-
-ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "src"
-if str(SRC) not in sys.path:
-    sys.path.insert(0, str(SRC))
 
 from knowledge.lesson_summary import LessonSummaryAggregator, LessonSummaryConfig
 
