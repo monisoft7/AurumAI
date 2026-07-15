@@ -32,6 +32,13 @@ class MacroEvent(ABC):
         condition dict and the knowledge_id suffix.
         Example for CPI: ['cpi_pressure']."""
 
+    @property
+    @abstractmethod
+    def knowledge_version(self) -> str:
+        """Knowledge version namespace used by Memory and the Brain.
+        This is the key under which knowledge records are stored.
+        Example: 'cpi_gold_summary_v1'."""
+
     @abstractmethod
     def load_and_extract(self, path: Path) -> pd.DataFrame:
         """Load raw event data from *path* and return a DataFrame that

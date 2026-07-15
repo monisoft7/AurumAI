@@ -11,6 +11,7 @@ class CPIEvent(MacroEvent):
     event_type = "CPI"
     lesson_version = "cpi_gold_v1"
     condition_columns = ["cpi_pressure"]
+    knowledge_version = "cpi_gold_summary_v1"
 
     def load_and_extract(self, path: Path) -> pd.DataFrame:
         df = pd.read_csv(path)

@@ -1,5 +1,6 @@
 from pathlib import Path
 import sys
+from typing import TYPE_CHECKING
 
 
 if __package__ in {None, ""}:
@@ -8,13 +9,40 @@ if __package__ in {None, ""}:
 from knowledge.rules import RULES
 from knowledge.memory import Memory
 
+if TYPE_CHECKING:
+    from knowledge.events.base import MacroEvent
 
-_DEFAULT_EVENT_REGISTRY: dict[str, dict[str, object]] = {
-    "CPI": {
-        "knowledge_version": "cpi_gold_summary_v1",
-        "condition_columns": ["cpi_pressure"],
-    },
-}
+
+def _build_registry(
+    events: dict[str, type["MacroEvent"]] | None,
+    event_registry: dict[str, dict[str, object]] | None,
+) -> dict[str, dict[str, object]]:
+    """Merge MacroEvent-derived metadata with optional hand-written overrides.
+
+    *events* maps event_type → MacroEvent subclass.  Metadata is read
+    from the class itself (knowledge_version, condition_columns).
+
+    *event_registry* is the legacy dict-based format.  When both are
+    provided, *events* is authoritative and *event_registry* augments
+    it (for event types that don't have a MacroEvent class yet).
+
+    Returns a normalised dict[str, dict] for internal lookup.
+    """
+    merged: dict[str, dict[str, object]] = {}
+
+    if events is not None:
+        for event_type, event_cls in events.items():
+            merged[event_type] = {
+                "knowledge_version": event_cls.knowledge_version,
+                "condition_columns": list(event_cls.condition_columns),
+            }
+
+    if event_registry is not None:
+        for key, val in event_registry.items():
+            if key not in merged:
+                merged[key] = dict(val)
+
+    return merged
 
 
 class EconomicBrain:
@@ -22,10 +50,19 @@ class EconomicBrain:
     def __init__(
         self,
         memory: Memory | None = None,
+        events: dict[str, type["MacroEvent"]] | None = None,
         event_registry: dict[str, dict[str, object]] | None = None,
     ):
         self.memory = memory or Memory()
-        self._registry = {**_DEFAULT_EVENT_REGISTRY, **(event_registry or {})}
+        self._registry = _build_registry(events, event_registry)
+
+        # Register CPIEvent by default if no events provided
+        if not events and "CPI" not in self._registry:
+            from knowledge.events.cpi import CPIEvent
+            self._registry["CPI"] = {
+                "knowledge_version": CPIEvent.knowledge_version,
+                "condition_columns": list(CPIEvent.condition_columns),
+            }
 
     def analyze(self, event, context=None):
         context = context or {}
