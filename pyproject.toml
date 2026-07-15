@@ -3,6 +3,7 @@ name = "aurumai"
 version = "0.0.1"
 dependencies = [
     "fredapi",
+    "networkx",
     "numpy",
     "pandas",
     "python-dotenv",

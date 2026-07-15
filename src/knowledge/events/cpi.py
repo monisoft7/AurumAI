@@ -3,6 +3,8 @@ from pathlib import Path
 import pandas as pd
 
 from knowledge.events.base import MacroEvent
+from knowledge.features.engine import FeatureExtractionEngine
+from knowledge.features.extractors.cpi import CPIFeatureExtractor
 
 
 class CPIEvent(MacroEvent):
@@ -13,7 +15,11 @@ class CPIEvent(MacroEvent):
     condition_columns = ["cpi_pressure"]
     knowledge_version = "cpi_gold_summary_v1"
 
-    def load_and_extract(self, path: Path) -> pd.DataFrame:
+    def __init__(self) -> None:
+        self._extraction_engine = FeatureExtractionEngine()
+        self._extractor = CPIFeatureExtractor()
+
+    def load_raw(self, path: Path) -> pd.DataFrame:
         df = pd.read_csv(path)
         required = {"Date", "Value"}
         missing = required.difference(df.columns)
@@ -25,11 +31,12 @@ class CPIEvent(MacroEvent):
         df["Date"] = pd.to_datetime(df["Date"], errors="raise")
         df["Value"] = pd.to_numeric(df["Value"], errors="raise")
         df = df.sort_values("Date").drop_duplicates("Date", keep="last")
-        df["previous_value"] = df["Value"].shift(1)
-        df["cpi_change_pct"] = (
-            (df["Value"] - df["previous_value"]) / df["previous_value"]
-        ) * 100.0
-        return df.dropna(subset=["previous_value", "cpi_change_pct"])
+        return df.reset_index(drop=True)
+
+    def load_and_extract(self, path: Path) -> pd.DataFrame:
+        raw = self.load_raw(path)
+        feature_set = self._extraction_engine.process(raw, self._extractor)
+        return feature_set.data
 
     def build_lesson_fields(
         self, event_row: pd.Series, anchor_date: str
@@ -38,7 +45,7 @@ class CPIEvent(MacroEvent):
             "cpi_value": round(float(event_row["Value"]), 6),
             "previous_cpi_value": round(float(event_row["previous_value"]), 6),
             "cpi_change_pct": round(float(event_row["cpi_change_pct"]), 6),
-            "cpi_pressure": self._cpi_pressure(float(event_row["cpi_change_pct"])),
+            "cpi_pressure": str(event_row["cpi_pressure"]),
         }
 
     def lesson_text(self, lesson: dict[str, object]) -> str:
@@ -51,11 +58,3 @@ class CPIEvent(MacroEvent):
             f"gold moved {move}% over {horizon} trading days "
             f"({direction})."
         )
-
-    @staticmethod
-    def _cpi_pressure(cpi_change_pct: float) -> str:
-        if cpi_change_pct > 0:
-            return "inflation_pressure_up"
-        if cpi_change_pct < 0:
-            return "inflation_pressure_down"
-        return "inflation_pressure_flat"
