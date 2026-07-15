@@ -1,11 +1,15 @@
 # AurumAI Roadmap
 
+Governed by [docs/PROJECT_CONSTITUTION.md](PROJECT_CONSTITUTION.md).
+No phase gate below may be marked complete until the constitution's
+Section 5 rules (working artifact, tests passing, documented pipeline
+runnable) are verified true for that phase's deliverables.
+
 ## Phase 0 - Foundation
 - [x] Create Repository
 - [x] Create Project Structure
 - [x] Create Documentation
-- [ ] Publish GitHub Repository
-- [ ] Initial Commit
+- [x] Initial Commit
 
 ---
 

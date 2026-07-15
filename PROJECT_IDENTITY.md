@@ -1,5 +1,11 @@
 # AurumAI Project Identity
 
+Status: Historical record. Superseded in authority by
+[docs/PROJECT_CONSTITUTION.md](docs/PROJECT_CONSTITUTION.md), which is now
+the highest-level document in the repository. This file is kept as the
+original CTO decision record; where it conflicts with the constitution,
+the constitution governs.
+
 ## CTO Decision
 
 AurumAI is not a trading bot.

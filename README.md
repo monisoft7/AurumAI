@@ -26,4 +26,10 @@ py -3 src\knowledge\brain.py
 py -3 -m pytest -q
 ```
 
-See [PROJECT_IDENTITY.md](PROJECT_IDENTITY.md) for the operating doctrine.
+See [docs/PROJECT_CONSTITUTION.md](docs/PROJECT_CONSTITUTION.md) for the
+operating doctrine. [PROJECT_IDENTITY.md](PROJECT_IDENTITY.md) remains as a
+historical CTO decision record and defers to the constitution wherever the
+two differ.
+
+See [docs/MIGRATION_PLAN.md](docs/MIGRATION_PLAN.md) for the current
+duplicate-module cleanup and knowledge-graph migration plan.
