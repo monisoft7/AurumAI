@@ -15,12 +15,16 @@ class LessonSummaryConfig:
     lessons_path: Path = Path("data/lessons/cpi_gold_lessons.csv")
     output_path: Path = Path("data/knowledge/cpi_gold_summary.json")
     memory_path: Path = Path("data/memory/memory.json")
+    condition_columns: tuple[str, ...] = ("cpi_pressure",)
+    knowledge_prefix: str = "cpi_gold_summary_v1"
+    event_type: str = "CPI"
+    asset: str = "GOLD"
     horizons: tuple[int, ...] = DEFAULT_HORIZONS
     min_samples_for_confidence: int = 12
 
 
 class LessonSummaryAggregator:
-    """Aggregate event lessons into reusable market knowledge records."""
+    """Aggregate lessons into reusable market knowledge records."""
 
     def __init__(self, config: LessonSummaryConfig | None = None):
         self.config = config or LessonSummaryConfig()
@@ -29,15 +33,20 @@ class LessonSummaryAggregator:
         lessons = self._load_lessons(self.config.lessons_path)
         records = []
 
-        for pressure, group in lessons.groupby("cpi_pressure", sort=True):
+        for condition_values, group in lessons.groupby(
+            list(self.config.condition_columns), sort=True
+        ):
+            if not isinstance(condition_values, tuple):
+                condition_values = (condition_values,)
+            condition_dict = dict(zip(self.config.condition_columns, condition_values))
             for horizon in self.config.horizons:
-                records.append(self._summarize_group(pressure, group, horizon))
+                records.append(self._summarize_group(condition_dict, group, horizon))
 
         return {
-            "knowledge_version": "cpi_gold_summary_v1",
+            "knowledge_version": self.config.knowledge_prefix,
             "source_lessons": str(self.config.lessons_path),
-            "event_type": "CPI",
-            "asset": "GOLD",
+            "event_type": self.config.event_type,
+            "asset": self.config.asset,
             "record_count": len(records),
             "records": records,
         }
@@ -50,7 +59,7 @@ class LessonSummaryAggregator:
 
     def build_save_and_ingest_memory(self) -> dict[str, object]:
         summary = self.build_and_save()
-        Memory(self.config.memory_path).set_namespace("cpi_gold_summary_v1", summary)
+        Memory(self.config.memory_path).set_namespace(self.config.knowledge_prefix, summary)
         return summary
 
     def _load_lessons(self, path: Path) -> pd.DataFrame:
@@ -58,9 +67,10 @@ class LessonSummaryAggregator:
         required = {
             "lesson_id",
             "event_type",
-            "cpi_pressure",
             "event_date",
         }
+        for col in self.config.condition_columns:
+            required.add(col)
         for horizon in self.config.horizons:
             required.add(f"gold_return_{horizon}d_pct")
             required.add(f"gold_direction_{horizon}d")
@@ -70,9 +80,11 @@ class LessonSummaryAggregator:
             missing_text = ", ".join(sorted(missing))
             raise ValueError(f"{path} is missing required columns: {missing_text}")
 
-        df = df[df["event_type"] == "CPI"].copy()
+        df = df[df["event_type"] == self.config.event_type].copy()
         if df.empty:
-            raise ValueError(f"{path} contains no CPI lessons.")
+            raise ValueError(
+                f"{path} contains no {self.config.event_type} lessons."
+            )
 
         for horizon in self.config.horizons:
             df[f"gold_return_{horizon}d_pct"] = pd.to_numeric(
@@ -84,7 +96,7 @@ class LessonSummaryAggregator:
 
     def _summarize_group(
         self,
-        pressure: str,
+        condition: dict[str, str],
         group: pd.DataFrame,
         horizon: int,
     ) -> dict[str, object]:
@@ -99,11 +111,13 @@ class LessonSummaryAggregator:
         positive_rate = self._rate(positive_count, sample_count)
         negative_rate = self._rate(negative_count, sample_count)
 
+        condition_suffix = "_".join(str(v) for v in condition.values())
+
         return {
-            "knowledge_id": f"CPI_GOLD_{pressure}_{horizon}D",
-            "event_type": "CPI",
-            "asset": "GOLD",
-            "condition": {"cpi_pressure": pressure},
+            "knowledge_id": f"{self.config.event_type}_{self.config.asset}_{condition_suffix}_{horizon}D",
+            "event_type": self.config.event_type,
+            "asset": self.config.asset,
+            "condition": dict(condition),
             "horizon_days": horizon,
             "sample_count": sample_count,
             "positive_return_rate_pct": positive_rate,
@@ -120,7 +134,7 @@ class LessonSummaryAggregator:
             "bias": self._bias(positive_rate),
             "confidence": self._confidence(sample_count, positive_rate, returns.mean()),
             "explanation": self._explanation(
-                pressure,
+                condition,
                 horizon,
                 sample_count,
                 positive_rate,
@@ -154,14 +168,19 @@ class LessonSummaryAggregator:
 
     def _explanation(
         self,
-        pressure: str,
+        condition: dict[str, str],
         horizon: int,
         sample_count: int,
         positive_rate: float,
         average_return: float,
     ) -> str:
+        condition_desc = "; ".join(
+            f"{k}={v}" for k, v in condition.items()
+        )
         return (
-            f"For CPI condition {pressure}, {sample_count} historical lessons show "
-            f"gold had a positive {horizon}-day return in {positive_rate}% of cases, "
+            f"For {self.config.event_type} condition {condition_desc}, "
+            f"{sample_count} historical lessons show "
+            f"{self.config.asset} had a positive {horizon}-day return "
+            f"in {positive_rate}% of cases, "
             f"with an average return of {round(float(average_return), 6)}%."
         )
