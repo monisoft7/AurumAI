@@ -2,13 +2,13 @@
 
 ## Current Phase
 
-Foundation
+Data Engine Stabilization / Knowledge Engine Start
 
 ---
 
 ## Current Task
 
-Research Preparation
+Knowledge Engine Evidence Pipeline v1
 
 ---
 
@@ -20,7 +20,7 @@ Research Preparation
 
 ## Progress
 
-5%
+24%
 
 ---
 
@@ -29,10 +29,22 @@ Research Preparation
 - Repository
 - Project Structure
 - Vision
+- Collector Skeletons
+- Local Economic Data
+- Local Gold Data
+- First CPI/Gold Lessons Dataset
+- Initial Knowledge Engine Skeleton
+- Professional CPI/Gold LessonBuilder
+- Deterministic LessonBuilder Tests
+- CPI/Gold Lesson Summary Aggregator
+- Knowledge Memory Ingestion
+- Evidence-Backed CPI Brain Lookup
 
 ---
 
 ## Next
 
-- Publish Repository
-- Research Sprint
+- Add DXY/Yields Context Layer
+- Add Multi-Factor Knowledge Records
+- Add Reasoning Engine Prototype
+- Update Roadmap Gates

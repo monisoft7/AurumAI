@@ -38,6 +38,13 @@
 
 ## Phase 3 - Intelligence Engine
 
+- [x] CPI/Gold LessonBuilder v1
+- [x] Lesson Summary Aggregator
+- [x] Knowledge Memory Ingestion
+- [x] Evidence-Backed CPI Brain Lookup
+- [ ] DXY/Yields Context Layer
+- [ ] Multi-Factor Knowledge Records
+- [ ] Reasoning Engine Prototype
 - [ ] Technical Agent
 - [ ] Economic Agent
 - [ ] News Agent
