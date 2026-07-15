@@ -3,13 +3,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from knowledge.events.base import MacroEvent
+from knowledge.events.cpi import CPIEvent
+
 
 DEFAULT_HORIZONS = (1, 5, 20)
 
 
 @dataclass(frozen=True)
 class LessonBuilderConfig:
-    cpi_path: Path = Path("data/economic/CPIAUCSL.csv")
+    event_data_path: Path = Path("data/economic/CPIAUCSL.csv")
     gold_path: Path = Path("data/history/gold/gold.csv")
     output_path: Path = Path("data/lessons/cpi_gold_lessons.csv")
     horizons: tuple[int, ...] = DEFAULT_HORIZONS
@@ -19,13 +22,18 @@ class LessonBuilderConfig:
 class LessonBuilder:
     """Build deterministic macro-to-market lessons from local history."""
 
-    def __init__(self, config: LessonBuilderConfig | None = None):
+    def __init__(
+        self,
+        config: LessonBuilderConfig | None = None,
+        event: MacroEvent | None = None,
+    ):
         self.config = config or LessonBuilderConfig()
+        self.event = event or CPIEvent()
 
     def build(self) -> pd.DataFrame:
-        cpi = self._load_cpi(self.config.cpi_path)
+        event_data = self.event.load_and_extract(self.config.event_data_path)
         gold = self._load_gold(self.config.gold_path)
-        lessons = self._build_cpi_gold_lessons(cpi, gold, self.config.horizons)
+        lessons = self._build_lessons(event_data, gold, self.config.horizons)
         return pd.DataFrame(lessons)
 
     def build_and_save(self) -> pd.DataFrame:
@@ -33,21 +41,6 @@ class LessonBuilder:
         self.config.output_path.parent.mkdir(parents=True, exist_ok=True)
         lessons.to_csv(self.config.output_path, index=False)
         return lessons
-
-    def _load_cpi(self, path: Path) -> pd.DataFrame:
-        df = pd.read_csv(path)
-        required = {"Date", "Value"}
-        self._require_columns(df, required, path)
-
-        df = df.copy()
-        df["Date"] = pd.to_datetime(df["Date"], errors="raise")
-        df["Value"] = pd.to_numeric(df["Value"], errors="raise")
-        df = df.sort_values("Date").drop_duplicates("Date", keep="last")
-        df["previous_value"] = df["Value"].shift(1)
-        df["cpi_change_pct"] = (
-            (df["Value"] - df["previous_value"]) / df["previous_value"]
-        ) * 100.0
-        return df.dropna(subset=["previous_value", "cpi_change_pct"])
 
     def _load_gold(self, path: Path) -> pd.DataFrame:
         df = pd.read_csv(path)
@@ -60,9 +53,9 @@ class LessonBuilder:
         df = df.sort_values("Date").drop_duplicates("Date", keep="last")
         return df.reset_index(drop=True)
 
-    def _build_cpi_gold_lessons(
+    def _build_lessons(
         self,
-        cpi: pd.DataFrame,
+        event_data: pd.DataFrame,
         gold: pd.DataFrame,
         horizons: Iterable[int],
     ) -> list[dict[str, object]]:
@@ -70,7 +63,7 @@ class LessonBuilder:
         gold_dates = gold["Date"]
         first_gold_date = gold_dates.iloc[0]
 
-        for _, row in cpi.iterrows():
+        for _, row in event_data.iterrows():
             if row["Date"] < first_gold_date:
                 continue
 
@@ -83,7 +76,19 @@ class LessonBuilder:
                 continue
 
             anchor = gold.iloc[anchor_index]
-            lesson = self._base_lesson(row, anchor)
+            event_date = row["Date"].date().isoformat()
+            anchor_date = anchor["Date"].date().isoformat()
+
+            lesson = {
+                "lesson_id": f"{self.event.event_type}_GOLD_{event_date}",
+                "lesson_version": self.event.lesson_version,
+                "event_type": self.event.event_type,
+                "event_date": event_date,
+                "anchor_gold_date": anchor_date,
+                "alignment_method": "first_gold_session_on_or_after_event_date",
+                "gold_close_at_event": round(float(anchor["Close"]), 6),
+            }
+            lesson.update(self.event.build_lesson_fields(row, anchor_date))
 
             for horizon in horizons:
                 future = gold.iloc[anchor_index + horizon]
@@ -93,29 +98,10 @@ class LessonBuilder:
                 lesson[f"gold_direction_{horizon}d"] = self._direction(return_pct)
 
             lesson["primary_horizon_days"] = self._primary_horizon(lesson, horizons)
-            lesson["lesson_text"] = self._lesson_text(lesson)
+            lesson["lesson_text"] = self.event.lesson_text(lesson)
             lessons.append(lesson)
 
         return lessons
-
-    def _base_lesson(self, cpi_row: pd.Series, anchor_row: pd.Series) -> dict[str, object]:
-        event_date = cpi_row["Date"].date().isoformat()
-        anchor_date = anchor_row["Date"].date().isoformat()
-        cpi_change_pct = float(cpi_row["cpi_change_pct"])
-
-        return {
-            "lesson_id": f"CPI_GOLD_{event_date}",
-            "lesson_version": "cpi_gold_v1",
-            "event_type": "CPI",
-            "event_date": event_date,
-            "anchor_gold_date": anchor_date,
-            "alignment_method": "first_gold_session_on_or_after_event_date",
-            "cpi_value": round(float(cpi_row["Value"]), 6),
-            "previous_cpi_value": round(float(cpi_row["previous_value"]), 6),
-            "cpi_change_pct": round(cpi_change_pct, 6),
-            "cpi_pressure": self._cpi_pressure(cpi_change_pct),
-            "gold_close_at_event": round(float(anchor_row["Close"]), 6),
-        }
 
     def _first_gold_index_on_or_after(
         self,
@@ -132,24 +118,6 @@ class LessonBuilder:
             horizons,
             key=lambda horizon: abs(float(lesson[f"gold_return_{horizon}d_pct"])),
         )
-
-    def _lesson_text(self, lesson: dict[str, object]) -> str:
-        horizon = int(lesson["primary_horizon_days"])
-        direction = lesson[f"gold_direction_{horizon}d"]
-        move = lesson[f"gold_return_{horizon}d_pct"]
-        cpi_change = lesson["cpi_change_pct"]
-        return (
-            f"After CPI changed by {cpi_change}% on {lesson['event_date']}, "
-            f"gold moved {move}% over {horizon} trading days "
-            f"({direction})."
-        )
-
-    def _cpi_pressure(self, cpi_change_pct: float) -> str:
-        if cpi_change_pct > 0:
-            return "inflation_pressure_up"
-        if cpi_change_pct < 0:
-            return "inflation_pressure_down"
-        return "inflation_pressure_flat"
 
     def _direction(self, return_pct: float) -> str:
         if return_pct > self.config.min_abs_move_pct:

@@ -81,7 +81,7 @@ def build_fixture(base_path: Path) -> LessonBuilder:
     )
 
     config = LessonBuilderConfig(
-        cpi_path=cpi_path,
+        event_data_path=cpi_path,
         gold_path=gold_path,
         output_path=output_path,
     )
@@ -131,7 +131,7 @@ def test_missing_required_columns_fail_fast() -> None:
     write_csv(gold_path, [{"Date": "2020-01-01", "Open": 1000.0}])
 
     builder = LessonBuilder(
-        LessonBuilderConfig(cpi_path=cpi_path, gold_path=gold_path)
+        LessonBuilderConfig(event_data_path=cpi_path, gold_path=gold_path)
     )
 
     try:
