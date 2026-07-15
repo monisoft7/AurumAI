@@ -372,6 +372,34 @@ Architectural rules:
   knowledge of the domain schema (a utils function should work the same
   whether the asset is gold or oil).
 
+### Legacy Layer
+
+Certain modules under `src/knowledge/` represent previous architectural
+iterations and are retained as a Legacy Layer. They are not "dead code":
+they document the evolution of the architecture and may become useful
+during future migrations as reference implementations or as sources of
+schema designs for new event types.
+
+Current Legacy Layer modules:
+
+- **`src/knowledge/models/lesson.py`** — an early `Lesson` dataclass
+  whose schema predates the current lesson CSV format. Retained as a
+  reference for future typed-lesson migration.
+- **`src/knowledge/builders/csv_to_lessons.py`** — a function that maps
+  CSV rows to the `Lesson` dataclass. Retained alongside the model it
+  serves.
+- **`src/knowledge/repository/lesson_repository.py`** — an early
+  repository wrapper around a lesson CSV. Retained as a reference for
+  future Repository abstraction design.
+- **`src/knowledge/events/__init__.py`** — the `EconomicEvent` enum,
+  retained as a human-readable registry of event types that the
+  `MacroEvent` ABC may one day absorb.
+
+These modules are NOT wired into the current pipeline. They are NOT
+imported by any working code. They MUST NOT be deleted without an ADR
+decision, but they MUST NOT gain new functionality. New code belongs
+in the active architecture.
+
 ---
 
 ## 15. Development Workflow
@@ -400,6 +428,93 @@ Architectural rules:
 
 ---
 
+## 16. Architecture TODO — Feature Extraction Layer
+
+### Context
+
+Currently, every `MacroEvent` implementation is responsible for both
+loading raw data AND extracting features from it inside
+`load_and_extract()`.  For CPI, this means `CPIEvent.load_and_extract()`
+reads a CSV, parses dates, computes `cpi_change_pct`, classifies
+`cpi_pressure`, and returns a complete feature DataFrame.
+
+This works for CPI, but as more event types are added (NFP, FOMC, PPI,
+PMI, GDP, DXY, Yields …), several problems will surface:
+
+1. Feature extraction logic will be duplicated across events (every event
+   needs date parsing, numeric coercion, sorting, deduplication).
+2. Features cannot be introspected, validated, or composed independently
+   of their source event.
+3. There is no standard interface for a "feature" — they are implicit
+   column names in a DataFrame.
+4. The `LessonBuilder` cannot know what features an event produces
+   without calling `load_and_extract()` first.
+
+### Target Architecture
+
+A new `FeatureExtractionEngine` layer between `MacroEvent` and
+`LessonBuilder`:
+
+```
+MacroEvent
+    │
+    ▼
+FeatureExtractionEngine    ← NEW LAYER
+    │  - validates feature schema
+    │  - normalises types and units
+    │  - registers feature metadata (name, type, source, description)
+    │  - provides introspection (what features does this event produce?)
+    ▼
+LessonBuilder
+    │  - receives feature-rich DataFrame + feature metadata
+    │  - aligns with asset data
+    ▼
+Knowledge Builder → Brain
+```
+
+### How It Works
+
+- **`MacroEvent`** keeps `load_and_extract()` but it now returns a
+  lightweight, validated raw record set rather than a full feature
+  DataFrame.  The event still owns its data loading logic.
+- **`FeatureExtractionEngine`** is the new home for:
+  - Date parsing and normalisation
+  - Numeric coercion and NaN handling
+  - Computed feature derivation (e.g. `cpi_change_pct` from
+    `cpi_value`)
+  - Condition classification (e.g. `cpi_pressure` from
+    `cpi_change_pct`)
+  - Feature schema registration (each extracted feature has a name,
+    type, description, and source expression)
+  - Schema validation before passing data to `LessonBuilder`
+- **`MacroEvent`** (or a companion `FeatureDefinition` class) declares
+  *what* features it produces, not *how* to compute them.
+  `FeatureExtractionEngine` handles *how*.
+
+### Migration Path
+
+1. Design the `Feature` metadata schema (dataclass or TypedDict).
+2. Add `feature_definitions` property to `MacroEvent` ABC (returns a
+   list of `Feature` objects).
+3. Implement `FeatureExtractionEngine` as a callable or class that
+   takes a raw event DataFrame + its feature definitions and returns a
+   validated feature DataFrame.
+4. Refactor `CPIEvent.load_and_extract()` to return raw parsed data and
+   move `cpi_change_pct` / `cpi_pressure` computation into
+   `FeatureExtractionEngine` or into `feature_definitions`.
+5. Wire `FeatureExtractionEngine` into `LessonBuilder` so it runs
+   between event loading and lesson alignment.
+6. Keep the old `MacroEvent.load_and_extract()` contract working during
+   migration by providing a default passthrough.
+
+### Status
+
+Design phase — not yet implemented.  This section describes the
+target architecture so every future change to `MacroEvent` or
+`LessonBuilder` can be made with the migration path in mind.
+
+---
+
 ## Amendment Log
 
 - 2026-07-15: Constitution ratified. Ordered above all existing docs.
@@ -407,3 +522,8 @@ Architectural rules:
   (`src/teacher/` vs `src/knowledge/builders/`) rather than immediate
   deletion, per explicit instruction not to remove functionality without
   a proposed migration strategy.
+- 2026-07-15: Added `knowledge_version` to `MacroEvent` ABC.  Refactored
+  `EconomicBrain` to derive metadata from `MacroEvent` subclasses
+  instead of a hand-written registry dict.  Legacy Layer documented in
+  Section 13.  Architecture TODO — Feature Extraction Layer added as
+  Section 16.
