@@ -536,3 +536,6 @@ extractors.
   building and knowledge aggregation. This enables multi-factor knowledge
   records without changing the execution boundary or bypassing the existing
   evidence, reasoning, and decision path.
+- 2026-07-16: Added a context comparison report to evaluate single-factor
+  knowledge against context-conditioned knowledge before accepting more macro
+  context. This keeps context expansion data-driven instead of complexity-driven.

@@ -34,6 +34,7 @@ Intelligence Core stabilization.
 - Repository-local pytest temp isolation
 - US10Y Yield Context Enrichment
 - CPI + Yield Trend Multi-Factor Knowledge Records
+- Multi-Factor Context Comparison Report
 
 ## CTO Assessment
 
@@ -72,7 +73,7 @@ Build lesson aggregation:
 
 Add context without changing the execution boundary:
 
-1. Add DXY context around CPI events.
-2. Compare single-factor CPI knowledge against CPI + US10Y context.
-3. Add a compact multi-factor context report.
+1. Persist the context comparison report as a first-class pipeline artifact.
+2. Compare single-factor CPI knowledge against CPI + US10Y context on real data.
+3. Add DXY context only if the comparison report shows the context pattern is useful.
 4. Extend the existing reasoning path with context-conditioned evidence.

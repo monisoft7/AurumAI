@@ -51,6 +51,7 @@ US10Y Yield Context Layer
 - End-to-End Inference Pipeline
 - US10Y Yield Context Enrichment
 - CPI + Yield Trend Multi-Factor Knowledge Records
+- Multi-Factor Context Comparison Report
 - 299 Passing Tests
 
 ---
@@ -58,5 +59,5 @@ US10Y Yield Context Layer
 ## Next
 
 - Add DXY Context Layer
-- Add Multi-Factor Context Comparison Report
+- Add Pipeline Artifact for Context Comparison Report
 - Add Roadmap Gates for Intelligence Core
