@@ -21,6 +21,10 @@ Current working pipeline:
 5. Build an explainable reasoning chain.
 6. Produce an advisory, evidence-backed decision.
 
+The pipeline can optionally enrich lessons with US10Y yield context before
+knowledge aggregation, enabling multi-factor records such as CPI pressure plus
+yield trend.
+
 ```powershell
 py -3 src\teacher\build_lessons.py
 py -3 src\knowledge\build_knowledge.py

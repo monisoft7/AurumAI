@@ -32,6 +32,8 @@ Intelligence Core stabilization.
 - Causal Intelligence Layer
 - End-to-end Inference Pipeline
 - Repository-local pytest temp isolation
+- US10Y Yield Context Enrichment
+- CPI + Yield Trend Multi-Factor Knowledge Records
 
 ## CTO Assessment
 
@@ -63,14 +65,14 @@ Build lesson aggregation:
 
 - CPI/gold lessons: 129
 - CPI/gold knowledge records: 6
-- Test suite: 295 passed
+- Test suite: 299 passed
 - Manual CPI memory rule removed; memory now uses `cpi_gold_summary_v1`
 
 ## Next Sprint
 
 Add context without changing the execution boundary:
 
-1. Add DXY or US10Y context around CPI events.
-2. Build multi-factor lesson records.
-3. Compare single-factor CPI knowledge against context-conditioned knowledge.
+1. Add DXY context around CPI events.
+2. Compare single-factor CPI knowledge against CPI + US10Y context.
+3. Add a compact multi-factor context report.
 4. Extend the existing reasoning path with context-conditioned evidence.

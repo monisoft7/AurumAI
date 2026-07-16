@@ -15,6 +15,8 @@ class PipelineContext:
     condition_columns: tuple[str, ...] = ("condition",)
     horizons: tuple[int, ...] = (1, 5, 20)
     min_samples_for_confidence: int = 12
+    yield_data_path: Path | None = None
+    yield_context_lookback_days: int = 30
     asset: str = "ASSET"
     query: str = ""
     reasoning_condition: dict[str, str] | None = None

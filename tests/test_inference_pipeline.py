@@ -328,3 +328,44 @@ def test_pipeline_repository_serialization(tmp_path: Path) -> None:
     assert "build_graph" in stage_names
     assert "decide" in stage_names
     assert raw["stages"][-1]["output"]["decision_type"] in list(VALID_DECISION_TYPES)
+
+
+def test_pipeline_can_build_yield_context_conditioned_knowledge() -> None:
+    base = runtime_dir("yield_context_pipeline")
+    event_path = base / "cpi.csv"
+    gold_path = base / "gold.csv"
+    yield_path = base / "dgs10.csv"
+    write_csv(event_path, [
+        {"Date": "2020-01-01", "Value": 100.0},
+        {"Date": "2020-02-01", "Value": 101.0},
+        {"Date": "2020-03-01", "Value": 99.0},
+        {"Date": "2020-04-01", "Value": 102.0},
+    ])
+    write_csv(gold_path, gold_rows())
+    write_csv(yield_path, [
+        {"Date": "2019-12-01", "Value": 1.50},
+        {"Date": "2020-01-01", "Value": 1.60},
+        {"Date": "2020-02-01", "Value": 1.90},
+        {"Date": "2020-03-01", "Value": 1.70},
+        {"Date": "2020-04-01", "Value": 1.72},
+    ])
+
+    ctx = PipelineContext(
+        event=CPIEvent(),
+        event_data_path=event_path,
+        gold_path=gold_path,
+        yield_data_path=yield_path,
+        output_dir=base / "output",
+        knowledge_prefix="cpi_gold_yield_context_v1",
+        condition_columns=("cpi_pressure", "us10y_trend"),
+        asset="GOLD",
+    )
+    result = InferencePipeline().run(ctx)
+
+    lessons = result.lessons["dataframe"]
+    knowledge = result.knowledge_summary
+    assert "us10y_trend" in lessons.columns
+    assert knowledge["record_count"] >= 1
+    for record in knowledge["records"]:
+        assert set(record["condition"]) == {"cpi_pressure", "us10y_trend"}
+    assert result.stages[0].references["yield_context_path"] == str(yield_path)

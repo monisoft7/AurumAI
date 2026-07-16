@@ -532,3 +532,7 @@ extractors.
   progress documents with the existing inference, reasoning, decision,
   learning, temporal, causal, and economic intelligence layers, and
   configured repository-local pytest temp isolation.
+- 2026-07-16: Added optional US10Y yield context enrichment between lesson
+  building and knowledge aggregation. This enables multi-factor knowledge
+  records without changing the execution boundary or bypassing the existing
+  evidence, reasoning, and decision path.

@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 
 from knowledge.builders.lesson_builder import LessonBuilder, LessonBuilderConfig
+from knowledge.context.yields import YieldContextConfig, YieldContextEnricher
 from knowledge.lesson_summary import LessonSummaryAggregator, LessonSummaryConfig
 from knowledge.graph.builder import GraphBuilder
 from knowledge.evidence.query import EvidenceQuery
@@ -41,12 +42,21 @@ class InferencePipeline:
         )
         builder = LessonBuilder(config=config, event=context.event)
         lessons = builder.build_and_save()
+        references = {"event_type": context.event.event_type}
+        if context.yield_data_path is not None:
+            lessons = YieldContextEnricher(
+                YieldContextConfig(
+                    yield_path=context.yield_data_path,
+                    lookback_days=context.yield_context_lookback_days,
+                )
+            ).enrich_csv(lessons_path)
+            references["yield_context_path"] = str(context.yield_data_path)
         elapsed = (time.perf_counter() - t0) * 1000
         result.add_stage(
             "build_lessons",
             {"dataframe": lessons, "count": len(lessons), "path": lessons_path},
             elapsed,
-            {"event_type": context.event.event_type},
+            references,
         )
 
     def _stage_build_knowledge(

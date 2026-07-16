@@ -57,8 +57,10 @@ runnable) are verified true for that phase's deliverables.
 - [x] Causal Intelligence Layer
 - [x] End-to-End Inference Pipeline
 - [x] Repository-local test temp isolation
-- [ ] DXY/Yields Context Layer
-- [ ] Multi-Factor Knowledge Records
+- [x] US10Y Yield Context Layer
+- [x] CPI + Yield Trend Multi-Factor Knowledge Records
+- [ ] DXY Context Layer
+- [ ] Multi-Factor Context Comparison Report
 - [ ] Technical Agent
 - [ ] Economic Agent
 - [ ] News Agent

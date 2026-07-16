@@ -8,7 +8,7 @@ Intelligence Core Stabilization
 
 ## Current Task
 
-Project Truth and Test Stability
+US10Y Yield Context Layer
 
 ---
 
@@ -20,7 +20,7 @@ Project Truth and Test Stability
 
 ## Progress
 
-42%
+45%
 
 ---
 
@@ -49,12 +49,14 @@ Project Truth and Test Stability
 - Temporal Intelligence Layer
 - Causal Intelligence Layer
 - End-to-End Inference Pipeline
-- 295 Passing Tests
+- US10Y Yield Context Enrichment
+- CPI + Yield Trend Multi-Factor Knowledge Records
+- 299 Passing Tests
 
 ---
 
 ## Next
 
-- Add DXY/Yields Context Layer
-- Add Multi-Factor Knowledge Records
+- Add DXY Context Layer
+- Add Multi-Factor Context Comparison Report
 - Add Roadmap Gates for Intelligence Core
