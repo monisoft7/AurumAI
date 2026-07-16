@@ -46,9 +46,19 @@ runnable) are verified true for that phase's deliverables.
 - [x] Lesson Summary Aggregator
 - [x] Knowledge Memory Ingestion
 - [x] Evidence-Backed CPI Brain Lookup
+- [x] Feature Extraction Engine
+- [x] Knowledge Graph v0.1 on NetworkX
+- [x] Evidence Engine
+- [x] Reasoning Engine
+- [x] Decision Engine
+- [x] Learning Engine
+- [x] Economic Intelligence Layer
+- [x] Temporal Intelligence Layer
+- [x] Causal Intelligence Layer
+- [x] End-to-End Inference Pipeline
+- [x] Repository-local test temp isolation
 - [ ] DXY/Yields Context Layer
 - [ ] Multi-Factor Knowledge Records
-- [ ] Reasoning Engine Prototype
 - [ ] Technical Agent
 - [ ] Economic Agent
 - [ ] News Agent

@@ -15,6 +15,14 @@ dev = [
     "pytest",
 ]
 
+[tool.pytest.ini_options]
+addopts = [
+    "--basetemp=.pytest_tmp",
+]
+testpaths = [
+    "tests",
+]
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 

@@ -2,13 +2,13 @@
 
 ## Current Phase
 
-Data Engine Stabilization / Knowledge Engine Start
+Intelligence Core Stabilization
 
 ---
 
 ## Current Task
 
-Knowledge Engine Evidence Pipeline v1
+Project Truth and Test Stability
 
 ---
 
@@ -20,7 +20,7 @@ Knowledge Engine Evidence Pipeline v1
 
 ## Progress
 
-24%
+42%
 
 ---
 
@@ -39,6 +39,17 @@ Knowledge Engine Evidence Pipeline v1
 - CPI/Gold Lesson Summary Aggregator
 - Knowledge Memory Ingestion
 - Evidence-Backed CPI Brain Lookup
+- Feature Extraction Engine
+- NetworkX Knowledge Graph
+- Evidence Query and Ranking
+- Reasoning Engine
+- Decision Engine
+- Learning Engine
+- Economic Intelligence Layer
+- Temporal Intelligence Layer
+- Causal Intelligence Layer
+- End-to-End Inference Pipeline
+- 295 Passing Tests
 
 ---
 
@@ -46,5 +57,4 @@ Knowledge Engine Evidence Pipeline v1
 
 - Add DXY/Yields Context Layer
 - Add Multi-Factor Knowledge Records
-- Add Reasoning Engine Prototype
-- Update Roadmap Gates
+- Add Roadmap Gates for Intelligence Core

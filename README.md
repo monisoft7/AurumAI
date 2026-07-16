@@ -10,14 +10,16 @@ The project builds the connective intelligence between mature open-source tools
 instead of rebuilding indicators, backtesters, news APIs, broker wrappers,
 sentiment models, RAG frameworks, or vector databases.
 
-Current stage: Data Engine stabilization and Knowledge Engine start.
+Current stage: Intelligence Core stabilization.
 
 Current working pipeline:
 
 1. Build CPI/gold lessons.
 2. Aggregate lessons into knowledge records.
-3. Ingest knowledge into memory.
-4. Query the Brain for evidence-backed market understanding.
+3. Build a NetworkX knowledge graph.
+4. Query evidence from the graph.
+5. Build an explainable reasoning chain.
+6. Produce an advisory, evidence-backed decision.
 
 ```powershell
 py -3 src\teacher\build_lessons.py
@@ -31,5 +33,5 @@ operating doctrine. [PROJECT_IDENTITY.md](PROJECT_IDENTITY.md) remains as a
 historical CTO decision record and defers to the constitution wherever the
 two differ.
 
-See [docs/MIGRATION_PLAN.md](docs/MIGRATION_PLAN.md) for the current
-duplicate-module cleanup and knowledge-graph migration plan.
+The full test suite is configured to use a repository-local pytest temp
+directory so it remains runnable on locked-down Windows environments.

@@ -428,7 +428,7 @@ in the active architecture.
 
 ---
 
-## 16. Architecture TODO — Feature Extraction Layer
+## 16. Architecture Note — Feature Extraction Layer
 
 ### Context
 
@@ -452,14 +452,14 @@ PMI, GDP, DXY, Yields …), several problems will surface:
 
 ### Target Architecture
 
-A new `FeatureExtractionEngine` layer between `MacroEvent` and
+An active `FeatureExtractionEngine` layer between `MacroEvent` and
 `LessonBuilder`:
 
 ```
 MacroEvent
     │
     ▼
-FeatureExtractionEngine    ← NEW LAYER
+FeatureExtractionEngine
     │  - validates feature schema
     │  - normalises types and units
     │  - registers feature metadata (name, type, source, description)
@@ -491,7 +491,7 @@ Knowledge Builder → Brain
   *what* features it produces, not *how* to compute them.
   `FeatureExtractionEngine` handles *how*.
 
-### Migration Path
+### Migration Status
 
 1. Design the `Feature` metadata schema (dataclass or TypedDict).
 2. Add `feature_definitions` property to `MacroEvent` ABC (returns a
@@ -509,9 +509,9 @@ Knowledge Builder → Brain
 
 ### Status
 
-Design phase — not yet implemented.  This section describes the
-target architecture so every future change to `MacroEvent` or
-`LessonBuilder` can be made with the migration path in mind.
+Implemented and covered by the test suite. This section remains as the
+authoritative architecture note for future event types and feature
+extractors.
 
 ---
 
@@ -527,3 +527,8 @@ target architecture so every future change to `MacroEvent` or
   instead of a hand-written registry dict.  Legacy Layer documented in
   Section 13.  Architecture TODO — Feature Extraction Layer added as
   Section 16.
+- 2026-07-16: Updated repository truth after Intelligence Core expansion.
+  Recorded Feature Extraction Layer as implemented, aligned roadmap and
+  progress documents with the existing inference, reasoning, decision,
+  learning, temporal, causal, and economic intelligence layers, and
+  configured repository-local pytest temp isolation.

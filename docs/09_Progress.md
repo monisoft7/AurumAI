@@ -2,9 +2,7 @@
 
 ## Current Stage
 
-End of early Data Engine setup.
-
-Beginning of Knowledge Engine.
+Intelligence Core stabilization.
 
 ## Completed
 
@@ -23,14 +21,24 @@ Beginning of Knowledge Engine.
 - CPI/gold summary aggregation
 - Knowledge memory ingestion
 - Evidence-backed Brain lookup for CPI/gold context
+- Feature Extraction Engine
+- Knowledge Graph v0.1 using NetworkX
+- Evidence Engine
+- Reasoning Engine
+- Decision Engine
+- Learning Engine
+- Economic Intelligence Layer
+- Temporal Intelligence Layer
+- Causal Intelligence Layer
+- End-to-end Inference Pipeline
+- Repository-local pytest temp isolation
 
 ## CTO Assessment
 
-The repository has moved beyond pure foundation work. The first professional
-Knowledge Engine pipeline now exists. The system can generate lessons, summarize
-them into knowledge records, store those records in memory, and let the Brain
-retrieve evidence-backed market understanding. The system should still not add
-execution or trade decisions yet.
+The repository has moved beyond the early Knowledge Engine stage. It now has a
+working intelligence core that can move from lessons to knowledge, graph,
+evidence, reasoning, advisory decision, and learning primitives. Execution
+remains out of scope until backtesting and paper-trading gates exist.
 
 ## Completed Sprint 1
 
@@ -55,15 +63,14 @@ Build lesson aggregation:
 
 - CPI/gold lessons: 129
 - CPI/gold knowledge records: 6
-- Test suite: 7 passed
+- Test suite: 295 passed
 - Manual CPI memory rule removed; memory now uses `cpi_gold_summary_v1`
 
 ## Next Sprint
 
-Add context:
+Add context without changing the execution boundary:
 
 1. Add DXY or US10Y context around CPI events.
 2. Build multi-factor lesson records.
 3. Compare single-factor CPI knowledge against context-conditioned knowledge.
-4. Start a conservative Reasoning Engine prototype that explains confidence
-   without producing trade execution.
+4. Extend the existing reasoning path with context-conditioned evidence.
