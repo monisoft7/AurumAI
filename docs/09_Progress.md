@@ -35,6 +35,7 @@ Intelligence Core stabilization.
 - US10Y Yield Context Enrichment
 - CPI + Yield Trend Multi-Factor Knowledge Records
 - Multi-Factor Context Comparison Report
+- Pipeline Artifact for Context Comparison Report
 
 ## CTO Assessment
 
@@ -66,14 +67,14 @@ Build lesson aggregation:
 
 - CPI/gold lessons: 129
 - CPI/gold knowledge records: 6
-- Test suite: 299 passed
+- Test suite: 303 passed
 - Manual CPI memory rule removed; memory now uses `cpi_gold_summary_v1`
 
 ## Next Sprint
 
 Add context without changing the execution boundary:
 
-1. Persist the context comparison report as a first-class pipeline artifact.
-2. Compare single-factor CPI knowledge against CPI + US10Y context on real data.
+1. Run the pipeline comparison on real CPI and US10Y history.
+2. Inspect whether US10Y improves explanation quality or fragments evidence.
 3. Add DXY context only if the comparison report shows the context pattern is useful.
 4. Extend the existing reasoning path with context-conditioned evidence.

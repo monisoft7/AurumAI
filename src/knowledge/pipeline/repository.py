@@ -42,6 +42,27 @@ class PipelineRepository:
                 "query": result.context.query,
                 "reasoning_condition": result.context.reasoning_condition,
                 "reasoning_horizon": result.context.reasoning_horizon,
+                "yield_data_path": (
+                    None if result.context.yield_data_path is None
+                    else str(result.context.yield_data_path)
+                ),
+                "yield_context_lookback_days": result.context.yield_context_lookback_days,
+                "context_comparison_baseline_path": (
+                    None if result.context.context_comparison_baseline_path is None
+                    else str(result.context.context_comparison_baseline_path)
+                ),
+                "context_comparison_output_path": (
+                    None if result.context.context_comparison_output_path is None
+                    else str(result.context.context_comparison_output_path)
+                ),
+                "context_comparison_base_columns": (
+                    None if result.context.context_comparison_base_columns is None
+                    else list(result.context.context_comparison_base_columns)
+                ),
+                "context_comparison_context_columns": (
+                    None if result.context.context_comparison_context_columns is None
+                    else list(result.context.context_comparison_context_columns)
+                ),
             },
             "stages": stages_data,
         }

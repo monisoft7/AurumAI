@@ -17,6 +17,10 @@ class PipelineContext:
     min_samples_for_confidence: int = 12
     yield_data_path: Path | None = None
     yield_context_lookback_days: int = 30
+    context_comparison_baseline_path: Path | None = None
+    context_comparison_output_path: Path | None = None
+    context_comparison_base_columns: tuple[str, ...] | None = None
+    context_comparison_context_columns: tuple[str, ...] | None = None
     asset: str = "ASSET"
     query: str = ""
     reasoning_condition: dict[str, str] | None = None

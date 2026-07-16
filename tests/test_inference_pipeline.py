@@ -369,3 +369,66 @@ def test_pipeline_can_build_yield_context_conditioned_knowledge() -> None:
     for record in knowledge["records"]:
         assert set(record["condition"]) == {"cpi_pressure", "us10y_trend"}
     assert result.stages[0].references["yield_context_path"] == str(yield_path)
+
+
+def test_pipeline_persists_context_comparison_artifact() -> None:
+    base = runtime_dir("context_comparison_pipeline")
+    event_path = base / "cpi.csv"
+    gold_path = base / "gold.csv"
+    yield_path = base / "dgs10.csv"
+    write_csv(event_path, [
+        {"Date": "2020-01-01", "Value": 100.0},
+        {"Date": "2020-02-01", "Value": 101.0},
+        {"Date": "2020-03-01", "Value": 99.0},
+        {"Date": "2020-04-01", "Value": 102.0},
+    ])
+    write_csv(gold_path, gold_rows())
+    write_csv(yield_path, [
+        {"Date": "2019-12-01", "Value": 1.50},
+        {"Date": "2020-01-01", "Value": 1.60},
+        {"Date": "2020-02-01", "Value": 1.90},
+        {"Date": "2020-03-01", "Value": 1.70},
+        {"Date": "2020-04-01", "Value": 1.72},
+    ])
+
+    baseline_output = base / "baseline_output"
+    baseline_ctx = PipelineContext(
+        event=CPIEvent(),
+        event_data_path=event_path,
+        gold_path=gold_path,
+        output_dir=baseline_output,
+        knowledge_prefix="cpi_gold_summary_v1",
+        condition_columns=("cpi_pressure",),
+        asset="GOLD",
+    )
+    InferencePipeline().run(baseline_ctx)
+
+    contextual_output = base / "contextual_output"
+    report_path = contextual_output / "context_comparison.json"
+    contextual_ctx = PipelineContext(
+        event=CPIEvent(),
+        event_data_path=event_path,
+        gold_path=gold_path,
+        yield_data_path=yield_path,
+        output_dir=contextual_output,
+        knowledge_prefix="cpi_gold_yield_context_v1",
+        condition_columns=("cpi_pressure", "us10y_trend"),
+        context_comparison_baseline_path=baseline_output / "knowledge.json",
+        context_comparison_output_path=report_path,
+        context_comparison_base_columns=("cpi_pressure",),
+        context_comparison_context_columns=("us10y_trend",),
+        asset="GOLD",
+    )
+    result = InferencePipeline().run(contextual_ctx)
+
+    assert "compare_context" in result.stages_completed
+    assert report_path.exists()
+    saved_report = json.loads(report_path.read_text())
+    stage_output = result._stage_output("compare_context")
+    assert saved_report == stage_output
+    assert saved_report["report_type"] == "context_comparison"
+    assert saved_report["comparison_count"] >= 1
+    compare_stage = [
+        stage for stage in result.stages if stage.name == "compare_context"
+    ][0]
+    assert compare_stage.references["output_path"] == str(report_path)

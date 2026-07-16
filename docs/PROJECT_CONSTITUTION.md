@@ -539,3 +539,7 @@ extractors.
 - 2026-07-16: Added a context comparison report to evaluate single-factor
   knowledge against context-conditioned knowledge before accepting more macro
   context. This keeps context expansion data-driven instead of complexity-driven.
+- 2026-07-16: Wired context comparison into the inference pipeline as an
+  optional first-class artifact. The pipeline can now persist
+  `context_comparison.json` from a baseline knowledge summary and the current
+  context-conditioned summary.

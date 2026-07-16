@@ -4,6 +4,10 @@ import time
 from pathlib import Path
 
 from knowledge.builders.lesson_builder import LessonBuilder, LessonBuilderConfig
+from knowledge.context.comparison import (
+    ContextComparisonConfig,
+    ContextComparisonReport,
+)
 from knowledge.context.yields import YieldContextConfig, YieldContextEnricher
 from knowledge.lesson_summary import LessonSummaryAggregator, LessonSummaryConfig
 from knowledge.graph.builder import GraphBuilder
@@ -22,6 +26,8 @@ class InferencePipeline:
 
         self._stage_build_lessons(context, result)
         self._stage_build_knowledge(context, result)
+        if context.context_comparison_baseline_path is not None:
+            self._stage_compare_context(context, result)
         self._stage_build_graph(context, result)
         self._stage_query_evidence(context, result)
         self._stage_reason(context, result)
@@ -84,6 +90,45 @@ class InferencePipeline:
             summary,
             elapsed,
             {"lessons_path": str(lessons_path), "record_count": summary.get("record_count", 0)},
+        )
+
+    def _stage_compare_context(
+        self, context: PipelineContext, result: PipelineResult
+    ) -> None:
+        t0 = time.perf_counter()
+        current_knowledge_path = context.output_dir / "knowledge.json"
+        output_path = (
+            context.context_comparison_output_path
+            or context.output_dir / "context_comparison.json"
+        )
+        base_columns = (
+            context.context_comparison_base_columns
+            or context.condition_columns[:1]
+        )
+        context_columns = (
+            context.context_comparison_context_columns
+            or context.condition_columns[1:]
+        )
+        report = ContextComparisonReport(
+            ContextComparisonConfig(
+                baseline_path=context.context_comparison_baseline_path,
+                contextual_path=current_knowledge_path,
+                output_path=output_path,
+                base_condition_columns=base_columns,
+                context_condition_columns=context_columns,
+            )
+        ).build_and_save()
+        elapsed = (time.perf_counter() - t0) * 1000
+        result.add_stage(
+            "compare_context",
+            report,
+            elapsed,
+            {
+                "baseline_path": str(context.context_comparison_baseline_path),
+                "contextual_path": str(current_knowledge_path),
+                "output_path": str(output_path),
+                "comparison_count": report.get("comparison_count", 0),
+            },
         )
 
     def _stage_build_graph(

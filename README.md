@@ -25,8 +25,9 @@ The pipeline can optionally enrich lessons with US10Y yield context before
 knowledge aggregation, enabling multi-factor records such as CPI pressure plus
 yield trend.
 
-A context comparison report can compare single-factor knowledge against
-context-conditioned knowledge before the project accepts more macro context.
+The inference pipeline can persist a context comparison report that compares
+single-factor knowledge against context-conditioned knowledge before the project
+accepts more macro context.
 
 ```powershell
 py -3 src\teacher\build_lessons.py

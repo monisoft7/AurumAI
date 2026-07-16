@@ -60,8 +60,9 @@ runnable) are verified true for that phase's deliverables.
 - [x] US10Y Yield Context Layer
 - [x] CPI + Yield Trend Multi-Factor Knowledge Records
 - [x] Multi-Factor Context Comparison Report
+- [x] Pipeline Artifact for Context Comparison Report
 - [ ] DXY Context Layer
-- [ ] Pipeline Artifact for Context Comparison Report
+- [ ] Run Context Comparison on Real CPI/US10Y History
 - [ ] Technical Agent
 - [ ] Economic Agent
 - [ ] News Agent

@@ -52,12 +52,13 @@ US10Y Yield Context Layer
 - US10Y Yield Context Enrichment
 - CPI + Yield Trend Multi-Factor Knowledge Records
 - Multi-Factor Context Comparison Report
-- 299 Passing Tests
+- Pipeline Artifact for Context Comparison Report
+- 303 Passing Tests
 
 ---
 
 ## Next
 
 - Add DXY Context Layer
-- Add Pipeline Artifact for Context Comparison Report
+- Run Context Comparison on Real CPI/US10Y History
 - Add Roadmap Gates for Intelligence Core
