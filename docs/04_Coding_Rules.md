@@ -1,45 +1,10 @@
 # Coding Rules
 
-## Rule 1
+> **Canonical source:** [Project Constitution](PROJECT_CONSTITUTION.md)
 
-Never reinvent existing open-source solutions.
+This file is a reference only. All coding rules, standards, and non-negotiable
+rules are maintained in the [Project Constitution](PROJECT_CONSTITUTION.md):
 
----
-
-## Rule 2
-
-Every module must be independent.
-
----
-
-## Rule 3
-
-Every AI decision must be explainable.
-
----
-
-## Rule 4
-
-Every feature must have tests.
-
----
-
-## Rule 5
-
-Data first.
-
-AI second.
-
----
-
-## Rule 6
-
-Small commits.
-
-Daily progress.
-
----
-
-## Rule 7
-
-Everything must be documented.
+- **Non-Negotiable Rules** → Constitution Section 5
+- **Coding Standards** → Constitution Section 6
+- **Module Responsibilities** → Constitution Section 14

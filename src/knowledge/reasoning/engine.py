@@ -86,7 +86,7 @@ class ReasoningEngine:
         step_id = f"step_{index}"
         by_condition: dict[str, list[Evidence]] = {}
         for ev in evs:
-            cond_str = self._format_condition(ev.condition)
+            cond_str = f"{self._format_condition(ev.condition)} | horizon={ev.horizon_days}d"
             by_condition.setdefault(cond_str, []).append(ev)
 
         lines: list[str] = []

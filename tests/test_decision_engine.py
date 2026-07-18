@@ -17,6 +17,7 @@ from knowledge.decision.decision import (
     DECISION_NEUTRAL,
     DECISION_NEGATIVE,
     DECISION_STRONG_NEGATIVE,
+    DECISION_INSUFFICIENT_EVIDENCE,
     VALID_DECISION_TYPES,
 )
 from knowledge.decision.engine import DecisionEngine
@@ -81,7 +82,7 @@ def test_decision_type_values() -> None:
     assert DECISION_NEUTRAL == "NEUTRAL"
     assert DECISION_NEGATIVE == "NEGATIVE"
     assert DECISION_STRONG_NEGATIVE == "STRONG_NEGATIVE"
-    assert len(VALID_DECISION_TYPES) == 5
+    assert len(VALID_DECISION_TYPES) == 6
 
 
 # ── DecisionContext ────────────────────────────────────────────────────────
@@ -374,7 +375,7 @@ def test_engine_empty_chain() -> None:
     ctx_r = RCtx(event_type="CPI")
     chain = ReasoningEngine().reason(EvidenceCollection(), ctx_r)
     d = DecisionEngine().decide(chain)
-    assert d.decision_type == DECISION_NEUTRAL
+    assert d.decision_type == DECISION_INSUFFICIENT_EVIDENCE
     assert d.evidence_count == 0
     assert d.confidence == 0.0
 

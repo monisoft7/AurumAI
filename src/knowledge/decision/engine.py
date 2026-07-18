@@ -10,6 +10,7 @@ from knowledge.decision.decision import (
     DECISION_NEUTRAL,
     DECISION_NEGATIVE,
     DECISION_STRONG_NEGATIVE,
+    DECISION_INSUFFICIENT_EVIDENCE,
 )
 
 
@@ -18,6 +19,7 @@ class DecisionEngine:
         self,
         chain: ReasoningChain,
         context: DecisionContext | None = None,
+        min_evidence_count: int = 1,
     ) -> Decision:
         ctx = context or DecisionContext(
             event_type=chain.context.event_type,
@@ -25,7 +27,12 @@ class DecisionEngine:
         )
         avg_return = self._extract_avg_return(chain)
         confidence = chain.overall_confidence
-        decision_type = self._classify(avg_return, confidence)
+        decision_type = self._classify(
+            avg_return,
+            confidence,
+            chain.evidence_count,
+            min_evidence_count,
+        )
         explanation = self._build_explanation(
             decision_type, avg_return, confidence, chain
         )
@@ -56,7 +63,15 @@ class DecisionEngine:
                     return val
         return 0.0
 
-    def _classify(self, avg_return: float, confidence: float) -> str:
+    def _classify(
+        self,
+        avg_return: float,
+        confidence: float,
+        evidence_count: int,
+        min_evidence_count: int,
+    ) -> str:
+        if evidence_count < min_evidence_count:
+            return DECISION_INSUFFICIENT_EVIDENCE
         if avg_return > 1.0 and confidence >= 0.7:
             return DECISION_STRONG_POSITIVE
         if avg_return > 0 and confidence >= 0.5:

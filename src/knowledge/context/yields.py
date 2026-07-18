@@ -60,6 +60,7 @@ class YieldContextEnricher:
         df["Date"] = pd.to_datetime(df["Date"], errors="raise")
         df["Value"] = pd.to_numeric(df["Value"], errors="raise")
         df = df.sort_values("Date").drop_duplicates("Date", keep="last")
+        df = df.dropna(subset=["Value"])
         if df.empty:
             raise ValueError(f"{path} contains no yield observations.")
         return df.reset_index(drop=True)

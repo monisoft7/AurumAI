@@ -3,7 +3,7 @@ import shutil
 
 import pandas as pd
 
-from teacher.lesson_builder import LessonBuilder, LessonBuilderConfig
+from knowledge.builders.lesson_builder import LessonBuilder, LessonBuilderConfig
 
 
 def runtime_dir(name: str) -> Path:

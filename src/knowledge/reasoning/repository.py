@@ -4,6 +4,7 @@ from pathlib import Path
 from knowledge.reasoning.context import ReasoningContext
 from knowledge.reasoning.step import ReasoningStep
 from knowledge.reasoning.chain import ReasoningChain
+from knowledge.integrity.provenance import serialize_provenance, deserialize_provenance
 
 
 class ReasoningRepository:
@@ -30,6 +31,7 @@ class ReasoningRepository:
             "final_conclusion": chain.final_conclusion,
             "overall_confidence": chain.overall_confidence,
             "evidence_count": chain.evidence_count,
+            "provenance": serialize_provenance(chain.provenance),
             "metadata": chain.metadata,
         }
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -61,5 +63,6 @@ class ReasoningRepository:
             final_conclusion=payload.get("final_conclusion", ""),
             overall_confidence=payload.get("overall_confidence", 0.0),
             evidence_count=payload.get("evidence_count", 0),
+            provenance=deserialize_provenance(payload.get("provenance")),
             metadata=payload.get("metadata", {}),
         )

@@ -1,7 +1,48 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
+
+
+@dataclass(frozen=True)
+class StandardEventMetadata:
+    """Optional institutional metadata for a MacroEvent.
+
+    Every future MacroEvent implementation should provide these fields to
+    standardize economic calendar representation across all event types.
+    Existing implementations that predate this standard (e.g., CPIEvent)
+    return None from the metadata property; new implementations SHOULD
+    return a populated instance.
+
+    Fields follow the de facto industry schema used by TradingEconomics,
+    OpenBB EconomicCalendar, and similar economic calendar data providers.
+
+    Parameters
+    ----------
+    country:
+        ISO country code or name. Example: ``"US"``.
+    currency:
+        ISO 4217 currency code. Example: ``"USD"``.
+    unit:
+        Measurement unit. Example: ``"percent"``, ``"index"``, ``"points"``.
+    importance:
+        Market impact level. 1 = low, 2 = medium, 3 = high.
+    source:
+        Publishing authority. Example: ``"Bureau of Labor Statistics"``.
+    reference_period_type:
+        Frequency of the data. Example: ``"monthly"``, ``"quarterly"``,
+        ``"annual"``.
+    """
+
+    country: str | None = None
+    currency: str | None = None
+    unit: str | None = None
+    importance: int | None = None
+    source: str | None = None
+    reference_period_type: str | None = None
 
 
 class MacroEvent(ABC):
@@ -10,6 +51,9 @@ class MacroEvent(ABC):
     Every concrete event (CPI, NFP, FOMC, PPI, PMI, GDP, DXY, Yields …)
     implements this interface so the LessonBuilder, Knowledge Builder, and
     Brain can operate on it without knowing its internal details.
+
+    New implementations SHOULD also override *metadata* to declare the
+    standard economic calendar fields documented in StandardEventMetadata.
     """
 
     @property
@@ -38,6 +82,18 @@ class MacroEvent(ABC):
         """Knowledge version namespace used by Memory and the Brain.
         This is the key under which knowledge records are stored.
         Example: 'cpi_gold_summary_v1'."""
+
+    @property
+    def metadata(self) -> StandardEventMetadata | None:
+        """Optional standard economic event metadata.
+
+        Returns None by default for backward compatibility with event types
+        that predate this standard. New implementations SHOULD return a
+        StandardEventMetadata instance describing the event's fixed
+        institutional properties (country, currency, unit, importance,
+        source, reference_period_type).
+        """
+        return None
 
     @abstractmethod
     def load_and_extract(self, path: Path) -> pd.DataFrame:

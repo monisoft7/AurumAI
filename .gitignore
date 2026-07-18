@@ -51,6 +51,11 @@ coverage.xml
 .pytest_cache/
 .pytest_tmp/
 tests/_runtime/
+
+# Temporary files
+tmp*.csv
+institutional_validation_report.md
+
 cover/
 
 # Translations

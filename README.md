@@ -30,9 +30,6 @@ single-factor knowledge against context-conditioned knowledge before the project
 accepts more macro context.
 
 ```powershell
-py -3 src\teacher\build_lessons.py
-py -3 src\knowledge\build_knowledge.py
-py -3 src\knowledge\brain.py
 py -3 -m pytest -q
 ```
 

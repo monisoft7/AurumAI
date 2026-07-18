@@ -50,3 +50,7 @@
 | Name | URL | Status |
 |------|-----|--------|
 | PythonMetaTrader5 | https://github.com/Akinzou/MetaTrader5-Python | Approved |
+
+Research and adoption principles are governed by the
+[Project Constitution](../PROJECT_CONSTITUTION.md), Section 11 (Research
+Principles).

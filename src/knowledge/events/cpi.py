@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from knowledge.events.base import MacroEvent
+from knowledge.events.base import MacroEvent, StandardEventMetadata
 from knowledge.features.engine import FeatureExtractionEngine
 from knowledge.features.extractors.cpi import CPIFeatureExtractor
 
@@ -14,6 +14,17 @@ class CPIEvent(MacroEvent):
     lesson_version = "cpi_gold_v1"
     condition_columns = ["cpi_pressure"]
     knowledge_version = "cpi_gold_summary_v1"
+
+    @property
+    def metadata(self) -> StandardEventMetadata:
+        return StandardEventMetadata(
+            country="US",
+            currency="USD",
+            unit="percent",
+            importance=3,
+            source="Bureau of Labor Statistics",
+            reference_period_type="monthly",
+        )
 
     def __init__(self) -> None:
         self._extraction_engine = FeatureExtractionEngine()

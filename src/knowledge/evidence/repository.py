@@ -3,6 +3,7 @@ from pathlib import Path
 
 from knowledge.evidence.evidence import Evidence
 from knowledge.evidence.collection import EvidenceCollection
+from knowledge.integrity.provenance import serialize_provenance, deserialize_provenance
 
 
 class EvidenceRepository:
@@ -20,6 +21,7 @@ class EvidenceRepository:
                 "confidence": evidence.confidence,
                 "bias": evidence.bias,
                 "explanation": evidence.explanation,
+                "provenance": serialize_provenance(evidence.provenance),
                 "metadata": evidence.metadata,
             })
         payload = {"evidence_count": len(items), "items": items}
@@ -41,6 +43,7 @@ class EvidenceRepository:
                 confidence=item_data.get("confidence", 0.0),
                 bias=item_data.get("bias", ""),
                 explanation=item_data.get("explanation", ""),
+                provenance=deserialize_provenance(item_data.get("provenance")),
                 metadata=item_data.get("metadata", {}),
             ))
         return EvidenceCollection(items)

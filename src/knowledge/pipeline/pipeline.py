@@ -16,13 +16,19 @@ from knowledge.reasoning.engine import ReasoningEngine
 from knowledge.reasoning.context import ReasoningContext
 from knowledge.decision.engine import DecisionEngine
 from knowledge.decision.context import DecisionContext
+from knowledge.integrity.lineage import LineageRegistry, LineageRelationType
 from knowledge.pipeline.context import PipelineContext
 from knowledge.pipeline.result import PipelineResult
 
 
 class InferencePipeline:
-    def run(self, context: PipelineContext) -> PipelineResult:
+    def run(
+        self,
+        context: PipelineContext,
+        lineage_registry: LineageRegistry | None = None,
+    ) -> PipelineResult:
         result = PipelineResult(context)
+        self._lineage_registry = lineage_registry
 
         self._stage_build_lessons(context, result)
         self._stage_build_knowledge(context, result)
@@ -33,6 +39,7 @@ class InferencePipeline:
         self._stage_reason(context, result)
         self._stage_decide(context, result)
 
+        self._lineage_registry = None
         return result
 
     def _stage_build_lessons(
@@ -91,6 +98,27 @@ class InferencePipeline:
             elapsed,
             {"lessons_path": str(lessons_path), "record_count": summary.get("record_count", 0)},
         )
+        if self._lineage_registry is not None:
+            for record in summary.get("records", []):
+                for lesson_id in record.get("source_lesson_ids", []):
+                    self._lineage_registry.add(
+                        source_id=str(lesson_id),
+                        source_type="lesson",
+                        target_id=record["knowledge_id"],
+                        target_type="knowledge_record",
+                        relation_type=LineageRelationType.GENERATES,
+                        metadata={
+                            "source_artifact_path": record.get("source_artifact_path"),
+                            "source_artifact_sha256": record.get("source_artifact_sha256"),
+                        },
+                    )
+                    self._lineage_registry.add(
+                        source_id=str(context.event_data_path),
+                        source_type="source_data",
+                        target_id=str(lesson_id),
+                        target_type="lesson",
+                        relation_type=LineageRelationType.GENERATES,
+                    )
 
     def _stage_compare_context(
         self, context: PipelineContext, result: PipelineResult
@@ -152,10 +180,11 @@ class InferencePipeline:
         t0 = time.perf_counter()
         graph = result._stage_output("build_graph")
         query = EvidenceQuery(graph)
-        if context.reasoning_condition is not None:
-            evidence = query.by_condition(context.reasoning_condition)
-        else:
-            evidence = query.all()
+        evidence = query.matching(
+            event_type=context.event.event_type,
+            condition=context.reasoning_condition,
+            horizon_days=context.reasoning_horizon,
+        )
         elapsed = (time.perf_counter() - t0) * 1000
         result.add_stage(
             "query_evidence",
@@ -163,6 +192,15 @@ class InferencePipeline:
             elapsed,
             {"evidence_count": len(evidence)},
         )
+        if self._lineage_registry is not None:
+            for ev in evidence:
+                self._lineage_registry.add(
+                    source_id=ev.source_node_id,
+                    source_type="knowledge_record",
+                    target_id=ev.evidence_id,
+                    target_type="evidence",
+                    relation_type=LineageRelationType.REFERENCES,
+                )
 
     def _stage_reason(
         self, context: PipelineContext, result: PipelineResult
@@ -187,6 +225,19 @@ class InferencePipeline:
                 "overall_confidence": chain.overall_confidence,
             },
         )
+        if self._lineage_registry is not None:
+            seen_ids: set[str] = set()
+            for step in chain.steps:
+                for eid in step.supporting_evidence_ids:
+                    if eid not in seen_ids:
+                        seen_ids.add(eid)
+                        self._lineage_registry.add(
+                            source_id=eid,
+                            source_type="evidence",
+                            target_id=chain.chain_id,
+                            target_type="reasoning_chain",
+                            relation_type=LineageRelationType.REFERENCES,
+                        )
 
     def _stage_decide(
         self, context: PipelineContext, result: PipelineResult
@@ -198,7 +249,11 @@ class InferencePipeline:
             event_type=context.event.event_type,
             query=context.query,
         ) if context.query else None
-        decision = engine.decide(chain, context=dctx)
+        decision = engine.decide(
+            chain,
+            context=dctx,
+            min_evidence_count=context.min_evidence_count,
+        )
         elapsed = (time.perf_counter() - t0) * 1000
         result.add_stage(
             "decide",
@@ -210,3 +265,11 @@ class InferencePipeline:
                 "confidence": decision.confidence,
             },
         )
+        if self._lineage_registry is not None:
+            self._lineage_registry.add(
+                source_id=decision.reasoning_chain_id,
+                source_type="reasoning_chain",
+                target_id=decision.decision_id,
+                target_type="decision",
+                relation_type=LineageRelationType.GENERATES,
+            )

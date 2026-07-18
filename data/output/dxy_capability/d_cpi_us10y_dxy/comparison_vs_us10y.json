@@ -1,0 +1,1149 @@
+{
+  "asset": "GOLD",
+  "base_condition_columns": [
+    "cpi_pressure",
+    "us10y_trend"
+  ],
+  "baseline_knowledge_version": "cpi_us10y_v1",
+  "comparison_count": 45,
+  "comparisons": [
+    {
+      "average_return_delta_pct": -0.381654,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_down",
+        "us10y_trend": "yields_falling"
+      },
+      "baseline_average_return_pct": 1.224749,
+      "baseline_bias": "gold_positive_bias",
+      "baseline_confidence": 0.554942,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_falling_1D",
+      "baseline_sample_count": 7,
+      "confidence_delta": -0.179552,
+      "context_condition": {
+        "dxy_trend": "dxy_falling"
+      },
+      "contextual_average_return_pct": 0.843095,
+      "contextual_bias": "gold_positive_bias",
+      "contextual_confidence": 0.37539,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_falling_dxy_falling_1D",
+      "contextual_sample_count": 1,
+      "decision": "context_fragments_evidence",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_down_yields_falling_dxy_falling_1D has decision context_fragments_evidence, confidence delta -0.179552, and sample ratio 0.142857 versus its single-factor baseline.",
+      "horizon_days": 1,
+      "sample_ratio": 0.142857
+    },
+    {
+      "average_return_delta_pct": -2.269291,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_down",
+        "us10y_trend": "yields_falling"
+      },
+      "baseline_average_return_pct": 2.917226,
+      "baseline_bias": "gold_positive_bias",
+      "baseline_confidence": 0.708356,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_falling_5D",
+      "baseline_sample_count": 7,
+      "confidence_delta": -0.340772,
+      "context_condition": {
+        "dxy_trend": "dxy_falling"
+      },
+      "contextual_average_return_pct": 0.647935,
+      "contextual_bias": "gold_positive_bias",
+      "contextual_confidence": 0.367584,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_falling_dxy_falling_5D",
+      "contextual_sample_count": 1,
+      "decision": "context_fragments_evidence",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_down_yields_falling_dxy_falling_5D has decision context_fragments_evidence, confidence delta -0.340772, and sample ratio 0.142857 versus its single-factor baseline.",
+      "horizon_days": 5,
+      "sample_ratio": 0.142857
+    },
+    {
+      "average_return_delta_pct": -1.32328,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_down",
+        "us10y_trend": "yields_falling"
+      },
+      "baseline_average_return_pct": 4.344353,
+      "baseline_bias": "gold_positive_bias",
+      "baseline_confidence": 0.765441,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_falling_20D",
+      "baseline_sample_count": 7,
+      "confidence_delta": -0.302931,
+      "context_condition": {
+        "dxy_trend": "dxy_falling"
+      },
+      "contextual_average_return_pct": 3.021073,
+      "contextual_bias": "gold_positive_bias",
+      "contextual_confidence": 0.46251,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_falling_dxy_falling_20D",
+      "contextual_sample_count": 1,
+      "decision": "context_fragments_evidence",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_down_yields_falling_dxy_falling_20D has decision context_fragments_evidence, confidence delta -0.302931, and sample ratio 0.142857 versus its single-factor baseline.",
+      "horizon_days": 20,
+      "sample_ratio": 0.142857
+    },
+    {
+      "average_return_delta_pct": -0.074483,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_down",
+        "us10y_trend": "yields_falling"
+      },
+      "baseline_average_return_pct": 1.224749,
+      "baseline_bias": "gold_positive_bias",
+      "baseline_confidence": 0.554942,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_falling_1D",
+      "baseline_sample_count": 7,
+      "confidence_delta": -0.192265,
+      "context_condition": {
+        "dxy_trend": "dxy_flat"
+      },
+      "contextual_average_return_pct": 1.150266,
+      "contextual_bias": "gold_positive_bias",
+      "contextual_confidence": 0.362677,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_falling_dxy_flat_1D",
+      "contextual_sample_count": 4,
+      "decision": "context_weakens_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_down_yields_falling_dxy_flat_1D has decision context_weakens_explanation, confidence delta -0.192265, and sample ratio 0.571429 versus its single-factor baseline.",
+      "horizon_days": 1,
+      "sample_ratio": 0.571429
+    },
+    {
+      "average_return_delta_pct": 0.304979,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_down",
+        "us10y_trend": "yields_falling"
+      },
+      "baseline_average_return_pct": 2.917226,
+      "baseline_bias": "gold_positive_bias",
+      "baseline_confidence": 0.708356,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_falling_5D",
+      "baseline_sample_count": 7,
+      "confidence_delta": -0.112801,
+      "context_condition": {
+        "dxy_trend": "dxy_flat"
+      },
+      "contextual_average_return_pct": 3.222205,
+      "contextual_bias": "gold_positive_bias",
+      "contextual_confidence": 0.595555,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_falling_dxy_flat_5D",
+      "contextual_sample_count": 4,
+      "decision": "context_weakens_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_down_yields_falling_dxy_flat_5D has decision context_weakens_explanation, confidence delta -0.112801, and sample ratio 0.571429 versus its single-factor baseline.",
+      "horizon_days": 5,
+      "sample_ratio": 0.571429
+    },
+    {
+      "average_return_delta_pct": -0.144553,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_down",
+        "us10y_trend": "yields_falling"
+      },
+      "baseline_average_return_pct": 4.344353,
+      "baseline_bias": "gold_positive_bias",
+      "baseline_confidence": 0.765441,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_falling_20D",
+      "baseline_sample_count": 7,
+      "confidence_delta": -0.130782,
+      "context_condition": {
+        "dxy_trend": "dxy_flat"
+      },
+      "contextual_average_return_pct": 4.1998,
+      "contextual_bias": "gold_positive_bias",
+      "contextual_confidence": 0.634659,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_falling_dxy_flat_20D",
+      "contextual_sample_count": 4,
+      "decision": "context_weakens_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_down_yields_falling_dxy_flat_20D has decision context_weakens_explanation, confidence delta -0.130782, and sample ratio 0.571429 versus its single-factor baseline.",
+      "horizon_days": 20,
+      "sample_ratio": 0.571429
+    },
+    {
+      "average_return_delta_pct": 0.339793,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_down",
+        "us10y_trend": "yields_falling"
+      },
+      "baseline_average_return_pct": 1.224749,
+      "baseline_bias": "gold_positive_bias",
+      "baseline_confidence": 0.554942,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_falling_1D",
+      "baseline_sample_count": 7,
+      "confidence_delta": -0.109027,
+      "context_condition": {
+        "dxy_trend": "dxy_rising"
+      },
+      "contextual_average_return_pct": 1.564542,
+      "contextual_bias": "gold_positive_bias",
+      "contextual_confidence": 0.445915,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_falling_dxy_rising_1D",
+      "contextual_sample_count": 2,
+      "decision": "context_fragments_evidence",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_down_yields_falling_dxy_rising_1D has decision context_fragments_evidence, confidence delta -0.109027, and sample ratio 0.285714 versus its single-factor baseline.",
+      "horizon_days": 1,
+      "sample_ratio": 0.285714
+    },
+    {
+      "average_return_delta_pct": 0.524687,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_down",
+        "us10y_trend": "yields_falling"
+      },
+      "baseline_average_return_pct": 2.917226,
+      "baseline_bias": "gold_positive_bias",
+      "baseline_confidence": 0.708356,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_falling_5D",
+      "baseline_sample_count": 7,
+      "confidence_delta": -0.187346,
+      "context_condition": {
+        "dxy_trend": "dxy_rising"
+      },
+      "contextual_average_return_pct": 3.441913,
+      "contextual_bias": "gold_positive_bias",
+      "contextual_confidence": 0.52101,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_falling_dxy_rising_5D",
+      "contextual_sample_count": 2,
+      "decision": "context_fragments_evidence",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_down_yields_falling_dxy_rising_5D has decision context_fragments_evidence, confidence delta -0.187346, and sample ratio 0.285714 versus its single-factor baseline.",
+      "horizon_days": 5,
+      "sample_ratio": 0.285714
+    },
+    {
+      "average_return_delta_pct": 0.950747,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_down",
+        "us10y_trend": "yields_falling"
+      },
+      "baseline_average_return_pct": 4.344353,
+      "baseline_bias": "gold_positive_bias",
+      "baseline_confidence": 0.765441,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_falling_20D",
+      "baseline_sample_count": 7,
+      "confidence_delta": -0.182108,
+      "context_condition": {
+        "dxy_trend": "dxy_rising"
+      },
+      "contextual_average_return_pct": 5.2951,
+      "contextual_bias": "gold_positive_bias",
+      "contextual_confidence": 0.583333,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_falling_dxy_rising_20D",
+      "contextual_sample_count": 2,
+      "decision": "context_fragments_evidence",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_down_yields_falling_dxy_rising_20D has decision context_fragments_evidence, confidence delta -0.182108, and sample ratio 0.285714 versus its single-factor baseline.",
+      "horizon_days": 20,
+      "sample_ratio": 0.285714
+    },
+    {
+      "average_return_delta_pct": 0.524244,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_down",
+        "us10y_trend": "yields_flat"
+      },
+      "baseline_average_return_pct": -0.555547,
+      "baseline_bias": "gold_negative_bias",
+      "baseline_confidence": 0.497222,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_flat_1D",
+      "baseline_sample_count": 9,
+      "confidence_delta": -0.27097,
+      "context_condition": {
+        "dxy_trend": "dxy_falling"
+      },
+      "contextual_average_return_pct": -0.031303,
+      "contextual_bias": "gold_positive_bias",
+      "contextual_confidence": 0.226252,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_flat_dxy_falling_1D",
+      "contextual_sample_count": 3,
+      "decision": "context_weakens_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_down_yields_flat_dxy_falling_1D has decision context_weakens_explanation, confidence delta -0.27097, and sample ratio 0.333333 versus its single-factor baseline.",
+      "horizon_days": 1,
+      "sample_ratio": 0.333333
+    },
+    {
+      "average_return_delta_pct": 0.088968,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_down",
+        "us10y_trend": "yields_flat"
+      },
+      "baseline_average_return_pct": -1.238634,
+      "baseline_bias": "gold_negative_bias",
+      "baseline_confidence": 0.524545,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_flat_5D",
+      "baseline_sample_count": 9,
+      "confidence_delta": -0.253558,
+      "context_condition": {
+        "dxy_trend": "dxy_falling"
+      },
+      "contextual_average_return_pct": -1.149666,
+      "contextual_bias": "gold_negative_bias",
+      "contextual_confidence": 0.270987,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_flat_dxy_falling_5D",
+      "contextual_sample_count": 3,
+      "decision": "context_weakens_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_down_yields_flat_dxy_falling_5D has decision context_weakens_explanation, confidence delta -0.253558, and sample ratio 0.333333 versus its single-factor baseline.",
+      "horizon_days": 5,
+      "sample_ratio": 0.333333
+    },
+    {
+      "average_return_delta_pct": 0.935393,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_down",
+        "us10y_trend": "yields_flat"
+      },
+      "baseline_average_return_pct": 0.237974,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.417852,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_flat_20D",
+      "baseline_sample_count": 9,
+      "confidence_delta": -0.145917,
+      "context_condition": {
+        "dxy_trend": "dxy_falling"
+      },
+      "contextual_average_return_pct": 1.173367,
+      "contextual_bias": "gold_positive_bias",
+      "contextual_confidence": 0.271935,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_flat_dxy_falling_20D",
+      "contextual_sample_count": 3,
+      "decision": "context_weakens_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_down_yields_flat_dxy_falling_20D has decision context_weakens_explanation, confidence delta -0.145917, and sample ratio 0.333333 versus its single-factor baseline.",
+      "horizon_days": 20,
+      "sample_ratio": 0.333333
+    },
+    {
+      "average_return_delta_pct": 0.362209,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_down",
+        "us10y_trend": "yields_flat"
+      },
+      "baseline_average_return_pct": -0.555547,
+      "baseline_bias": "gold_negative_bias",
+      "baseline_confidence": 0.497222,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_flat_1D",
+      "baseline_sample_count": 9,
+      "confidence_delta": -0.264488,
+      "context_condition": {
+        "dxy_trend": "dxy_flat"
+      },
+      "contextual_average_return_pct": -0.193338,
+      "contextual_bias": "gold_negative_bias",
+      "contextual_confidence": 0.232734,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_flat_dxy_flat_1D",
+      "contextual_sample_count": 3,
+      "decision": "context_weakens_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_down_yields_flat_dxy_flat_1D has decision context_weakens_explanation, confidence delta -0.264488, and sample ratio 0.333333 versus its single-factor baseline.",
+      "horizon_days": 1,
+      "sample_ratio": 0.333333
+    },
+    {
+      "average_return_delta_pct": 0.635711,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_down",
+        "us10y_trend": "yields_flat"
+      },
+      "baseline_average_return_pct": -1.238634,
+      "baseline_bias": "gold_negative_bias",
+      "baseline_confidence": 0.524545,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_flat_5D",
+      "baseline_sample_count": 9,
+      "confidence_delta": -0.275428,
+      "context_condition": {
+        "dxy_trend": "dxy_flat"
+      },
+      "contextual_average_return_pct": -0.602923,
+      "contextual_bias": "gold_negative_bias",
+      "contextual_confidence": 0.249117,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_flat_dxy_flat_5D",
+      "contextual_sample_count": 3,
+      "decision": "context_weakens_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_down_yields_flat_dxy_flat_5D has decision context_weakens_explanation, confidence delta -0.275428, and sample ratio 0.333333 versus its single-factor baseline.",
+      "horizon_days": 5,
+      "sample_ratio": 0.333333
+    },
+    {
+      "average_return_delta_pct": -0.147543,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_down",
+        "us10y_trend": "yields_flat"
+      },
+      "baseline_average_return_pct": 0.237974,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.417852,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_flat_20D",
+      "baseline_sample_count": 9,
+      "confidence_delta": -0.189235,
+      "context_condition": {
+        "dxy_trend": "dxy_flat"
+      },
+      "contextual_average_return_pct": 0.090431,
+      "contextual_bias": "gold_negative_bias",
+      "contextual_confidence": 0.228617,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_flat_dxy_flat_20D",
+      "contextual_sample_count": 3,
+      "decision": "context_weakens_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_down_yields_flat_dxy_flat_20D has decision context_weakens_explanation, confidence delta -0.189235, and sample ratio 0.333333 versus its single-factor baseline.",
+      "horizon_days": 20,
+      "sample_ratio": 0.333333
+    },
+    {
+      "average_return_delta_pct": -0.886454,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_down",
+        "us10y_trend": "yields_flat"
+      },
+      "baseline_average_return_pct": -0.555547,
+      "baseline_bias": "gold_negative_bias",
+      "baseline_confidence": 0.497222,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_flat_1D",
+      "baseline_sample_count": 9,
+      "confidence_delta": -0.014542,
+      "context_condition": {
+        "dxy_trend": "dxy_rising"
+      },
+      "contextual_average_return_pct": -1.442001,
+      "contextual_bias": "gold_negative_bias",
+      "contextual_confidence": 0.48268,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_flat_dxy_rising_1D",
+      "contextual_sample_count": 3,
+      "decision": "context_neutral",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_down_yields_flat_dxy_rising_1D has decision context_neutral, confidence delta -0.014542, and sample ratio 0.333333 versus its single-factor baseline.",
+      "horizon_days": 1,
+      "sample_ratio": 0.333333
+    },
+    {
+      "average_return_delta_pct": -0.724678,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_down",
+        "us10y_trend": "yields_flat"
+      },
+      "baseline_average_return_pct": -1.238634,
+      "baseline_bias": "gold_negative_bias",
+      "baseline_confidence": 0.524545,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_flat_5D",
+      "baseline_sample_count": 9,
+      "confidence_delta": -0.221013,
+      "context_condition": {
+        "dxy_trend": "dxy_rising"
+      },
+      "contextual_average_return_pct": -1.963312,
+      "contextual_bias": "gold_negative_bias",
+      "contextual_confidence": 0.303532,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_flat_dxy_rising_5D",
+      "contextual_sample_count": 3,
+      "decision": "context_weakens_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_down_yields_flat_dxy_rising_5D has decision context_weakens_explanation, confidence delta -0.221013, and sample ratio 0.333333 versus its single-factor baseline.",
+      "horizon_days": 5,
+      "sample_ratio": 0.333333
+    },
+    {
+      "average_return_delta_pct": -0.78785,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_down",
+        "us10y_trend": "yields_flat"
+      },
+      "baseline_average_return_pct": 0.237974,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.417852,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_flat_20D",
+      "baseline_sample_count": 9,
+      "confidence_delta": -0.170857,
+      "context_condition": {
+        "dxy_trend": "dxy_rising"
+      },
+      "contextual_average_return_pct": -0.549876,
+      "contextual_bias": "gold_negative_bias",
+      "contextual_confidence": 0.246995,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_down_yields_flat_dxy_rising_20D",
+      "contextual_sample_count": 3,
+      "decision": "context_weakens_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_down_yields_flat_dxy_rising_20D has decision context_weakens_explanation, confidence delta -0.170857, and sample ratio 0.333333 versus its single-factor baseline.",
+      "horizon_days": 20,
+      "sample_ratio": 0.333333
+    },
+    {
+      "average_return_delta_pct": -0.026492,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_falling"
+      },
+      "baseline_average_return_pct": 0.020135,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.534139,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_falling_1D",
+      "baseline_sample_count": 27,
+      "confidence_delta": -0.125551,
+      "context_condition": {
+        "dxy_trend": "dxy_falling"
+      },
+      "contextual_average_return_pct": -0.006357,
+      "contextual_bias": "mixed_or_context_dependent",
+      "contextual_confidence": 0.408588,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_falling_dxy_falling_1D",
+      "contextual_sample_count": 9,
+      "decision": "context_weakens_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_falling_dxy_falling_1D has decision context_weakens_explanation, confidence delta -0.125551, and sample ratio 0.333333 versus its single-factor baseline.",
+      "horizon_days": 1,
+      "sample_ratio": 0.333333
+    },
+    {
+      "average_return_delta_pct": -0.052658,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_falling"
+      },
+      "baseline_average_return_pct": -0.331899,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.524387,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_falling_5D",
+      "baseline_sample_count": 27,
+      "confidence_delta": -0.034005,
+      "context_condition": {
+        "dxy_trend": "dxy_falling"
+      },
+      "contextual_average_return_pct": -0.384557,
+      "contextual_bias": "gold_negative_bias",
+      "contextual_confidence": 0.490382,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_falling_dxy_falling_5D",
+      "contextual_sample_count": 9,
+      "decision": "context_neutral",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_falling_dxy_falling_5D has decision context_neutral, confidence delta -0.034005, and sample ratio 0.333333 versus its single-factor baseline.",
+      "horizon_days": 5,
+      "sample_ratio": 0.333333
+    },
+    {
+      "average_return_delta_pct": -0.416725,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_falling"
+      },
+      "baseline_average_return_pct": 0.384612,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.526496,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_falling_20D",
+      "baseline_sample_count": 27,
+      "confidence_delta": -0.116878,
+      "context_condition": {
+        "dxy_trend": "dxy_falling"
+      },
+      "contextual_average_return_pct": -0.032113,
+      "contextual_bias": "mixed_or_context_dependent",
+      "contextual_confidence": 0.409618,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_falling_dxy_falling_20D",
+      "contextual_sample_count": 9,
+      "decision": "context_weakens_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_falling_dxy_falling_20D has decision context_weakens_explanation, confidence delta -0.116878, and sample ratio 0.333333 versus its single-factor baseline.",
+      "horizon_days": 20,
+      "sample_ratio": 0.333333
+    },
+    {
+      "average_return_delta_pct": 0.20399,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_falling"
+      },
+      "baseline_average_return_pct": 0.020135,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.534139,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_falling_1D",
+      "baseline_sample_count": 27,
+      "confidence_delta": 0.090211,
+      "context_condition": {
+        "dxy_trend": "dxy_flat"
+      },
+      "contextual_average_return_pct": 0.224125,
+      "contextual_bias": "gold_positive_bias",
+      "contextual_confidence": 0.62435,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_falling_dxy_flat_1D",
+      "contextual_sample_count": 13,
+      "decision": "context_improves_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_falling_dxy_flat_1D has decision context_improves_explanation, confidence delta 0.090211, and sample ratio 0.481481 versus its single-factor baseline.",
+      "horizon_days": 1,
+      "sample_ratio": 0.481481
+    },
+    {
+      "average_return_delta_pct": -0.028557,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_falling"
+      },
+      "baseline_average_return_pct": -0.331899,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.524387,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_falling_5D",
+      "baseline_sample_count": 27,
+      "confidence_delta": 0.059262,
+      "context_condition": {
+        "dxy_trend": "dxy_flat"
+      },
+      "contextual_average_return_pct": -0.360456,
+      "contextual_bias": "gold_positive_bias",
+      "contextual_confidence": 0.583649,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_falling_dxy_flat_5D",
+      "contextual_sample_count": 13,
+      "decision": "context_improves_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_falling_dxy_flat_5D has decision context_improves_explanation, confidence delta 0.059262, and sample ratio 0.481481 versus its single-factor baseline.",
+      "horizon_days": 5,
+      "sample_ratio": 0.481481
+    },
+    {
+      "average_return_delta_pct": 0.758649,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_falling"
+      },
+      "baseline_average_return_pct": 0.384612,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.526496,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_falling_20D",
+      "baseline_sample_count": 27,
+      "confidence_delta": 0.042311,
+      "context_condition": {
+        "dxy_trend": "dxy_flat"
+      },
+      "contextual_average_return_pct": 1.143261,
+      "contextual_bias": "mixed_or_context_dependent",
+      "contextual_confidence": 0.568807,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_falling_dxy_flat_20D",
+      "contextual_sample_count": 13,
+      "decision": "context_neutral",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_falling_dxy_flat_20D has decision context_neutral, confidence delta 0.042311, and sample ratio 0.481481 versus its single-factor baseline.",
+      "horizon_days": 20,
+      "sample_ratio": 0.481481
+    },
+    {
+      "average_return_delta_pct": -0.48269,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_falling"
+      },
+      "baseline_average_return_pct": 0.020135,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.534139,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_falling_1D",
+      "baseline_sample_count": 27,
+      "confidence_delta": -0.247303,
+      "context_condition": {
+        "dxy_trend": "dxy_rising"
+      },
+      "contextual_average_return_pct": -0.462555,
+      "contextual_bias": "gold_negative_bias",
+      "contextual_confidence": 0.286836,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_falling_dxy_rising_1D",
+      "contextual_sample_count": 5,
+      "decision": "context_weakens_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_falling_dxy_rising_1D has decision context_weakens_explanation, confidence delta -0.247303, and sample ratio 0.185185 versus its single-factor baseline.",
+      "horizon_days": 1,
+      "sample_ratio": 0.185185
+    },
+    {
+      "average_return_delta_pct": 0.169032,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_falling"
+      },
+      "baseline_average_return_pct": -0.331899,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.524387,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_falling_5D",
+      "baseline_sample_count": 27,
+      "confidence_delta": -0.249539,
+      "context_condition": {
+        "dxy_trend": "dxy_rising"
+      },
+      "contextual_average_return_pct": -0.162867,
+      "contextual_bias": "gold_positive_bias",
+      "contextual_confidence": 0.274848,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_falling_dxy_rising_5D",
+      "contextual_sample_count": 5,
+      "decision": "context_weakens_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_falling_dxy_rising_5D has decision context_weakens_explanation, confidence delta -0.249539, and sample ratio 0.185185 versus its single-factor baseline.",
+      "horizon_days": 5,
+      "sample_ratio": 0.185185
+    },
+    {
+      "average_return_delta_pct": -1.222386,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_falling"
+      },
+      "baseline_average_return_pct": 0.384612,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.526496,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_falling_20D",
+      "baseline_sample_count": 27,
+      "confidence_delta": -0.224652,
+      "context_condition": {
+        "dxy_trend": "dxy_rising"
+      },
+      "contextual_average_return_pct": -0.837774,
+      "contextual_bias": "gold_negative_bias",
+      "contextual_confidence": 0.301844,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_falling_dxy_rising_20D",
+      "contextual_sample_count": 5,
+      "decision": "context_weakens_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_falling_dxy_rising_20D has decision context_weakens_explanation, confidence delta -0.224652, and sample ratio 0.185185 versus its single-factor baseline.",
+      "horizon_days": 20,
+      "sample_ratio": 0.185185
+    },
+    {
+      "average_return_delta_pct": 0.212984,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_flat"
+      },
+      "baseline_average_return_pct": 0.137634,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.550186,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_flat_1D",
+      "baseline_sample_count": 47,
+      "confidence_delta": 0.063839,
+      "context_condition": {
+        "dxy_trend": "dxy_falling"
+      },
+      "contextual_average_return_pct": 0.350618,
+      "contextual_bias": "gold_positive_bias",
+      "contextual_confidence": 0.614025,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_flat_dxy_falling_1D",
+      "contextual_sample_count": 18,
+      "decision": "context_improves_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_flat_dxy_falling_1D has decision context_improves_explanation, confidence delta 0.063839, and sample ratio 0.382979 versus its single-factor baseline.",
+      "horizon_days": 1,
+      "sample_ratio": 0.382979
+    },
+    {
+      "average_return_delta_pct": -0.262017,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_flat"
+      },
+      "baseline_average_return_pct": 0.347335,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.533042,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_flat_5D",
+      "baseline_sample_count": 47,
+      "confidence_delta": 0.003704,
+      "context_condition": {
+        "dxy_trend": "dxy_falling"
+      },
+      "contextual_average_return_pct": 0.085318,
+      "contextual_bias": "mixed_or_context_dependent",
+      "contextual_confidence": 0.536746,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_flat_dxy_falling_5D",
+      "contextual_sample_count": 18,
+      "decision": "context_neutral",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_flat_dxy_falling_5D has decision context_neutral, confidence delta 0.003704, and sample ratio 0.382979 versus its single-factor baseline.",
+      "horizon_days": 5,
+      "sample_ratio": 0.382979
+    },
+    {
+      "average_return_delta_pct": -0.281746,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_flat"
+      },
+      "baseline_average_return_pct": 1.283427,
+      "baseline_bias": "gold_positive_bias",
+      "baseline_confidence": 0.62155,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_flat_20D",
+      "baseline_sample_count": 47,
+      "confidence_delta": 0.018517,
+      "context_condition": {
+        "dxy_trend": "dxy_falling"
+      },
+      "contextual_average_return_pct": 1.001681,
+      "contextual_bias": "gold_positive_bias",
+      "contextual_confidence": 0.640067,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_flat_dxy_falling_20D",
+      "contextual_sample_count": 18,
+      "decision": "context_neutral",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_flat_dxy_falling_20D has decision context_neutral, confidence delta 0.018517, and sample ratio 0.382979 versus its single-factor baseline.",
+      "horizon_days": 20,
+      "sample_ratio": 0.382979
+    },
+    {
+      "average_return_delta_pct": -0.336292,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_flat"
+      },
+      "baseline_average_return_pct": 0.137634,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.550186,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_flat_1D",
+      "baseline_sample_count": 47,
+      "confidence_delta": -0.04224,
+      "context_condition": {
+        "dxy_trend": "dxy_flat"
+      },
+      "contextual_average_return_pct": -0.198658,
+      "contextual_bias": "mixed_or_context_dependent",
+      "contextual_confidence": 0.507946,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_flat_dxy_flat_1D",
+      "contextual_sample_count": 16,
+      "decision": "context_neutral",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_flat_dxy_flat_1D has decision context_neutral, confidence delta -0.04224, and sample ratio 0.340426 versus its single-factor baseline.",
+      "horizon_days": 1,
+      "sample_ratio": 0.340426
+    },
+    {
+      "average_return_delta_pct": -0.320869,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_flat"
+      },
+      "baseline_average_return_pct": 0.347335,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.533042,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_flat_5D",
+      "baseline_sample_count": 47,
+      "confidence_delta": 0.043017,
+      "context_condition": {
+        "dxy_trend": "dxy_flat"
+      },
+      "contextual_average_return_pct": 0.026466,
+      "contextual_bias": "gold_negative_bias",
+      "contextual_confidence": 0.576059,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_flat_dxy_flat_5D",
+      "contextual_sample_count": 16,
+      "decision": "context_neutral",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_flat_dxy_flat_5D has decision context_neutral, confidence delta 0.043017, and sample ratio 0.340426 versus its single-factor baseline.",
+      "horizon_days": 5,
+      "sample_ratio": 0.340426
+    },
+    {
+      "average_return_delta_pct": 0.067463,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_flat"
+      },
+      "baseline_average_return_pct": 1.283427,
+      "baseline_bias": "gold_positive_bias",
+      "baseline_confidence": 0.62155,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_flat_20D",
+      "baseline_sample_count": 47,
+      "confidence_delta": 0.007486,
+      "context_condition": {
+        "dxy_trend": "dxy_flat"
+      },
+      "contextual_average_return_pct": 1.35089,
+      "contextual_bias": "gold_positive_bias",
+      "contextual_confidence": 0.629036,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_flat_dxy_flat_20D",
+      "contextual_sample_count": 16,
+      "decision": "context_neutral",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_flat_dxy_flat_20D has decision context_neutral, confidence delta 0.007486, and sample ratio 0.340426 versus its single-factor baseline.",
+      "horizon_days": 20,
+      "sample_ratio": 0.340426
+    },
+    {
+      "average_return_delta_pct": 0.118996,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_flat"
+      },
+      "baseline_average_return_pct": 0.137634,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.550186,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_flat_1D",
+      "baseline_sample_count": 47,
+      "confidence_delta": -0.016844,
+      "context_condition": {
+        "dxy_trend": "dxy_rising"
+      },
+      "contextual_average_return_pct": 0.25663,
+      "contextual_bias": "mixed_or_context_dependent",
+      "contextual_confidence": 0.533342,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_flat_dxy_rising_1D",
+      "contextual_sample_count": 13,
+      "decision": "context_neutral",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_flat_dxy_rising_1D has decision context_neutral, confidence delta -0.016844, and sample ratio 0.276596 versus its single-factor baseline.",
+      "horizon_days": 1,
+      "sample_ratio": 0.276596
+    },
+    {
+      "average_return_delta_pct": 0.75771,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_flat"
+      },
+      "baseline_average_return_pct": 0.347335,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.533042,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_flat_5D",
+      "baseline_sample_count": 47,
+      "confidence_delta": 0.126544,
+      "context_condition": {
+        "dxy_trend": "dxy_rising"
+      },
+      "contextual_average_return_pct": 1.105045,
+      "contextual_bias": "gold_positive_bias",
+      "contextual_confidence": 0.659586,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_flat_dxy_rising_5D",
+      "contextual_sample_count": 13,
+      "decision": "context_improves_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_flat_dxy_rising_5D has decision context_improves_explanation, confidence delta 0.126544, and sample ratio 0.276596 versus its single-factor baseline.",
+      "horizon_days": 5,
+      "sample_ratio": 0.276596
+    },
+    {
+      "average_return_delta_pct": 0.307079,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_flat"
+      },
+      "baseline_average_return_pct": 1.283427,
+      "baseline_bias": "gold_positive_bias",
+      "baseline_confidence": 0.62155,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_flat_20D",
+      "baseline_sample_count": 47,
+      "confidence_delta": -0.034853,
+      "context_condition": {
+        "dxy_trend": "dxy_rising"
+      },
+      "contextual_average_return_pct": 1.590506,
+      "contextual_bias": "mixed_or_context_dependent",
+      "contextual_confidence": 0.586697,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_flat_dxy_rising_20D",
+      "contextual_sample_count": 13,
+      "decision": "context_neutral",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_flat_dxy_rising_20D has decision context_neutral, confidence delta -0.034853, and sample ratio 0.276596 versus its single-factor baseline.",
+      "horizon_days": 20,
+      "sample_ratio": 0.276596
+    },
+    {
+      "average_return_delta_pct": -0.320689,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_rising"
+      },
+      "baseline_average_return_pct": 0.160806,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.514125,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_rising_1D",
+      "baseline_sample_count": 39,
+      "confidence_delta": -0.173206,
+      "context_condition": {
+        "dxy_trend": "dxy_falling"
+      },
+      "contextual_average_return_pct": -0.159883,
+      "contextual_bias": "mixed_or_context_dependent",
+      "contextual_confidence": 0.340919,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_rising_dxy_falling_1D",
+      "contextual_sample_count": 7,
+      "decision": "context_weakens_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_rising_dxy_falling_1D has decision context_weakens_explanation, confidence delta -0.173206, and sample ratio 0.179487 versus its single-factor baseline.",
+      "horizon_days": 1,
+      "sample_ratio": 0.179487
+    },
+    {
+      "average_return_delta_pct": -0.45074,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_rising"
+      },
+      "baseline_average_return_pct": -0.021798,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.508564,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_rising_5D",
+      "baseline_sample_count": 39,
+      "confidence_delta": -0.155139,
+      "context_condition": {
+        "dxy_trend": "dxy_falling"
+      },
+      "contextual_average_return_pct": -0.472538,
+      "contextual_bias": "mixed_or_context_dependent",
+      "contextual_confidence": 0.353425,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_rising_dxy_falling_5D",
+      "contextual_sample_count": 7,
+      "decision": "context_weakens_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_rising_dxy_falling_5D has decision context_weakens_explanation, confidence delta -0.155139, and sample ratio 0.179487 versus its single-factor baseline.",
+      "horizon_days": 5,
+      "sample_ratio": 0.179487
+    },
+    {
+      "average_return_delta_pct": -0.428173,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_rising"
+      },
+      "baseline_average_return_pct": 0.047789,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.540373,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_rising_20D",
+      "baseline_sample_count": 39,
+      "confidence_delta": -0.190634,
+      "context_condition": {
+        "dxy_trend": "dxy_falling"
+      },
+      "contextual_average_return_pct": -0.380384,
+      "contextual_bias": "mixed_or_context_dependent",
+      "contextual_confidence": 0.349739,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_rising_dxy_falling_20D",
+      "contextual_sample_count": 7,
+      "decision": "context_weakens_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_rising_dxy_falling_20D has decision context_weakens_explanation, confidence delta -0.190634, and sample ratio 0.179487 versus its single-factor baseline.",
+      "horizon_days": 20,
+      "sample_ratio": 0.179487
+    },
+    {
+      "average_return_delta_pct": 0.249994,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_rising"
+      },
+      "baseline_average_return_pct": 0.160806,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.514125,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_rising_1D",
+      "baseline_sample_count": 39,
+      "confidence_delta": 0.022307,
+      "context_condition": {
+        "dxy_trend": "dxy_flat"
+      },
+      "contextual_average_return_pct": 0.4108,
+      "contextual_bias": "mixed_or_context_dependent",
+      "contextual_confidence": 0.536432,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_rising_dxy_flat_1D",
+      "contextual_sample_count": 15,
+      "decision": "context_neutral",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_rising_dxy_flat_1D has decision context_neutral, confidence delta 0.022307, and sample ratio 0.384615 versus its single-factor baseline.",
+      "horizon_days": 1,
+      "sample_ratio": 0.384615
+    },
+    {
+      "average_return_delta_pct": 0.325832,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_rising"
+      },
+      "baseline_average_return_pct": -0.021798,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.508564,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_rising_5D",
+      "baseline_sample_count": 39,
+      "confidence_delta": 0.023597,
+      "context_condition": {
+        "dxy_trend": "dxy_flat"
+      },
+      "contextual_average_return_pct": 0.304034,
+      "contextual_bias": "mixed_or_context_dependent",
+      "contextual_confidence": 0.532161,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_rising_dxy_flat_5D",
+      "contextual_sample_count": 15,
+      "decision": "context_neutral",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_rising_dxy_flat_5D has decision context_neutral, confidence delta 0.023597, and sample ratio 0.384615 versus its single-factor baseline.",
+      "horizon_days": 5,
+      "sample_ratio": 0.384615
+    },
+    {
+      "average_return_delta_pct": 0.895023,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_rising"
+      },
+      "baseline_average_return_pct": 0.047789,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.540373,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_rising_20D",
+      "baseline_sample_count": 39,
+      "confidence_delta": 0.017339,
+      "context_condition": {
+        "dxy_trend": "dxy_flat"
+      },
+      "contextual_average_return_pct": 0.942812,
+      "contextual_bias": "mixed_or_context_dependent",
+      "contextual_confidence": 0.557712,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_rising_dxy_flat_20D",
+      "contextual_sample_count": 15,
+      "decision": "context_neutral",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_rising_dxy_flat_20D has decision context_neutral, confidence delta 0.017339, and sample ratio 0.384615 versus its single-factor baseline.",
+      "horizon_days": 20,
+      "sample_ratio": 0.384615
+    },
+    {
+      "average_return_delta_pct": -0.088535,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_rising"
+      },
+      "baseline_average_return_pct": 0.160806,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.514125,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_rising_1D",
+      "baseline_sample_count": 39,
+      "confidence_delta": 0.006413,
+      "context_condition": {
+        "dxy_trend": "dxy_rising"
+      },
+      "contextual_average_return_pct": 0.072271,
+      "contextual_bias": "mixed_or_context_dependent",
+      "contextual_confidence": 0.520538,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_rising_dxy_rising_1D",
+      "contextual_sample_count": 17,
+      "decision": "context_neutral",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_rising_dxy_rising_1D has decision context_neutral, confidence delta 0.006413, and sample ratio 0.435897 versus its single-factor baseline.",
+      "horizon_days": 1,
+      "sample_ratio": 0.435897
+    },
+    {
+      "average_return_delta_pct": -0.1019,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_rising"
+      },
+      "baseline_average_return_pct": -0.021798,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.508564,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_rising_5D",
+      "baseline_sample_count": 39,
+      "confidence_delta": 0.014031,
+      "context_condition": {
+        "dxy_trend": "dxy_rising"
+      },
+      "contextual_average_return_pct": -0.123698,
+      "contextual_bias": "mixed_or_context_dependent",
+      "contextual_confidence": 0.522595,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_rising_dxy_rising_5D",
+      "contextual_sample_count": 17,
+      "decision": "context_neutral",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_rising_dxy_rising_5D has decision context_neutral, confidence delta 0.014031, and sample ratio 0.435897 versus its single-factor baseline.",
+      "horizon_days": 5,
+      "sample_ratio": 0.435897
+    },
+    {
+      "average_return_delta_pct": -0.61342,
+      "base_condition": {
+        "cpi_pressure": "inflation_pressure_up",
+        "us10y_trend": "yields_rising"
+      },
+      "baseline_average_return_pct": 0.047789,
+      "baseline_bias": "mixed_or_context_dependent",
+      "baseline_confidence": 0.540373,
+      "baseline_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_rising_20D",
+      "baseline_sample_count": 39,
+      "confidence_delta": 0.070488,
+      "context_condition": {
+        "dxy_trend": "dxy_rising"
+      },
+      "contextual_average_return_pct": -0.565631,
+      "contextual_bias": "gold_negative_bias",
+      "contextual_confidence": 0.610861,
+      "contextual_knowledge_id": "CPI_GOLD_inflation_pressure_up_yields_rising_dxy_rising_20D",
+      "contextual_sample_count": 17,
+      "decision": "context_improves_explanation",
+      "explanation": "Context record CPI_GOLD_inflation_pressure_up_yields_rising_dxy_rising_20D has decision context_improves_explanation, confidence delta 0.070488, and sample ratio 0.435897 versus its single-factor baseline.",
+      "horizon_days": 20,
+      "sample_ratio": 0.435897
+    }
+  ],
+  "context_condition_columns": [
+    "dxy_trend"
+  ],
+  "contextual_knowledge_version": "cpi_us10y_dxy_v1",
+  "decision_counts": {
+    "context_fragments_evidence": 6,
+    "context_improves_explanation": 5,
+    "context_neutral": 15,
+    "context_weakens_explanation": 19
+  },
+  "event_type": "CPI",
+  "overall_assessment": "context_not_helpful_yet",
+  "report_type": "context_comparison"
+}

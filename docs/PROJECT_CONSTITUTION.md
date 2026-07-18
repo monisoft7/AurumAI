@@ -156,8 +156,8 @@ years, not just to ship a demo this quarter. Concretely, that means:
 - **Tests live next to the layer they test**, use deterministic fixtures
   (no live network calls in unit tests), and must pass before a sprint is
   considered complete.
-- **Config and secrets** are loaded through `src/core/config.py` and
-  environment variables only. Secrets are never hardcoded, never logged,
+- **Config and secrets** are loaded through environment variables (dotenv
+  via `python-dotenv`) only. Secrets are never hardcoded, never logged,
   and `.env` must never be assumed safe to print or commit.
 - **Formatting/quality tooling** (linter, formatter, type checker) should
   be adopted as soon as the codebase stabilizes past the current
@@ -329,11 +329,13 @@ Architectural rules:
 - `research/` - candidate evidence for future ADRs: papers, dataset
   sources, competing project comparisons. Not authoritative until
   promoted into an ADR.
-- `src/` - the installable `aurumai` package, organized by architectural
-  layer (`collectors/`, `knowledge/`, `database/`, `core/`, `utils/`).
-  Every subpackage under `src/` must map to exactly one layer from
-  Section 9. A subpackage that does not map cleanly to a layer is a sign
-  the architecture needs a decision, not a new folder.
+- `src/` - the installable `aurumai` package. Currently contains the
+  `knowledge/` subpackage (the Intelligence Core). Every subpackage under
+  `src/` must map to exactly one layer from Section 9. A subpackage that
+  does not map cleanly to a layer is a sign the architecture needs a
+  decision, not a new folder. Legacy subpackages (`collectors/`,
+  `database/`, `teacher/`, `core/`, `utils/`) have been removed following
+  the migration process in Section 15.
 - `tests/` - mirrors the `src/` layer structure closely enough that any
   reader can find the test for a module without guessing.
 - `data/` - local, regenerable artifacts (raw economic series, gold
@@ -342,35 +344,85 @@ Architectural rules:
   Data Source or produced by a script in `src/`.
 - `configs/`, `models/`, `notebooks/` - reserved for their stated purpose
   as the project grows into Reasoning/Decision layers; they must not
-  become dumping grounds for unrelated scripts.
-- `scripts/` - one-off operational or bootstrap scripts (e.g. sprint
-  scaffolding). A script that becomes permanent, load-bearing
-  infrastructure must be promoted into `src/`, not left in `scripts/`.
+  become dumping grounds for unrelated scripts. (Currently empty.)
+- `archive/` - historical sprint reports, review artifacts, and bootstrap
+  scripts retained for reference. Content here is not authoritative.
+- `scripts/` - (Removed; single historical script archived to `archive/scripts/`.)
 
 ---
 
 ## 14. Module Responsibilities
 
-- **`src/collectors/`** - one collector per external data source,
-  implementing the shared `BaseCollector` interface (`connect`,
-  `collect`, `validate`, `save`). A collector never analyzes data; it
-  only retrieves and validates shape.
-- **`src/database/`** - the persistence boundary. Today this is a
-  placeholder (`DataHub`, `DataRecord`); its responsibility is to give
-  the rest of the system one durable place to read/write collected data,
-  regardless of whether the backend is CSV, JSON, or a real database.
-- **`src/knowledge/`** - the Knowledge Engine. Owns lesson schemas,
+- **`src/knowledge/`** - the Intelligence Core. Owns lesson schemas,
   lesson building, lesson aggregation into knowledge records, the
-  knowledge graph, evidence, and the Brain's lookup interface. This is
-  the most mature and highest-priority layer today.
-- **`src/teacher/`** - historically the first home of lesson-building and
-  historical data bootstrap logic. Per Section 15, this is under active
-  migration and must not gain new functionality; new work happens in
-  `src/knowledge/`.
-- **`src/core/`** - shared configuration and cross-cutting settings.
-- **`src/utils/`** - stateless, reusable math/date helpers with no
-  knowledge of the domain schema (a utils function should work the same
-  whether the asset is gold or oil).
+  knowledge graph, evidence query and ranking, reasoning chains,
+  decision engine, learning engine, and three intelligence layers
+  (economic, temporal, causal). This is the only active subpackage in
+  `src/` and is the single source of truth for all intelligence behavior.
+  See [architecture/knowledge_engine.md](architecture/knowledge_engine.md)
+  for the canonical inference flow.
+- **`src/knowledge/integrity/`** - provenance tracking (created_at,
+  source, version, chain), lineage registry for full entity traceability,
+  and versioned store for append-only immutable history.
+- **`src/knowledge/orchestration/`** - adapter pattern around the canonical
+  `InferencePipeline`. Coordinates Economic + Temporal + Causal + Core
+  layers in one pass, aggregates evidence, and delegates reasoning and
+  decision to the canonical pipeline components.
+- **`src/knowledge/builders/`** - lesson construction. Contains the
+  canonical `lesson_builder.py` and supporting scripts.
+- **`src/knowledge/pipeline/`** - the `InferencePipeline` entry point.
+  Owns the 6-stage canonical pipeline (lessons → knowledge → graph →
+  evidence → reasoning → decision).
+- **`src/knowledge/decision/`** - decision engine and repository.
+- **`src/knowledge/reasoning/`** - reasoning engine and chain
+  construction.
+- **`src/knowledge/evidence/`** - evidence query, ranking, and
+  repository.
+- **`src/knowledge/graph/`** - knowledge graph construction and
+  repository.
+- **`src/knowledge/learning/`** - learning engine, session tracking, and
+  feedback generation.
+- **`src/knowledge/events/`** - event type definitions (CPIEvent,
+  MacroEvent ABC).
+- **`src/knowledge/features/`** - feature extraction engine and
+  extractors.
+- **`src/knowledge/economics/`** - economic intelligence layer (regime,
+  state, cycle classification).
+- **`src/knowledge/temporal/`** - temporal intelligence layer (time
+  indexing, querying, adapters).
+- **`src/knowledge/causal/`** - causal intelligence layer (relations,
+  hypotheses, analysis).
+- **`src/knowledge/context/`** - yield context enrichment (US10Y).
+- **`src/knowledge/models/`** - entity schemas (lesson, knowledge
+  record).
+- **`src/knowledge/repository/`** - lesson repository and
+  serialization.
+- **`src/knowledge/validation/`** - schema and data validation utilities.
+
+### Legacy Modules (Retained for Reference)
+
+Certain modules under `src/knowledge/` represent previous architectural
+iterations and are retained as a Legacy Layer. They are not "dead code":
+they document the evolution of the architecture and may become useful
+during future migrations as reference implementations.
+
+- **`src/knowledge/brain.py`** — `EconomicBrain` legacy compatibility
+  component (per ADR-0004).
+- **`src/knowledge/memory.py`** — flat `Memory` legacy compatibility
+  component (per ADR-0004).
+- **`src/knowledge/rules.py`** — `RULES` legacy fallback (per ADR-0004).
+- **`src/knowledge/lesson_summary.py`** — `LessonSummaryAggregator`
+  (active, wired into pipeline).
+- **`src/knowledge/build_knowledge.py`** — standalone script for
+  knowledge aggregation.
+- **`src/knowledge/builders/csv_to_lessons.py`** — early lesson schema
+  mapper, retained as migration reference.
+- **`src/knowledge/builders/historical_teacher.py`** — legacy bootstrap
+  logic, retained as migration reference.
+
+These modules are NOT wired into the current pipeline. They MUST NOT be
+deleted without an ADR decision, but they MUST NOT gain new functionality.
+New code belongs in the active architecture.
 
 ### Legacy Layer
 
@@ -543,3 +595,10 @@ extractors.
   optional first-class artifact. The pipeline can now persist
   `context_comparison.json` from a baseline knowledge summary and the current
   context-conditioned summary.
+- 2026-07-17: Core Repository Hygiene — removed legacy subpackages
+  (`collectors/`, `database/`, `teacher/`, `core/`, `utils/`, `main.py`)
+  following the Section 15 migration process. Updated Sections 13 and 14
+  to reflect the current `src/` structure (only `knowledge/` remains
+  active). Added `archive/` to repository organization. Established
+  Documentation Index (`docs/INDEX.md`) as the single source of truth for
+  topic locations and converted duplicate docs into canonical references.

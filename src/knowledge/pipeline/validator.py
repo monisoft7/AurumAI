@@ -13,23 +13,32 @@ class PipelineValidator:
         expected_order = [
             "build_lessons",
             "build_knowledge",
+        ]
+        if "compare_context" in stages:
+            expected_order.append("compare_context")
+        expected_order.extend([
             "build_graph",
             "query_evidence",
             "reason",
             "decide",
-        ]
+        ])
 
         for i, expected in enumerate(expected_order):
             if expected not in stages:
                 errors.setdefault("missing_stages", []).append(
                     f"Stage '{expected}' not found in pipeline result."
                 )
-            elif stages.index(expected) != i and expected in stages:
+            elif stages.index(expected) != i:
                 actual_pos = stages.index(expected)
-                if actual_pos != i:
-                    errors.setdefault("stage_order", []).append(
-                        f"Stage '{expected}' at position {actual_pos}, expected {i}."
-                    )
+                errors.setdefault("stage_order", []).append(
+                    f"Stage '{expected}' at position {actual_pos}, expected {i}."
+                )
+
+        unexpected = [stage for stage in stages if stage not in expected_order]
+        if unexpected:
+            errors["unexpected_stages"] = [
+                f"Unexpected stage '{stage}'." for stage in unexpected
+            ]
 
         for stage in stages:
             s = next(s for s in result.stages if s.name == stage)

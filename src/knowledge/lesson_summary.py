@@ -1,4 +1,5 @@
 import json
+import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -45,6 +46,7 @@ class LessonSummaryAggregator:
         return {
             "knowledge_version": self.config.knowledge_prefix,
             "source_lessons": str(self.config.lessons_path),
+            "source_artifact_sha256": self._sha256(self.config.lessons_path),
             "event_type": self.config.event_type,
             "asset": self.config.asset,
             "record_count": len(records),
@@ -102,6 +104,7 @@ class LessonSummaryAggregator:
     ) -> dict[str, object]:
         returns = group[f"gold_return_{horizon}d_pct"]
         directions = group[f"gold_direction_{horizon}d"]
+        source_lesson_ids = tuple(str(v) for v in sorted(group["lesson_id"].tolist()))
         sample_count = int(len(group))
         up_count = int((directions == "UP").sum())
         down_count = int((directions == "DOWN").sum())
@@ -117,6 +120,9 @@ class LessonSummaryAggregator:
             "knowledge_id": f"{self.config.event_type}_{self.config.asset}_{condition_suffix}_{horizon}D",
             "event_type": self.config.event_type,
             "asset": self.config.asset,
+            "source_lesson_ids": list(source_lesson_ids),
+            "source_artifact_path": str(self.config.lessons_path),
+            "source_artifact_sha256": self._sha256(self.config.lessons_path),
             "condition": dict(condition),
             "horizon_days": horizon,
             "sample_count": sample_count,
@@ -184,3 +190,6 @@ class LessonSummaryAggregator:
             f"in {positive_rate}% of cases, "
             f"with an average return of {round(float(average_return), 6)}%."
         )
+
+    def _sha256(self, path: Path) -> str:
+        return hashlib.sha256(path.read_bytes()).hexdigest()

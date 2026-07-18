@@ -181,3 +181,10 @@ Knowledge Engine.
 The next priority is to stabilize module contracts and create the first
 professional LessonBuilder pipeline that converts aligned CPI and gold history
 into versioned, testable lessons.
+
+## Related ADRs
+
+- [ADR-0004](docs/adr/ADR-0004-canonical-inference-path.md) — Canonical
+  Intelligence Inference Path. Defines the `InferencePipeline` as the canonical
+  entry point and establishes stabilization gates for the current Intelligence
+  Core.

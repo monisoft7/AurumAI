@@ -3,6 +3,7 @@ from pathlib import Path
 
 from knowledge.decision.context import DecisionContext
 from knowledge.decision.decision import Decision
+from knowledge.integrity.provenance import serialize_provenance, deserialize_provenance
 
 
 class DecisionRepository:
@@ -19,6 +20,7 @@ class DecisionRepository:
                 "query": decision.context.query,
                 "metadata": decision.context.metadata,
             },
+            "provenance": serialize_provenance(decision.provenance),
             "metadata": decision.metadata,
         }
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -40,5 +42,6 @@ class DecisionRepository:
             evidence_count=payload.get("evidence_count", 0),
             explanation=payload.get("explanation", ""),
             context=context,
+            provenance=deserialize_provenance(payload.get("provenance")),
             metadata=payload.get("metadata", {}),
         )

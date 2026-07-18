@@ -1,19 +1,11 @@
 import json
 from pathlib import Path
 
-from knowledge.pipeline.context import PipelineContext
 from knowledge.pipeline.result import PipelineResult
-from knowledge.events.base import MacroEvent
 from knowledge.graph.graph import KnowledgeGraph
-from knowledge.graph.node import GraphNode
-from knowledge.graph.relation import GraphRelation
 from knowledge.evidence.collection import EvidenceCollection
-from knowledge.evidence.evidence import Evidence
 from knowledge.reasoning.chain import ReasoningChain
-from knowledge.reasoning.step import ReasoningStep
-from knowledge.reasoning.context import ReasoningContext
 from knowledge.decision.decision import Decision
-from knowledge.decision.context import DecisionContext
 
 
 class PipelineRepository:
@@ -42,6 +34,7 @@ class PipelineRepository:
                 "query": result.context.query,
                 "reasoning_condition": result.context.reasoning_condition,
                 "reasoning_horizon": result.context.reasoning_horizon,
+                "min_evidence_count": result.context.min_evidence_count,
                 "yield_data_path": (
                     None if result.context.yield_data_path is None
                     else str(result.context.yield_data_path)

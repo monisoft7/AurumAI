@@ -25,4 +25,5 @@ class PipelineContext:
     query: str = ""
     reasoning_condition: dict[str, str] | None = None
     reasoning_horizon: int | None = None
+    min_evidence_count: int = 1
     metadata: dict[str, Any] = field(default_factory=dict)

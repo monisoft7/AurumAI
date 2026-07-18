@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Any
 
 from knowledge.decision.context import DecisionContext
+from knowledge.integrity.provenance import Provenance
 
 
 DECISION_STRONG_POSITIVE = "STRONG_POSITIVE"
@@ -9,6 +12,7 @@ DECISION_POSITIVE = "POSITIVE"
 DECISION_NEUTRAL = "NEUTRAL"
 DECISION_NEGATIVE = "NEGATIVE"
 DECISION_STRONG_NEGATIVE = "STRONG_NEGATIVE"
+DECISION_INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
 
 VALID_DECISION_TYPES = frozenset({
     DECISION_STRONG_POSITIVE,
@@ -16,6 +20,7 @@ VALID_DECISION_TYPES = frozenset({
     DECISION_NEUTRAL,
     DECISION_NEGATIVE,
     DECISION_STRONG_NEGATIVE,
+    DECISION_INSUFFICIENT_EVIDENCE,
 })
 
 
@@ -28,4 +33,5 @@ class Decision:
     evidence_count: int
     explanation: str
     context: DecisionContext
+    provenance: Provenance | None = None
     metadata: dict[str, Any] = field(default_factory=dict)

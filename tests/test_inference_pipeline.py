@@ -16,6 +16,7 @@ from knowledge.decision.decision import (
     DECISION_NEUTRAL,
     VALID_DECISION_TYPES,
 )
+from knowledge.integrity.lineage import LineageRegistry, LineageRelationType
 
 
 def runtime_dir(name: str) -> Path:
@@ -131,6 +132,11 @@ def test_pipeline_knowledge_stage() -> None:
     assert "records" in knowledge
     assert knowledge["record_count"] >= 1
     assert knowledge["knowledge_version"] == "cpi_gold_summary_v1"
+    assert len(knowledge["source_artifact_sha256"]) == 64
+    for record in knowledge["records"]:
+        assert record["source_lesson_ids"]
+        assert record["source_artifact_path"] == str(base / "output" / "lessons.csv")
+        assert record["source_artifact_sha256"] == knowledge["source_artifact_sha256"]
 
 
 def test_pipeline_graph_stage() -> None:
@@ -432,3 +438,86 @@ def test_pipeline_persists_context_comparison_artifact() -> None:
         stage for stage in result.stages if stage.name == "compare_context"
     ][0]
     assert compare_stage.references["output_path"] == str(report_path)
+
+
+def _lineage_test_context(base: str, name: str) -> PipelineContext:
+    event_path = base / "cpi.csv"
+    gold_path = base / "gold.csv"
+    write_csv(event_path, [
+        {"Date": "2020-01-01", "Value": 100.0},
+        {"Date": "2020-02-01", "Value": 101.0},
+        {"Date": "2020-03-01", "Value": 99.0},
+    ])
+    write_csv(gold_path, gold_rows())
+    return PipelineContext(
+        event=CPIEvent(),
+        event_data_path=event_path,
+        gold_path=gold_path,
+        output_dir=base / name,
+        knowledge_prefix="cpi_gold_summary_v1",
+        condition_columns=("cpi_pressure",),
+        asset="GOLD",
+    )
+
+
+def test_lineage_backward_decision_to_source_data() -> None:
+    base = runtime_dir("lineage_back")
+    ctx = _lineage_test_context(base, "output")
+    reg = LineageRegistry()
+    result = InferencePipeline().run(ctx, lineage_registry=reg)
+
+    decision = result.decision
+    assert decision is not None, "No decision produced"
+
+    path = reg.trace(decision.decision_id, "decision")
+    assert len(path) >= 4, (
+        f"Expected at least 4 lineage hops from decision to source_data, got {len(path)}"
+    )
+
+    all_source_ids = {r.source_id for r in path}
+    all_target_ids = {r.target_id for r in path}
+    all_ids = all_source_ids | all_target_ids
+
+    assert str(ctx.event_data_path) in all_ids, (
+        f"source_data '{ctx.event_data_path}' not reachable from decision '{decision.decision_id}'"
+    )
+    assert any(str(entity_id).startswith("CPI_GOLD_") for entity_id in all_ids), (
+        "No concrete lesson_id found in backward lineage trace"
+    )
+    entity_types = set()
+    for r in path:
+        entity_types.add(r.source_type)
+        entity_types.add(r.target_type)
+    for t in ("source_data", "lesson", "knowledge_record", "evidence", "reasoning_chain", "decision"):
+        assert t in entity_types, f"Entity type '{t}' missing from backward trace"
+
+
+def test_lineage_forward_source_data_to_decision() -> None:
+    base = runtime_dir("lineage_fwd")
+    ctx = _lineage_test_context(base, "output")
+    reg = LineageRegistry()
+    result = InferencePipeline().run(ctx, lineage_registry=reg)
+
+    decision = result.decision
+    assert decision is not None, "No decision produced"
+
+    source_data_id = str(ctx.event_data_path)
+    forward = reg.query(entity_id=source_data_id, direction="forward")
+    assert len(forward) >= 1, (
+        f"No forward records found from source_data '{source_data_id}'"
+    )
+
+    found_types: set[str] = set()
+    for r in reg.all_records():
+        found_types.add(r.source_type)
+        found_types.add(r.target_type)
+    for t in ("source_data", "lesson", "knowledge_record", "evidence", "reasoning_chain", "decision"):
+        assert t in found_types, f"Entity type '{t}' missing from lineage records"
+
+    entity_ids: set[str] = set()
+    for r in reg.all_records():
+        entity_ids.add(r.source_id)
+        entity_ids.add(r.target_id)
+    assert decision.decision_id in entity_ids, (
+        f"Decision '{decision.decision_id}' not reachable from source_data via forward queries"
+    )

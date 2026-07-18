@@ -33,6 +33,35 @@ class EvidenceQuery:
     def by_horizon(self, horizon_days: int) -> EvidenceCollection:
         return self.search(horizon_days=horizon_days)
 
+    def matching(
+        self,
+        event_type: str,
+        condition: dict[str, str] | None = None,
+        horizon_days: int | None = None,
+    ) -> EvidenceCollection:
+        """Return evidence satisfying every supplied inference constraint.
+
+        Conditions use subset matching so a query can target one dimension of a
+        multi-factor record without silently dropping event or horizon filters.
+        """
+        items: list[Evidence] = []
+        for node_id in self._graph._graph.nodes:
+            node = self._graph.get_node(node_id)
+            if node is None:
+                continue
+            evidence = self._node_to_evidence(node)
+            if evidence is None or evidence.event_type != event_type:
+                continue
+            if horizon_days is not None and evidence.horizon_days != horizon_days:
+                continue
+            if condition is not None and not all(
+                evidence.condition.get(key) == value
+                for key, value in condition.items()
+            ):
+                continue
+            items.append(evidence)
+        return EvidenceCollection(items)
+
     def by_node_id(self, node_id: str) -> Evidence | None:
         node = self._graph.get_node(node_id)
         if node is None:

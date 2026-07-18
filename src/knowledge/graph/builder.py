@@ -1,3 +1,5 @@
+from typing import Any
+
 from knowledge.graph.graph import KnowledgeGraph
 from knowledge.graph.node import GraphNode
 from knowledge.graph.relation import (
@@ -6,27 +8,36 @@ from knowledge.graph.relation import (
     RELATION_SAME_CONDITION,
     RELATION_SAME_HORIZON,
 )
+from knowledge.integrity.knowledge_record import KnowledgeRecord
+
+
+def _as_dict(record: dict[str, Any] | KnowledgeRecord) -> dict[str, Any]:
+    if isinstance(record, KnowledgeRecord):
+        return record.to_dict()
+    return record
 
 
 class GraphBuilder:
-    def build(self, records: list[dict]) -> KnowledgeGraph:
+    def build(self, records: list[dict[str, Any] | KnowledgeRecord]) -> KnowledgeGraph:
         graph = KnowledgeGraph()
         if not records:
             return graph
 
-        for record in records:
+        dicts = [_as_dict(r) for r in records]
+
+        for rec in dicts:
             node = GraphNode(
-                node_id=record["knowledge_id"],
+                node_id=rec["knowledge_id"],
                 node_type="knowledge_record",
-                properties=dict(record),
+                properties=dict(rec),
             )
             graph.add_node(node)
 
-        n = len(records)
+        n = len(dicts)
         for i in range(n):
             for j in range(i + 1, n):
-                a = records[i]
-                b = records[j]
+                a = dicts[i]
+                b = dicts[j]
                 aid = a["knowledge_id"]
                 bid = b["knowledge_id"]
 

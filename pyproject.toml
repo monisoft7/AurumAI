@@ -16,9 +16,6 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-addopts = [
-    "--basetemp=.pytest_tmp",
-]
 testpaths = [
     "tests",
 ]

@@ -1,5 +1,9 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Any
+
+from knowledge.integrity.provenance import Provenance
 
 
 @dataclass(frozen=True)
@@ -14,4 +18,5 @@ class Evidence:
     confidence: float
     bias: str
     explanation: str
+    provenance: Provenance | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
