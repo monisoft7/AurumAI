@@ -3,8 +3,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
+
+from knowledge.events.release_calendar import ReleaseCalendar
 
 
 @dataclass(frozen=True)
@@ -105,6 +108,55 @@ class MacroEvent(ABC):
         Must raise ``ValueError`` with a descriptive message if required
         columns are missing from the source data.
         """
+
+    def load_and_extract_with_calendar(
+        self,
+        path: Path,
+        release_calendar: ReleaseCalendar | None = None,
+    ) -> pd.DataFrame:
+        """Load event data and enrich with release/vintage metadata.
+
+        When *release_calendar* is provided, adds ``release_timestamp``,
+        ``reference_period``, and ``release_timezone`` columns. Raises
+        ``ValueError`` if any row's reference period is missing from the
+        calendar.
+
+        The default implementation calls ``load_and_extract(path)`` and
+        enriches the result. Subclasses may override for efficiency.
+        """
+        df = self.load_and_extract(path)
+        if release_calendar is None:
+            return df
+        return self._enrich_with_calendar(df, release_calendar)
+
+    def _enrich_with_calendar(
+        self,
+        df: pd.DataFrame,
+        calendar: ReleaseCalendar,
+    ) -> pd.DataFrame:
+        df = df.copy()
+        ref_col = "reference_period"
+        if ref_col not in df.columns:
+            df[ref_col] = df["Date"].dt.strftime("%Y-%m-%d")
+
+        matched: list[int] = []
+        timestamps: list[Any] = []
+        for idx, (_, row) in enumerate(df.iterrows()):
+            ref = str(row[ref_col])
+            rec = calendar.get(ref)
+            if rec is not None:
+                matched.append(idx)
+                timestamps.append(rec.release_timestamp_et)
+
+        if not matched:
+            raise ValueError(
+                "Release calendar matched zero reference periods"
+            )
+
+        df = df.iloc[matched].copy()
+        df["release_timestamp"] = timestamps
+        df["release_timezone"] = "US/Eastern"
+        return df
 
     @abstractmethod
     def build_lesson_fields(

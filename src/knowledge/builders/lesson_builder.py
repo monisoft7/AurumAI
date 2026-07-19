@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import pandas as pd
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 
-from knowledge.events.base import MacroEvent
-from knowledge.events.cpi import CPIEvent
+from knowledge.events.base import MacroEvent, ReleaseCalendar
+from knowledge.events.cpi import CPIEvent, DEFAULT_CPI_RELEASE_CALENDAR
 
 
 DEFAULT_HORIZONS = (1, 5, 20)
@@ -17,6 +19,7 @@ class LessonBuilderConfig:
     output_path: Path = Path("data/lessons/cpi_gold_lessons.csv")
     horizons: tuple[int, ...] = DEFAULT_HORIZONS
     min_abs_move_pct: float = 0.10
+    release_calendar_path: str | None = None
 
 
 class LessonBuilder:
@@ -29,9 +32,19 @@ class LessonBuilder:
     ):
         self.config = config or LessonBuilderConfig()
         self.event = event or CPIEvent()
+        self._release_calendar: ReleaseCalendar | None = None
+        cal_path = self.config.release_calendar_path
+        if cal_path:
+            self._release_calendar = ReleaseCalendar.from_csv(cal_path)
 
     def build(self) -> pd.DataFrame:
-        event_data = self.event.load_and_extract(self.config.event_data_path)
+        cal = self._release_calendar
+        if cal is not None:
+            event_data = self.event.load_and_extract_with_calendar(
+                self.config.event_data_path, cal
+            )
+        else:
+            event_data = self.event.load_and_extract(self.config.event_data_path)
         gold = self._load_gold(self.config.gold_path)
         lessons = self._build_lessons(event_data, gold, self.config.horizons)
         return pd.DataFrame(lessons)
@@ -62,12 +75,25 @@ class LessonBuilder:
         lessons: list[dict[str, object]] = []
         gold_dates = gold["Date"]
         first_gold_date = gold_dates.iloc[0]
+        has_release_ts = "release_timestamp" in event_data.columns
 
         for _, row in event_data.iterrows():
-            if row["Date"] < first_gold_date:
-                continue
-
-            anchor_index = self._first_gold_index_on_or_after(gold_dates, row["Date"])
+            if has_release_ts:
+                release_ts = row["release_timestamp"]
+                anchor_time = pd.Timestamp(release_ts).normalize()
+                if anchor_time < first_gold_date:
+                    continue
+                anchor_index = self._first_gold_index_on_or_after(
+                    gold_dates, anchor_time
+                )
+                alignment_method = "first_gold_session_on_or_after_release_timestamp"
+            else:
+                if row["Date"] < first_gold_date:
+                    continue
+                anchor_index = self._first_gold_index_on_or_after(
+                    gold_dates, row["Date"]
+                )
+                alignment_method = "first_gold_session_on_or_after_event_date"
             if anchor_index is None:
                 continue
 
@@ -79,15 +105,17 @@ class LessonBuilder:
             event_date = row["Date"].date().isoformat()
             anchor_date = anchor["Date"].date().isoformat()
 
-            lesson = {
+            lesson: dict[str, Any] = {
                 "lesson_id": f"{self.event.event_type}_GOLD_{event_date}",
                 "lesson_version": self.event.lesson_version,
                 "event_type": self.event.event_type,
                 "event_date": event_date,
                 "anchor_gold_date": anchor_date,
-                "alignment_method": "first_gold_session_on_or_after_event_date",
+                "alignment_method": alignment_method,
                 "gold_close_at_event": round(float(anchor["Close"]), 6),
             }
+            if has_release_ts:
+                lesson["release_timestamp"] = str(release_ts)
             lesson.update(self.event.build_lesson_fields(row, anchor_date))
 
             for horizon in horizons:

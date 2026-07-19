@@ -2,9 +2,12 @@ from pathlib import Path
 
 import pandas as pd
 
-from knowledge.events.base import MacroEvent, StandardEventMetadata
+from knowledge.events.base import MacroEvent, ReleaseCalendar, StandardEventMetadata
 from knowledge.features.engine import FeatureExtractionEngine
 from knowledge.features.extractors.cpi import CPIFeatureExtractor
+
+
+DEFAULT_CPI_RELEASE_CALENDAR = "data/calendar/cpi_releases.csv"
 
 
 class CPIEvent(MacroEvent):
@@ -26,9 +29,19 @@ class CPIEvent(MacroEvent):
             reference_period_type="monthly",
         )
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        release_calendar_path: str | None = None,
+    ) -> None:
         self._extraction_engine = FeatureExtractionEngine()
         self._extractor = CPIFeatureExtractor()
+        self._release_calendar: ReleaseCalendar | None = None
+        if release_calendar_path:
+            self._release_calendar = ReleaseCalendar.from_csv(release_calendar_path)
+
+    @property
+    def release_calendar(self) -> ReleaseCalendar | None:
+        return self._release_calendar
 
     def load_raw(self, path: Path) -> pd.DataFrame:
         df = pd.read_csv(path)
@@ -46,6 +59,18 @@ class CPIEvent(MacroEvent):
 
     def load_and_extract(self, path: Path) -> pd.DataFrame:
         raw = self.load_raw(path)
+        feature_set = self._extraction_engine.process(raw, self._extractor)
+        return feature_set.data
+
+    def load_and_extract_with_calendar(
+        self,
+        path: Path,
+        release_calendar: ReleaseCalendar | None = None,
+    ) -> pd.DataFrame:
+        raw = self.load_raw(path)
+        cal = release_calendar or self._release_calendar
+        if cal is not None:
+            raw = self._enrich_with_calendar(raw, cal)
         feature_set = self._extraction_engine.process(raw, self._extractor)
         return feature_set.data
 

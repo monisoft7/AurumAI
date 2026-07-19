@@ -244,11 +244,33 @@ class HistoricalReplayEngine:
         event_type: str,
         csv_path: Path,
     ) -> EventRunResult:
-        """Run the full institutional pipeline for a single event type."""
+        """Run the full institutional pipeline for a single event type.
+
+        Event types with a supported release calendar are replayed release by
+        release to enforce point-in-time data boundaries.  All others use the
+        legacy single-run path.
+        """
+        release_csv = self._release_calendar_path_for(event_type)
+        if release_csv is not None and release_csv.exists():
+            return self._replay_event_release_by_release(event_type, csv_path, release_csv)
+        return self._replay_event_legacy(event_type, csv_path)
+
+    @staticmethod
+    def _release_calendar_path_for(event_type: str) -> Path | None:
+        cal = {
+            "CPI": "calendar/cpi_releases.csv",
+        }.get(event_type)
+        return Path(cal) if cal else None
+
+    def _replay_event_legacy(
+        self,
+        event_type: str,
+        csv_path: Path,
+    ) -> EventRunResult:
+        """Original single-run replay path (no per-release iteration)."""
         output_dir = csv_path.parent / "output"
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Read row count before running
         event_count = self._count_csv_rows(csv_path)
 
         orch = InstitutionalOrchestrator.with_default_pipeline(
@@ -272,34 +294,250 @@ class HistoricalReplayEngine:
         )
         elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
-        success = len(assessment.errors) == 0
-        error = assessment.errors[0] if assessment.errors else None
+        return self._assessment_to_result(
+            event_type=event_type,
+            csv_path=csv_path,
+            assessment=assessment,
+            event_count=event_count,
+            elapsed_ms=elapsed_ms,
+        )
 
-        # Extract detailed outputs
+    # -- release-by-release replay -----------------------------------------
+
+    def _replay_event_release_by_release(
+        self,
+        event_type: str,
+        csv_path: Path,
+        calendar_path: Path,
+    ) -> EventRunResult:
+        """Replay one event type one release at a time.
+
+        For each release in the calendar (chronological order):
+
+        1. Build a snapshot CPI CSV containing all CPI observations whose
+           ``release_timestamp`` is at-or-before the current release.
+        2. Build a snapshot gold CSV filtered to rows at-or-before the
+           current release timestamp.
+        3. Run the full institutional pipeline on the snapshot.
+        4. Aggregate per-release results into a single |EventRunResult|.
+
+        Extra column ``release_timestamp`` survives ``load_and_extract()``
+        because ``FeatureExtractionEngine`` / ``FeatureSet`` pass through
+        all columns.  The ``LessonBuilder._build_lessons()`` method detects
+        the column and uses it for anchoring.
+        """
+        import shutil
+        import tempfile
+
+        import pandas as pd
+
+        output_dir = csv_path.parent / "output"
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # ---- load & prepare data -----------------------------------------
+
+        calendar = pd.read_csv(calendar_path)
+        if "release_timestamp" not in calendar.columns:
+            calendar["release_timestamp"] = (
+                calendar["release_date"] + " " + calendar["release_time"]
+            )
+        calendar["reference_period"] = pd.to_datetime(calendar["reference_period"], errors="coerce")
+        calendar["release_timestamp"] = pd.to_datetime(calendar["release_timestamp"], errors="coerce")
+        calendar = calendar.dropna(subset=["reference_period", "release_timestamp"])
+        calendar = calendar.sort_values("release_timestamp")
+        calendar = calendar[calendar["reference_period"] <= calendar["release_timestamp"]]
+
+        cpi_raw = pd.read_csv(csv_path)
+        cpi_raw["Date"] = pd.to_datetime(cpi_raw["Date"], errors="coerce")
+        cpi_raw = cpi_raw.dropna(subset=["Date"])
+        cpi_raw = cpi_raw.sort_values("Date")
+
+        cpi_merged = cpi_raw.merge(
+            calendar,
+            left_on="Date",
+            right_on="reference_period",
+            how="inner",
+        )
+        cpi_merged["release_timestamp"] = pd.to_datetime(cpi_merged["release_timestamp"])
+        cpi_merged = cpi_merged.sort_values("release_timestamp")
+
+        if len(cpi_merged) == 0:
+            return EventRunResult(
+                event_type=event_type,
+                event_date_min="",
+                event_date_max="",
+                event_count=0,
+                success=False,
+                execution_time_ms=0.0,
+                cache_hits=0,
+                checkpoints_used=0,
+                decision=None,
+                risk_decision=None,
+                forecast_model=None,
+                forecast_confidence=None,
+                validation_passed=None,
+                validation_metrics=None,
+                var_95=None,
+                cvar_95=None,
+                tail_index=None,
+                position_scaling=None,
+                risk_gate_action=None,
+                risk_gate_score=None,
+                error="No CPI rows matched release calendar; cannot replay release by release",
+                errors=("No CPI rows matched release calendar",),
+            )
+
+        gold = self._load_gold_data()
+        gold["Date"] = pd.to_datetime(gold["Date"], errors="coerce")
+        gold = gold.dropna(subset=["Date"]).sort_values("Date")
+
+        # ---- per-release loop --------------------------------------------
+
+        total_elapsed_ms = 0.0
+        total_cache_hits = 0
+        total_checkpoints = 0
+        release_count = 0
+        errors: list[str] = []
+        all_outputs: list[dict[str, Any]] = []
+        n_releases = len(cpi_merged)
+
+        for idx, (_cal_idx, release_row) in enumerate(cpi_merged.iterrows()):
+            as_of = release_row["release_timestamp"]
+
+            cpi_snapshot = cpi_merged[
+                cpi_merged["release_timestamp"] <= as_of
+            ].copy()
+            cpi_snapshot = cpi_snapshot[["Date", "Value", "release_timestamp"]]
+            cpi_snapshot["Date"] = cpi_snapshot["Date"].dt.strftime("%Y-%m-%d")
+            cpi_snapshot["release_timestamp"] = cpi_snapshot["release_timestamp"].dt.strftime("%Y-%m-%d %H:%M:%S")
+
+            gold_snapshot = gold[gold["Date"] <= as_of].copy()
+
+            tmp = Path(tempfile.mkdtemp(prefix="aurumai_release_"))
+            try:
+                tmp_cpi = tmp / "cpi.csv"
+                tmp_gold = tmp / "gold.csv"
+                cpi_snapshot.to_csv(tmp_cpi, index=False)
+                gold_snapshot.to_csv(tmp_gold, index=False)
+
+                orch = InstitutionalOrchestrator.with_default_pipeline(
+                    checkpoint_dir=self._checkpoint_dir,
+                    max_workers=self._max_workers,
+                )
+
+                pipeline_id = (
+                    f"sim_{event_type.lower()}_{as_of.strftime('%Y%m%d_%H%M%S')}"
+                )
+
+                t0 = time.perf_counter()
+                assessment = orch.run_all(
+                    trigger="historical_replay",
+                    pipeline_id=pipeline_id,
+                    force=True,
+                    event_type=event_type,
+                    data_path=str(tmp_cpi),
+                    gold_path=str(tmp_gold),
+                    output_dir=str(output_dir),
+                    asset="XAU/USD",
+                    horizon=self._horizon,
+                )
+                release_elapsed = (time.perf_counter() - t0) * 1000.0
+
+                total_elapsed_ms += release_elapsed
+                total_cache_hits += assessment.cache_hits
+                total_checkpoints += sum(
+                    1 for s in assessment.stages if s.checkpoint is not None
+                )
+                release_count += 1
+
+                if assessment.errors:
+                    errors.extend(
+                        f"[release {idx + 1}/{n_releases} as_of={as_of}] {e}"
+                        for e in assessment.errors
+                    )
+
+                finalize_out = assessment.outputs.get("finalize", {}) or {}
+                all_outputs.append(finalize_out)
+
+            finally:
+                shutil.rmtree(tmp, ignore_errors=True)
+
+        # ---- aggregate per-release result ---------------------------------
+
+        success = len(errors) == 0
+
+        date_min = cpi_merged["Date"].min().strftime("%Y-%m-%d")
+        date_max = cpi_merged["Date"].max().strftime("%Y-%m-%d")
+
+        final_finalize = all_outputs[-1] if all_outputs else {}
+        decision = self._extract_decision(final_finalize)
+        risk_decision = self._extract_risk_decision(final_finalize)
+        forecast_model = self._extract_forecast_model(final_finalize)
+        forecast_confidence = self._extract_forecast_confidence(final_finalize)
+        validation_passed, validation_metrics = self._extract_validation(final_finalize)
+        var_95, cvar_95, tail_index = self._extract_risk_metrics(final_finalize)
+        position_scaling = self._extract_position_scaling(final_finalize)
+        risk_gate_action, risk_gate_score = self._extract_risk_gate(final_finalize)
+
+        return EventRunResult(
+            event_type=event_type,
+            event_date_min=date_min,
+            event_date_max=date_max,
+            event_count=release_count,
+            success=success,
+            execution_time_ms=total_elapsed_ms,
+            cache_hits=total_cache_hits,
+            checkpoints_used=total_checkpoints,
+            decision=decision,
+            risk_decision=risk_decision,
+            forecast_model=forecast_model,
+            forecast_confidence=forecast_confidence,
+            validation_passed=validation_passed,
+            validation_metrics=validation_metrics,
+            var_95=var_95,
+            cvar_95=cvar_95,
+            tail_index=tail_index,
+            position_scaling=position_scaling,
+            risk_gate_action=risk_gate_action,
+            risk_gate_score=risk_gate_score,
+            error=errors[0] if errors else None,
+            errors=tuple(errors),
+        )
+
+    # -- common result builder ---------------------------------------------
+
+    @staticmethod
+    def _assessment_to_result(
+        event_type: str,
+        csv_path: Path,
+        assessment: Any,
+        event_count: int,
+        elapsed_ms: float,
+    ) -> EventRunResult:
+        """Convert a single |InstitutionalAssessment| into an |EventRunResult|."""
         finalize_out = assessment.outputs.get("finalize", {}) or {}
 
-        decision = self._extract_decision(finalize_out)
-        risk_decision = self._extract_risk_decision(finalize_out)
-        forecast_model = self._extract_forecast_model(finalize_out)
-        forecast_confidence = self._extract_forecast_confidence(finalize_out)
-        validation_passed, validation_metrics = self._extract_validation(finalize_out)
-        var_95, cvar_95, tail_index = self._extract_risk_metrics(finalize_out)
-        position_scaling = self._extract_position_scaling(finalize_out)
-        risk_gate_action, risk_gate_score = self._extract_risk_gate(finalize_out)
+        decision = HistoricalReplayEngine._extract_decision(finalize_out)
+        risk_decision = HistoricalReplayEngine._extract_risk_decision(finalize_out)
+        forecast_model = HistoricalReplayEngine._extract_forecast_model(finalize_out)
+        forecast_confidence = HistoricalReplayEngine._extract_forecast_confidence(finalize_out)
+        validation_passed, validation_metrics = HistoricalReplayEngine._extract_validation(finalize_out)
+        var_95, cvar_95, tail_index = HistoricalReplayEngine._extract_risk_metrics(finalize_out)
+        position_scaling = HistoricalReplayEngine._extract_position_scaling(finalize_out)
+        risk_gate_action, risk_gate_score = HistoricalReplayEngine._extract_risk_gate(finalize_out)
 
         checkpoints_used = sum(
             1 for s in assessment.stages if s.checkpoint is not None
         )
 
-        # Parse event date range from the raw CSV (first/last data points)
-        date_min, date_max = self._csv_date_range(csv_path)
+        date_min, date_max = HistoricalReplayEngine._csv_date_range(csv_path)
 
         return EventRunResult(
             event_type=event_type,
             event_date_min=date_min,
             event_date_max=date_max,
             event_count=event_count,
-            success=success,
+            success=len(assessment.errors) == 0,
             execution_time_ms=elapsed_ms,
             cache_hits=assessment.cache_hits,
             checkpoints_used=checkpoints_used,
@@ -315,7 +553,7 @@ class HistoricalReplayEngine:
             position_scaling=position_scaling,
             risk_gate_action=risk_gate_action,
             risk_gate_score=risk_gate_score,
-            error=error,
+            error=assessment.errors[0] if assessment.errors else None,
             errors=assessment.errors,
         )
 
@@ -396,6 +634,11 @@ class HistoricalReplayEngine:
             return len(df)
         except Exception:
             return 0
+
+    def _load_gold_data(self) -> pd.DataFrame:
+        import pandas as pd
+        df = pd.read_csv(self._gold_path)
+        return df
 
     @staticmethod
     def _csv_date_range(path: Path) -> tuple[str, str]:
