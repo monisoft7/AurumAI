@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Any
 
+from knowledge._compat import FrozenDict, freeze_dict
+
 CALENDAR_CALENDAR = "calendar"
 CALENDAR_BUSINESS = "business"
 
@@ -27,4 +29,7 @@ class TimeContext:
     timezone: str = "UTC"
     frequency: str = FREQUENCY_DAILY
     business_calendar: str | None = None
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=lambda: FrozenDict())
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "metadata", freeze_dict(self.metadata))

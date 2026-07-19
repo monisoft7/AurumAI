@@ -139,7 +139,9 @@ class OrchestrationEngine:
                 regimes = ctx.economic_adapter.regimes_at_date(state.date, ctx.economic_states)
                 for regime in regimes:
                     ev = ctx.economic_adapter.regime_to_evidence(regime)
-                    ev.metadata["_source_layer"] = "economic"
+                    new_meta = dict(ev.metadata)
+                    new_meta["_source_layer"] = "economic"
+                    object.__setattr__(ev, "metadata", new_meta)
                     items.append(ev)
         return EvidenceCollection(items)
 
@@ -148,7 +150,9 @@ class OrchestrationEngine:
             return EvidenceCollection()
         items = ctx.temporal_adapter.indexer_to_evidence(ctx.temporal_indexer)
         for ev in items:
-            ev.metadata["_source_layer"] = "temporal"
+            new_meta = dict(ev.metadata)
+            new_meta["_source_layer"] = "temporal"
+            object.__setattr__(ev, "metadata", new_meta)
         return EvidenceCollection(items)
 
     def _run_causal(self, ctx: OrchestrationContext) -> EvidenceCollection:
@@ -156,7 +160,9 @@ class OrchestrationEngine:
             return EvidenceCollection()
         items = [_causal_relation_to_evidence(r) for r in ctx.causal_graph.all_relations()]
         for ev in items:
-            ev.metadata["_source_layer"] = "causal"
+            new_meta = dict(ev.metadata)
+            new_meta["_source_layer"] = "causal"
+            object.__setattr__(ev, "metadata", new_meta)
         return EvidenceCollection(items)
 
     def _run_core(self, ctx: OrchestrationContext) -> EvidenceCollection:
@@ -171,7 +177,9 @@ class OrchestrationEngine:
                 horizon_days=ctx.horizon_days,
             )
             for ev in coll:
-                ev.metadata["_source_layer"] = "core"
+                new_meta = dict(ev.metadata)
+                new_meta["_source_layer"] = "core"
+                object.__setattr__(ev, "metadata", new_meta)
             all_items.extend(coll)
         return EvidenceCollection(all_items)
 

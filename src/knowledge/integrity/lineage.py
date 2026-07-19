@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
+from knowledge._compat import FrozenDict, freeze_dict
+
 
 class LineageRelationType:
     DERIVES_FROM = "derives_from"
@@ -20,7 +22,10 @@ class LineageRecord:
     target_type: str
     relation_type: str
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=lambda: FrozenDict())
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "metadata", freeze_dict(self.metadata))
 
 
 class LineageRegistry:

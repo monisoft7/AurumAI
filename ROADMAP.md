@@ -289,62 +289,161 @@ Dependency flow:
 
 ---
 
-## Phase 16 — Forecasting & Risk
+## Phase 16 — Forecasting
 
 ### 16.1 Time Series Forecasting
 | Field | Value |
 |-------|-------|
-| **Purpose** | Forecast macro indicators (CPI, GDP, unemployment) and gold price trends using statistical and ML models. Provides forecast features for reasoning. |
-| **Reuse** | **Reuse** — `statsforecast` (Nixtla, MIT). 500x faster than Prophet. AutoARIMA, ETS, Theta, MSTL. |
+| **Purpose** | Forecast macro indicators (CPI, GDP, unemployment) and gold price trends using statistical models. Provides forecast features for reasoning. |
+| **Reuse** | **Reuse** — `statsforecast` (Nixtla, Apache 2.0). AutoARIMA, AutoETS, AutoTheta. |
 | **Dependencies** | Historical data pipelines |
 | **Complexity** | Low |
-| **Output** | MacroForecaster adapter producing forecast feature columns |
+| **Output** | `MacroForecaster` at `src/forecasting/macro_forecaster.py` — thin adapter wrapping StatsForecast. `ForecastResult` frozen dataclass with forecast values + 95% prediction intervals. |
+| **Status** | ✅ Capability 16.1 — Time Series Forecasting |
 
-### 16.2 Risk Management Engine
+### 16.2 Risk Intelligence (Phase 17)
 | Field | Value |
 |-------|-------|
-| **Purpose** | Portfolio-level risk assessment: VaR, CVaR, drawdown analysis, position sizing constraints. Feeds risk-weighted confidence into Decision Engine. |
-| **Reuse** | **Adapt** — `Pyfolio` (Apache 2.0) for tear sheets + `squarequant` (MIT) for VaR/CVaR |
-| **Dependencies** | All event types, Backtesting (17.1) |
+| **Purpose** | Portfolio-level risk assessment: VaR, CVaR, tail-risk detection, drawdown analysis, position sizing constraints. Feeds risk-weighted confidence into Decision Gate. |
+| **Reuse** | **Build** — pure numpy/pandas implementation. VaR/CVaR (~50 lines), TailRiskDetector (~80 lines). Zero new dependencies. |
+| **Dependencies** | Forecast Intelligence (ForecastConfidence, ForecastContext, ForecastValidator) |
 | **Complexity** | Medium |
+| **Status** | ✅ Phase 17.1 Complete (Core Risk Measures) |
 
 ---
 
-## Phase 17 — Validation & Backtesting
+## Phase 17 — Risk Intelligence
 
-### 17.1 Backtesting Engine
+Risk Intelligence is an **advisory layer**. It evaluates institutional risk. It does NOT make trading decisions. DecisionEngine remains the only component allowed to issue decisions. Execution remains outside Phase 17.
+
+### 17.1 Core Risk Measures ✅
 | Field | Value |
 |-------|-------|
-| **Purpose** | Test AurumAI decision quality against historical data. Simulate decision→execution with realistic slippage, commissions, holding periods. |
-| **Reuse** | **Adapt** — `vectorbt` (CC BY-NC 4.0) for fast vectorized backtesting or `backtrader` (GPL v3) for event-driven realism |
-| **Dependencies** | All event types, all intelligence layers, LessonBuilder with multiple event types |
-| **Complexity** | High |
-| **Priority** | Before paper trading; after all macro events |
+| **Purpose** | VaR (historical + parametric), CVaR, tail-risk detection via Peaks-over-Threshold EVT. `RiskMetrics` frozen dataclass. |
+| **Reuse** | **Build** — pure numpy + math. No external dependencies beyond project std. |
+| **Dependencies** | None |
+| **Complexity** | Low |
+| **Output** | `RiskMetrics`, `compute_var`, `compute_cvar`, `TailRiskDetector` at `src/forecasting/risk_measures.py` |
+| **Tests** | 36 tests |
 
-### 17.2 Portfolio Optimization
+### 17.2 Position Sizing ✅
 | Field | Value |
 |-------|-------|
-| **Purpose** | Optimize position allocation across multiple event-driven signals. Mean-variance, risk parity, or Black-Litterman integration. |
-| **Reuse** | **Reuse** — `PyPortfolioOpt` (MIT, 5.9k stars) |
-| **Dependencies** | 17.1 (Backtesting) |
+| **Purpose** | Volatility-targeted position sizing with drawdown override and fractional Kelly cap. |
+| **Reuse** | **Build** — pure numpy/pandas. ~110 lines. |
+| **Dependencies** | 17.1 (Risk Measures) |
+| **Complexity** | Low |
+| **Output** | `VolatilityTargetSizer`, `DrawdownManager`, `KellyCap`, `PositionSizing` frozen dataclass at `src/forecasting/position_sizing.py` |
+| **Tests** | 27 tests |
+
+### 17.3 Risk Budgeting ✅
+| Field | Value |
+|-------|-------|
+| **Purpose** | Risk parity allocation via damped iterative solver. Equalizes risk contribution across positions. |
+| **Reuse** | **Adapt** — algorithm from Spinu (2013), implemented in pure numpy. ~80 lines. |
+| **Dependencies** | 17.1 (Risk Measures) |
 | **Complexity** | Medium |
+| **Output** | `RiskParitySizer`, `RiskBudget` frozen dataclass at `src/forecasting/risk_budgeting.py` |
+| **Tests** | 15 tests |
+
+### 17.4 Decision Gate ✅
+| Field | Value |
+|-------|-------|
+| **Purpose** | State machine that answers 5 questions: trust forecast? act now? regime too risky? uncertainty acceptable? delay execution? |
+| **Reuse** | **Build** — consumes existing ForecastContext, ForecastConfidence. ~90 lines. |
+| **Dependencies** | 17.1, 17.2, 17.3, Forecast Intelligence |
+| **Complexity** | Medium |
+| **Output** | `RegimeRiskOverlay`, `UncertaintyBudget`, `DecisionGate`, `RiskDecision` frozen dataclass at `src/forecasting/decision_gate.py` |
+| **Tests** | 27 tests |
+
+### 17.5 Integration ✅
+| Field | Value |
+|-------|-------|
+| **Purpose** | Full pipeline integration tests: Forecast Intelligence → Risk Intelligence. Verify end-to-end determinism and consistency. |
+| **Reuse** | **Build** |
+| **Dependencies** | 17.1–17.4, Forecast Intelligence |
+| **Complexity** | Low |
+| **Tests** | 12 integration tests |
 
 ---
 
 ## Phase 18 — Execution
 
-### 18.1 Broker Integration / Paper Trading
+### 18.1 Broker Integration
 | Field | Value |
 |-------|-------|
-| **Purpose** | Connect AurumAI decisions to a broker for paper trading (simulated execution). Alpaca for US equities, Interactive Brokers for multi-asset. |
+| **Purpose** | Connect AurumAI decisions to live broker APIs. Alpaca for US equities, Interactive Brokers for multi-asset. *Paper trading core moved to Phase 21.1.* |
 | **Reuse** | **Adapt** — `alpaca-py` (Apache 2.0) for US paper trading. `ib_insync` (BSD) for IB. |
-| **Dependencies** | 17.1 (Backtesting passed), 16.2 (Risk Engine) |
+| **Dependencies** | 21.1 (Paper Trading Core), 21.3 (Execution Engine), 21.2 (Slippage & Commission), Phase 17 (Risk Intelligence) |
 | **Complexity** | High |
-| **Output** | ExecutionEngine (last architectural layer per Constitution) |
+| **Output** | Broker adapter implementations |
 
 ---
 
-## Phase 19 — Scaling & Production
+## Phase 20 — Hardening (Phases 20.1–20.5 Complete)
+
+### 20.1 Determinism Hardening (Complete)
+| Field | Value |
+|-------|-------|
+| **Purpose** | Make EvidenceWeighter, MacroRegimeDetector, and ForecastEvidence fully deterministic. `EvidenceWeighter` accepts `as_of` parameter for stable weight vectors. `MacroRegimeDetector.fit()` saves/restores global random state. `ForecastEvidence.evidence_id` no longer depends on `created_at`. |
+
+### 20.2 Data Integrity — FrozenDict & Atomic Writes (Complete)
+| Field | Value |
+|-------|-------|
+| **Purpose** | Add runtime immutability for mutable dict fields via `FrozenDict` across ~25 frozen dataclasses. Replace all `path.write_text(json.dumps(...))` with `atomic_write_json()` (write-to-tmp + atomic rename) across 11 files. 70 new tests. |
+
+### 20.3 Performance Hardening — GraphBuilder Optimization (Complete)
+| Field | Value |
+|-------|-------|
+| **Purpose** | Replace O(n²) all-pairs comparison in `GraphBuilder.build()` with indexed grouping by dimension (event_type, condition, horizon_days). O(n) grouping + O(k²) per group. No other O(n²) algorithms found in src/. 16 new benchmark/correctness tests. 1384 total tests (zero regressions). |
+
+### 20.4 Maintainability Hardening — Orchestrator Module Split (Complete)
+| Field | Value |
+|-------|-------|
+| **Purpose** | Split 810-line `institutional_orchestrator.py` into 6 cohesive modules (`cache.py`, `checkpoints.py`, `jobs.py`, `dag.py`, `stages.py`, `orchestrator.py`) with backward-compatible shim. 1384 tests (zero regressions). |
+
+### 20.5 Packaging Hardening — Reproducible Build (Complete)
+| Field | Value |
+|-------|-------|
+| **Purpose** | Audit `pyproject.toml`: removed 3 unused deps (fredapi, python-dotenv, yfinance), added 3 missing deps (statsmodels, statsforecast, feedparser), pinned `requires-python = ">=3.10"`. Verified clean installation in fresh venv. All 27 package imports verified. 1384 tests (zero regressions). |
+
+---
+
+## Phase 21 — Paper Trading
+
+### 21.1 Paper Trading Core (Complete)
+| Field | Value |
+|-------|-------|
+| **Purpose** | Implement `VirtualPortfolio` with cash balance, open/closed positions, buy/sell/short/cover operations, weighted-average cost basis, unrealized/realized PnL, equity computation. Immutable models (`VirtualPosition`, `VirtualTrade`, `PortfolioSnapshot`) with `to_dict()` serialization. |
+| **Reuse** | **Build** — pure dataclasses. No new runtime dependencies beyond pandas/numpy. |
+| **Dependencies** | None (standalone package) |
+| **Complexity** | Low |
+| **Output** | `src/execution/` package with `VirtualPortfolio`, `VirtualPosition`, `VirtualTrade`, `PortfolioSnapshot` |
+| **Tests** | 63 tests (1447 total, zero regressions) |
+
+### 21.2 Slippage & Commission (Complete)
+| Field | Value |
+|-------|-------|
+| **Purpose** | Add configurable slippage model (fixed per-unit, percentage) and commission model (fixed per-trade, percentage with optional minimum) to `VirtualPortfolio`. |
+| **Dependencies** | 21.1 (Paper Trading Core) |
+| **Tests** | 66 tests (1513 total, zero regressions) |
+
+### 21.3 Execution Engine (Complete)
+| Field | Value |
+|-------|-------|
+| **Purpose** | Bridge between DecisionGate → VirtualPortfolio. Translates risk-weighted decisions into portfolio actions with slippage, commission, and risk gating. |
+| **Dependencies** | 21.1, 21.2, Phase 17 (Risk Intelligence) |
+| **Tests** | 38 tests (1551 total, zero regressions) |
+
+### 21.4 Broker Adapter Interface (Planned)
+| Field | Value |
+|-------|-------|
+| **Purpose** | Abstract broker adapter protocol with real-time order execution, position sync, account feed. Alpaca (US equities) and Interactive Brokers (multi-asset) implementations. |
+| **Dependencies** | 21.3, broker SDKs |
+
+---
+
+## Phase 19 — Scaling & Production (Planned)
 
 ### 19.1 Neo4j Knowledge Graph Migration
 | Field | Value |
@@ -394,13 +493,22 @@ Core v1.0 (frozen)
   ├──15.3 News Sentiment─────────────✅ (Cap 15.3)
   ├──15.4 Technical Indicators───────✅ (Cap 15.4)
   │
-  ├──16.1 Time Series Forecasting────No downstream deps
-  ├──16.2 Risk Engine────────────────Depends on 17.1
+  ├──16.1 Time Series Forecasting────✅ (Cap 16.1)
+  ├──16.2 Risk Intelligence──────────✅ (Phase 17.1 complete)
   │
-  ├──17.1 Backtesting────────────────Depends on 14.x (multiple events)
-  ├──17.2 Portfolio Optimization─────Depends on 17.1
+  ├──17.1 Core Risk Measures─────────✅ (Phase 17.1, 36 tests)
+  ├──17.2 Position Sizing────────────Depends on 17.1
+  ├──17.3 Risk Budgeting─────────────Depends on 17.1
+  ├──17.4 Decision Gate──────────────Depends on 17.1–17.3, Forecast Intelligence
+  ├──17.5 Integration───────────────Depends on 17.1–17.4
   │
-  ├──18.1 Broker/Paper Trading───────Depends on 17.1, 16.2
+  ├──18.1 Broker/Paper Trading───────Depends on 17.x, 16.x
+  │
+  ├──20.1–20.5 Hardening────────────Depends on Core v1.0
+  │
+  ├──21.1 Paper Trading Core─────────✅ (63 tests, standalone)
+  ├──21.2 Slippage & Commission──────✅ (66 tests, standalone)
+  ├──21.3 Execution Engine──────────✅ (38 tests, standalone)
   │
   └──19.1–19.3 Scaling──────────────Depends on all above
 ```

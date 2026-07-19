@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import Any
 
 from knowledge.evidence.evidence import Evidence
 from knowledge.evidence.collection import EvidenceCollection
@@ -47,7 +48,11 @@ class EvidenceWeighter:
     def __init__(self, config: WeightConfig | None = None):
         self._config = config or WeightConfig()
 
-    def weigh(self, collection: EvidenceCollection) -> WeightedAggregate:
+    def weigh(
+        self,
+        collection: EvidenceCollection,
+        as_of: datetime | None = None,
+    ) -> WeightedAggregate:
         items = list(collection)
         if not items:
             return WeightedAggregate(
@@ -60,7 +65,7 @@ class EvidenceWeighter:
 
         majority_map = self._compute_majority_bias(items)
         factors = [
-            self._compute_factors(ev, majority_map) for ev in items
+            self._compute_factors(ev, majority_map, as_of=as_of) for ev in items
         ]
 
         total_w = sum(f.composite_weight for f in factors)
@@ -113,13 +118,16 @@ class EvidenceWeighter:
         return majority
 
     def _compute_factors(
-        self, ev: Evidence, majority_map: dict[str, str]
+        self,
+        ev: Evidence,
+        majority_map: dict[str, str],
+        as_of: datetime | None = None,
     ) -> WeightFactors:
         cf = self._confidence_factor(ev.confidence)
         sf = self._sample_factor(ev.sample_count)
         pf = self._provenance_factor(ev.provenance is not None)
         cosf = self._consistency_factor(ev.bias, ev.event_type, majority_map)
-        rf = self._recency_factor(ev)
+        rf = self._recency_factor(ev, as_of=as_of)
 
         if self._config.combine_method == "arithmetic":
             composite = (cf + sf + pf + cosf + rf) / 5.0
@@ -158,7 +166,11 @@ class EvidenceWeighter:
             return 1.0
         return 1.0 - self._config.consistency_bonus
 
-    def _recency_factor(self, ev: Evidence) -> float:
+    def _recency_factor(
+        self,
+        ev: Evidence,
+        as_of: datetime | None = None,
+    ) -> float:
         prov = ev.provenance
         if prov is None or not prov.created_at:
             return 0.5
@@ -166,7 +178,7 @@ class EvidenceWeighter:
             dt = datetime.fromisoformat(prov.created_at)
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)
-            now = datetime.now(timezone.utc)
+            now = as_of if as_of is not None else datetime.now(timezone.utc)
             age_days = (now - dt).total_seconds() / 86400.0
             if age_days <= 0:
                 return 1.0

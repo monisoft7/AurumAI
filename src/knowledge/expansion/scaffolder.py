@@ -444,7 +444,8 @@ class EventScaffolder:
 
     @property
     def _tests_dir(self) -> Path:
-        return Path("tests")
+        root = self.src_root.parent if self.src_root.name == "src" else self.src_root
+        return root / "tests"
 
     def scaffold_event_class(self, overwrite: bool = False) -> Path:
         path = self._events_dir / f"{self.spec.event_type_lower}.py"

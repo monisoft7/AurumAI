@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from knowledge._compat import atomic_write_json
+
 from knowledge.temporal.context import TimeContext
 from knowledge.temporal.period import TimePeriod
 from knowledge.temporal.state import TemporalState
@@ -31,7 +33,7 @@ class TemporalRepository:
                 for s in indexer._ensure_sorted()
             ],
         }
-        path.write_text(json.dumps(payload, indent=2))
+        atomic_write_json(path, payload)
 
     def load_index(self, path: Path) -> TemporalIndexer:
         payload = json.loads(path.read_text())
@@ -68,7 +70,7 @@ class TemporalRepository:
             "label": period.label,
             "metadata": period.metadata,
         }
-        path.write_text(json.dumps(payload, indent=2))
+        atomic_write_json(path, payload)
 
     def load_period(self, path: Path) -> TimePeriod:
         payload = json.loads(path.read_text())

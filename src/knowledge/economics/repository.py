@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from knowledge._compat import atomic_write_json
+
 from knowledge.economics.regime import EconomicRegime
 from knowledge.economics.state import EconomicState
 from knowledge.economics.cycle import EconomicCycle
@@ -20,8 +22,7 @@ class EconomicRepository:
             "indicators": regime.indicators,
             "metadata": regime.metadata,
         }
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(payload, indent=2))
+        atomic_write_json(path, payload)
 
     def load_regime(self, path: Path) -> EconomicRegime:
         payload = json.loads(path.read_text())
@@ -45,8 +46,7 @@ class EconomicRepository:
             "regime_ids": list(state.regime_ids),
             "metadata": state.metadata,
         }
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(payload, indent=2))
+        atomic_write_json(path, payload)
 
     def load_state(self, path: Path) -> EconomicState:
         payload = json.loads(path.read_text())
@@ -77,8 +77,7 @@ class EconomicRepository:
                 for s in cycle.states
             ],
         }
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(payload, indent=2))
+        atomic_write_json(path, payload)
 
     def load_cycle(self, path: Path) -> EconomicCycle:
         payload = json.loads(path.read_text())

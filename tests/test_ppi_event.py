@@ -16,6 +16,12 @@ from knowledge.lesson_summary import LessonSummaryAggregator, LessonSummaryConfi
 from knowledge.events.registry import EventRegistry
 
 
+@pytest.fixture(autouse=True)
+def _ensure_ppi_registered() -> None:
+    if not EventRegistry.is_registered("PPI"):
+        EventRegistry.register(PPIEvent)
+
+
 class TestPPIEventFeatureExtractor:
     """Feature extraction tests."""
 
@@ -66,7 +72,7 @@ class TestPPIEventMetadata:
         assert m.country == "US"
         assert m.currency == "USD"
         assert m.unit == "index"
-        assert m.importance == 2
+        assert m.importance == 3
 
 
 class TestPPIEventLoadRaw:

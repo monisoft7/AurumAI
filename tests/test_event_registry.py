@@ -5,9 +5,12 @@ import pytest
 
 from knowledge.events.base import MacroEvent
 from knowledge.events.cpi import CPIEvent
-from knowledge.events.nfp import NFPEvent
+from knowledge.events.fomc import FOMCEvent
 from knowledge.events.gdp import GDPEvent
 from knowledge.events.interest_rate import InterestRateEvent
+from knowledge.events.nfp import NFPEvent
+from knowledge.events.pmi import PMIEvent
+from knowledge.events.ppi import PPIEvent
 from knowledge.events.registry import (
     DuplicateEventError,
     EventRegistry,
@@ -16,14 +19,23 @@ from knowledge.events.registry import (
 
 
 # --------------------------------------------------------------------------
-# Fixture: restore real CPI and NFP registrations after each test that
+# Fixture: restore real event registrations after each test that
 # clears the registry or registers dummy events with the same type key.
 # --------------------------------------------------------------------------
 
 @pytest.fixture(autouse=True)
 def _restore_registered_events() -> None:
     yield
-    for event_type, cls in [("CPI", CPIEvent), ("NFP", NFPEvent), ("GDP", GDPEvent), ("INTEREST_RATE", InterestRateEvent)]:
+    originals = [
+        ("CPI", CPIEvent),
+        ("NFP", NFPEvent),
+        ("GDP", GDPEvent),
+        ("INTEREST_RATE", InterestRateEvent),
+        ("PPI", PPIEvent),
+        ("PMI", PMIEvent),
+        ("FOMC", FOMCEvent),
+    ]
+    for event_type, cls in originals:
         current = EventRegistry.get(event_type)
         if current is not cls:
             if EventRegistry.is_registered(event_type):

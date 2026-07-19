@@ -72,6 +72,7 @@ class TestEventScaffolder:
         src = tmp_path / "src"
         (src / "knowledge" / "events").mkdir(parents=True)
         (src / "knowledge" / "features" / "extractors").mkdir(parents=True)
+        (tmp_path / "tests").mkdir(parents=True)
         return src
 
     @pytest.fixture
@@ -239,6 +240,7 @@ def test_scaffold_and_import_end_to_end(tmp_path: Path) -> None:
     )
     (tmp_path / "knowledge" / "events").mkdir(parents=True)
     (tmp_path / "knowledge" / "features" / "extractors").mkdir(parents=True)
+    (tmp_path / "tests").mkdir(parents=True)
     scaffolder = EventScaffolder(spec, src_root=tmp_path)
     files = scaffolder.scaffold_all(overwrite=True)
 
@@ -257,6 +259,7 @@ def test_scaffolder_generated_code_contains_expected_patterns(tmp_path: Path) ->
     )
     (tmp_path / "knowledge" / "events").mkdir(parents=True)
     (tmp_path / "knowledge" / "features" / "extractors").mkdir(parents=True)
+    (tmp_path / "tests").mkdir(parents=True)
     scaffolder = EventScaffolder(spec, src_root=tmp_path)
     files = scaffolder.scaffold_all(overwrite=True)
 
@@ -279,9 +282,15 @@ def test_registry_round_trip() -> None:
     finally:
         EventRegistry.clear()
         from knowledge.events.cpi import CPIEvent
+        from knowledge.events.fomc import FOMCEvent
         from knowledge.events.gdp import GDPEvent
         from knowledge.events.interest_rate import InterestRateEvent
+        from knowledge.events.pmi import PMIEvent
+        from knowledge.events.ppi import PPIEvent
         EventRegistry.register(CPIEvent)
         EventRegistry.register(NFPEvent)
         EventRegistry.register(GDPEvent)
         EventRegistry.register(InterestRateEvent)
+        EventRegistry.register(PPIEvent)
+        EventRegistry.register(PMIEvent)
+        EventRegistry.register(FOMCEvent)

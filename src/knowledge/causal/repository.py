@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from knowledge._compat import atomic_write_json
+
 from knowledge.causal.relation import CausalRelation
 from knowledge.causal.hypothesis import CausalHypothesis
 from knowledge.causal.evidence import CausalEvidence
@@ -10,7 +12,6 @@ from knowledge.causal.graph import CausalGraph
 
 class CausalRepository:
     def save_graph(self, graph: CausalGraph, path: Path) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
         payload: dict[str, Any] = {
             "relations": [
                 {
@@ -58,7 +59,7 @@ class CausalRepository:
                 for ce in graph.all_causal_evidence()
             ],
         }
-        path.write_text(json.dumps(payload, indent=2))
+        atomic_write_json(path, payload)
 
     def load_graph(self, path: Path) -> CausalGraph:
         payload = json.loads(path.read_text())

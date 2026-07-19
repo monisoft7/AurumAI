@@ -1,6 +1,6 @@
-import json
 from pathlib import Path
 
+from knowledge._compat import atomic_write_json
 from knowledge.pipeline.result import PipelineResult
 from knowledge.graph.graph import KnowledgeGraph
 from knowledge.evidence.collection import EvidenceCollection
@@ -59,8 +59,7 @@ class PipelineRepository:
             },
             "stages": stages_data,
         }
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(payload, indent=2))
+        atomic_write_json(path, payload)
 
     def _serialize_output(self, output: object) -> dict | list | str | None:
         if isinstance(output, dict):

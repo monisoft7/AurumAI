@@ -63,6 +63,13 @@ Provenance system, LineageRegistry, VersionedStore, KnowledgeRecord entity, Sour
 **Orchestration**
 OrchestrationEngine, EvidenceAggregator, OrchestrationReport, LayerPolicy Engine (adaptive policy evaluation)
 
+**Risk Intelligence (Phase 17 — Complete)**
+Core Risk Measures: VaR (historical/parametric), CVaR, TailRiskDetector (Peaks-over-Threshold EVT)
+Position Sizing: VolatilityTargetSizer, DrawdownManager, KellyCap
+Risk Budgeting: RiskParitySizer (cyclical coordinate descent)
+Decision Gate: RegimeRiskOverlay, UncertaintyBudget, DecisionGate (proceed/scale_down/delay/halt), RiskDecision
+Integration: Full Forecast Intelligence → Risk Intelligence pipeline
+
 **Context Enrichment**
 US10Y Yield Context, DXY Context, Multi-Factor Context Comparison
 
@@ -88,25 +95,53 @@ EventScaffolder + ExpansionSpec, EventValidator + ValidationReport, ExpansionLif
 | Metric | Value |
 |--------|-------|
 | Project Version | 0.0.1 |
-| Total Tests | 786 (all passing) |
+| Python Support | >=3.10 |
+| Total Tests | 1551 |
 | Benchmark Status | 18/18 passing |
 | Core Status | Frozen v1.0 |
-| Latest Capability | Technical Indicators Engine (Capability 15.4) |
+| Runtime Dependencies | 6 (pandas, numpy, networkx, statsmodels, statsforecast, feedparser) |
+| Execution Components | VirtualPortfolio, VirtualPosition, VirtualTrade, PortfolioSnapshot, ExecutionEngine, SlippageModel, CommissionModel |
+| Latest Capability | Phase 21.3 — Paper Trading Execution Engine (Complete) |
 
 ## 7. Current Phase
 
-Expanding macro event coverage using the Knowledge Expansion Framework — eight of ten EconomicEvent types now implemented (CPI, NFP, GDP, Interest Rate, Macro Regime, PPI, PMI, FOMC). News Data Pipeline (Cap 15.2) aggregates macro-relevant news via RSS with deterministic testing support, alongside FOMC Calendar Connector (Cap 14.2), FOMC Sentiment Analyzer (Cap 15.1), News Sentiment Engine (Cap 15.3), and Technical Indicators Engine (Cap 15.4).
+**Phase 21.3 — Paper Trading Execution Engine (COMPLETE).**
+
+- Created `src/execution/execution_engine.py` — `ExecutionEngine` class with `evaluate()` method
+- `ExecutionDecision` enum: `EXECUTE`, `REJECT`, `HOLD`
+- `ExecutionResult` frozen dataclass with `to_dict()` serialization (trade, snapshot, costs, models used)
+- Respects RiskDecision: `halt`/`delay` → REJECT, no portfolio mutation
+- Decision mapping: POSITIVE/STRONG_POSITIVE → BUY; NEGATIVE/STRONG_NEGATIVE → SELL (if long) or SHORT (if no position); NEUTRAL/INSUFFICIENT_EVIDENCE → HOLD
+- Applies slippage (price adjustment) + commission (cash deduction) on execute
+- STRONG_NEGATIVE sells full position (capped at held quantity); NEGATIVE sells position_size
+- Deterministic, no broker/MT5/forecasting/reasoning, no scope creep
+- 38 comprehensive unit tests
+- Full regression suite: 1551 passed (zero regressions)
+
+| Task | Component | Tests |
+|-------|-----------|-------|
+| 20.1 | Determinism Hardening | — |
+| 20.2 | Data Integrity (FrozenDict, atomic writes) | 70 |
+| 20.3 | Performance Hardening (GraphBuilder indexed, benchmarks) | 16 |
+| 20.4 | Maintainability Hardening (orchestrator module split) | — |
+| 20.5 | Packaging Hardening (pyproject.toml, deps audit) | — |
+| 21.1 | Paper Trading Core (VirtualPortfolio, models) | 63 |
+| 21.2 | Slippage & Commission Models | 66 |
+| 21.3 | Paper Trading Execution Engine | 38 |
+| **Total (20.x–21.x)** | | **253** |
 
 ## 8. Immediate Next Capability
 
-**Technical Indicators Engine** — Implement TechnicalIndicatorExtractor (Capability 15.4) computing RSI, MACD, EMAs, SMAs, Bollinger Bands. Foundation for Time Series Forecasting (16.1).
+**Phase 18 — Execution** — Broker integration, paper trading, execution engine. Depends on earlier phases. See ROADMAP.md for full plan.
 
 ## 9. Long-Term Roadmap
 
 ```
-✅GDP → ✅Interest Rate → ✅Macro Regime Intelligence → ✅PPI → ✅FOMC Calendar → ✅FOMC Event → ✅PMI →
+✅GDP → ✅Interest Rate → ✅Macro Regime → ✅PPI → ✅FOMC Calendar → ✅FOMC Event → ✅PMI →
 ✅News Pipeline → ✅FOMC NLP → ✅News Sentiment → ✅Technical Indicators →
-Forecasting → Portfolio Intelligence → Paper Trading → Execution
+✅Forecasting Intelligence (Phases 16.1–16.10) → ✅Risk Intelligence (Phase 17.1–17.5) →
+✅Phase 20 Hardening (Determinism → Data Integrity → Performance) →
+⬜ Execution (Phase 18) → ⬜ Scaling (Phase 19)
 ```
 
 ## 10. AI Instructions

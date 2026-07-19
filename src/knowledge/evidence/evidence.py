@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from knowledge._compat import FrozenDict, freeze_dict
 from knowledge.integrity.provenance import Provenance
 
 
@@ -19,4 +20,8 @@ class Evidence:
     bias: str
     explanation: str
     provenance: Provenance | None = None
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=lambda: FrozenDict())
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "condition", freeze_dict(self.condition))
+        object.__setattr__(self, "metadata", freeze_dict(self.metadata))

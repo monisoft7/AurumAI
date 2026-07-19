@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from knowledge._compat import atomic_write_json
 from knowledge.reasoning.context import ReasoningContext
 from knowledge.reasoning.step import ReasoningStep
 from knowledge.reasoning.chain import ReasoningChain
@@ -34,8 +35,7 @@ class ReasoningRepository:
             "provenance": serialize_provenance(chain.provenance),
             "metadata": chain.metadata,
         }
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(payload, indent=2))
+        atomic_write_json(path, payload)
 
     def load(self, path: Path) -> ReasoningChain:
         payload = json.loads(path.read_text())

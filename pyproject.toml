@@ -1,13 +1,15 @@
 [project]
 name = "aurumai"
 version = "0.0.1"
+description = "Market Intelligence Operating System for gold and macro markets"
+requires-python = ">=3.10"
 dependencies = [
-    "fredapi",
-    "networkx",
-    "numpy",
     "pandas",
-    "python-dotenv",
-    "yfinance",
+    "numpy",
+    "networkx",
+    "statsmodels",
+    "statsforecast",
+    "feedparser",
 ]
 
 [project.optional-dependencies]

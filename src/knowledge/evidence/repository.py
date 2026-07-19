@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from knowledge._compat import atomic_write_json
 from knowledge.evidence.evidence import Evidence
 from knowledge.evidence.collection import EvidenceCollection
 from knowledge.integrity.provenance import serialize_provenance, deserialize_provenance
@@ -25,8 +26,7 @@ class EvidenceRepository:
                 "metadata": evidence.metadata,
             })
         payload = {"evidence_count": len(items), "items": items}
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(payload, indent=2))
+        atomic_write_json(path, payload)
 
     def load(self, path: Path) -> EvidenceCollection:
         payload = json.loads(path.read_text())

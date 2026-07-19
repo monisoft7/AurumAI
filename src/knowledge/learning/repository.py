@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+from knowledge._compat import atomic_write_json
+
 from knowledge.learning.record import LearningRecord
 from knowledge.learning.session import LearningSession
 from knowledge.learning.feedback import KnowledgeFeedback
@@ -21,8 +23,7 @@ class LearningRepository:
             "accuracy_score": record.accuracy_score,
             "details": record.details,
         }
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(payload, indent=2))
+        atomic_write_json(path, payload)
 
     def load_record(self, path: Path) -> LearningRecord:
         payload = json.loads(path.read_text())
@@ -65,8 +66,7 @@ class LearningRepository:
                 for r in session.records
             ],
         }
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(payload, indent=2))
+        atomic_write_json(path, payload)
 
     def load_session(self, path: Path) -> LearningSession:
         payload = json.loads(path.read_text())
@@ -110,8 +110,7 @@ class LearningRepository:
             "explanation": feedback.explanation,
             "metadata": feedback.metadata,
         }
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(payload, indent=2))
+        atomic_write_json(path, payload)
 
     def load_feedback(self, path: Path) -> KnowledgeFeedback:
         payload = json.loads(path.read_text())

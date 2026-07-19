@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Any
 
+from knowledge._compat import FrozenDict, freeze_dict
+
 REGIME_HIGH_INFLATION = "HIGH_INFLATION"
 REGIME_LOW_INFLATION = "LOW_INFLATION"
 REGIME_DEFLATION = "DEFLATION"
@@ -37,5 +39,9 @@ class EconomicRegime:
     start_date: str
     end_date: str | None = None
     confidence: float = 0.0
-    indicators: dict[str, float] = field(default_factory=dict)
-    metadata: dict[str, Any] = field(default_factory=dict)
+    indicators: dict[str, float] = field(default_factory=lambda: FrozenDict())
+    metadata: dict[str, Any] = field(default_factory=lambda: FrozenDict())
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "indicators", freeze_dict(self.indicators))
+        object.__setattr__(self, "metadata", freeze_dict(self.metadata))

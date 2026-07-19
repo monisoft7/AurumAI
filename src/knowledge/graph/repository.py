@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+from knowledge._compat import atomic_write_json
+
 from knowledge.graph.graph import KnowledgeGraph
 from knowledge.graph.node import GraphNode
 from knowledge.graph.relation import GraphRelation
@@ -26,8 +28,7 @@ class GraphRepository:
             })
 
         payload = {"nodes": nodes, "relations": relations}
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(payload, indent=2))
+        atomic_write_json(path, payload)
 
     def load(self, path: Path) -> KnowledgeGraph:
         payload = json.loads(path.read_text())

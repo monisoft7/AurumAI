@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from knowledge._compat import atomic_write_json
 from knowledge.decision.context import DecisionContext
 from knowledge.decision.decision import Decision
 from knowledge.integrity.provenance import serialize_provenance, deserialize_provenance
@@ -23,8 +24,7 @@ class DecisionRepository:
             "provenance": serialize_provenance(decision.provenance),
             "metadata": decision.metadata,
         }
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(payload, indent=2))
+        atomic_write_json(path, payload)
 
     def load(self, path: Path) -> Decision:
         payload = json.loads(path.read_text())

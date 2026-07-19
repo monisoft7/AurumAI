@@ -1,7 +1,8 @@
-import json
 import hashlib
 from dataclasses import dataclass
 from pathlib import Path
+
+from knowledge._compat import atomic_write_json
 
 import pandas as pd
 
@@ -55,8 +56,7 @@ class LessonSummaryAggregator:
 
     def build_and_save(self) -> dict[str, object]:
         summary = self.build()
-        self.config.output_path.parent.mkdir(parents=True, exist_ok=True)
-        self.config.output_path.write_text(json.dumps(summary, indent=4, sort_keys=True))
+        atomic_write_json(self.config.output_path, summary, indent=4)
         return summary
 
     def build_save_and_ingest_memory(self) -> dict[str, object]:

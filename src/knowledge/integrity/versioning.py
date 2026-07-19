@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Generic, TypeVar
 
+from knowledge._compat import atomic_write_json
+
 T = TypeVar("T")
 
 
@@ -52,9 +54,7 @@ class VersionedStore(Generic[T]):
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "previous_version_file": previous_version_file,
         }
-        tmp_path = path.with_suffix(path.suffix + ".tmp")
-        tmp_path.write_text(json.dumps(payload, indent=2))
-        tmp_path.replace(path)
+        atomic_write_json(path, payload)
         return VersionedEntity(
             version_number=version_number,
             entity=entity,

@@ -35,20 +35,23 @@ class MacroRegimeDetector:
         if "composite_score" not in df.columns:
             raise ValueError("Data must contain a 'composite_score' column")
 
-        np.random.seed(self._random_state)
-
         model = MarkovRegression(
             df["composite_score"],
             k_regimes=4,
             trend="c",
             switching_variance=True,
         )
+        saved_state = np.random.get_state()
         try:
+            np.random.seed(self._random_state)
             self._results = model.fit(
                 search_reps=20, search_iter=10, disp=False
             )
         except (ValueError, np.linalg.LinAlgError):
+            np.random.seed(self._random_state)
             self._results = model.fit(disp=False)
+        finally:
+            np.random.set_state(saved_state)
 
         probs = self._results.smoothed_marginal_probabilities
         if isinstance(probs, pd.DataFrame):

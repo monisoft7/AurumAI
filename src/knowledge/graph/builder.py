@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import Any
 
 from knowledge.graph.graph import KnowledgeGraph
@@ -17,6 +18,26 @@ def _as_dict(record: dict[str, Any] | KnowledgeRecord) -> dict[str, Any]:
     return record
 
 
+def _condition_key(cond: dict[str, Any]) -> tuple[tuple[str, Any], ...]:
+    """Convert a condition dict to a hashable, deterministic key."""
+    return tuple(sorted(cond.items()))
+
+
+def _complete_subgraph(
+    graph: KnowledgeGraph,
+    node_ids: list[str],
+    relation_type: str,
+) -> None:
+    """Add a relation between every unordered pair of node_ids."""
+    m = len(node_ids)
+    for i in range(m):
+        for j in range(i + 1, m):
+            graph.add_relation(GraphRelation(
+                source_id=node_ids[i], target_id=node_ids[j],
+                relation_type=relation_type,
+            ))
+
+
 class GraphBuilder:
     def build(self, records: list[dict[str, Any] | KnowledgeRecord]) -> KnowledgeGraph:
         graph = KnowledgeGraph()
@@ -25,6 +46,7 @@ class GraphBuilder:
 
         dicts = [_as_dict(r) for r in records]
 
+        # 1. Add all nodes
         for rec in dicts:
             node = GraphNode(
                 node_id=rec["knowledge_id"],
@@ -33,30 +55,35 @@ class GraphBuilder:
             )
             graph.add_node(node)
 
-        n = len(dicts)
-        for i in range(n):
-            for j in range(i + 1, n):
-                a = dicts[i]
-                b = dicts[j]
-                aid = a["knowledge_id"]
-                bid = b["knowledge_id"]
+        # 2. Group by each dimension and build complete subgraphs per group.
+        #    This replaces the O(n²) pairwise comparison with O(n) grouping
+        #    plus O(k²) per group where k << n in typical data.
 
-                if a.get("event_type") is not None and a.get("event_type") == b.get("event_type"):
-                    graph.add_relation(GraphRelation(
-                        source_id=aid, target_id=bid,
-                        relation_type=RELATION_SAME_EVENT_TYPE,
-                    ))
+        # 2a. Group by event_type
+        by_event_type: dict[str, list[str]] = defaultdict(list)
+        for rec in dicts:
+            et = rec.get("event_type")
+            if et is not None:
+                by_event_type[et].append(rec["knowledge_id"])
+        for group in by_event_type.values():
+            _complete_subgraph(graph, group, RELATION_SAME_EVENT_TYPE)
 
-                if a.get("condition") is not None and a.get("condition") == b.get("condition"):
-                    graph.add_relation(GraphRelation(
-                        source_id=aid, target_id=bid,
-                        relation_type=RELATION_SAME_CONDITION,
-                    ))
+        # 2b. Group by condition (dict → hashable tuple key)
+        by_condition: dict[tuple[tuple[str, Any], ...], list[str]] = defaultdict(list)
+        for rec in dicts:
+            cond = rec.get("condition")
+            if cond is not None:
+                by_condition[_condition_key(cond)].append(rec["knowledge_id"])
+        for group in by_condition.values():
+            _complete_subgraph(graph, group, RELATION_SAME_CONDITION)
 
-                if a.get("horizon_days") is not None and a.get("horizon_days") == b.get("horizon_days"):
-                    graph.add_relation(GraphRelation(
-                        source_id=aid, target_id=bid,
-                        relation_type=RELATION_SAME_HORIZON,
-                    ))
+        # 2c. Group by horizon_days
+        by_horizon: dict[str | int, list[str]] = defaultdict(list)
+        for rec in dicts:
+            hd = rec.get("horizon_days")
+            if hd is not None:
+                by_horizon[hd].append(rec["knowledge_id"])
+        for group in by_horizon.values():
+            _complete_subgraph(graph, group, RELATION_SAME_HORIZON)
 
         return graph
