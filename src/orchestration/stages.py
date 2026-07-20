@@ -62,7 +62,7 @@ def _build_legacy_pipeline(params: dict[str, Any], results: dict[str, Any]) -> A
         lesson_builder = LegacyLessonBuilder(
             config=LessonBuilderConfig(
                 event_data_path=Path(params["data_path"]),
-                gold_path=Path(params["gold_path"]),
+        gold_path=Path(params.get("gold_lessons_path", params["gold_path"])),
                 output_path=Path(params["output_dir"]) / "lessons.csv",
             ),
             event=event,
@@ -80,6 +80,8 @@ def _build_legacy_pipeline(params: dict[str, Any], results: dict[str, Any]) -> A
             getattr(event, "condition_columns", ("condition",))
         ),
         lesson_builder=lesson_builder,
+        reasoning_horizon=params.get("reasoning_horizon"),
+        reasoning_condition=params.get("reasoning_condition"),
     )
 
     pipe = InferencePipeline()

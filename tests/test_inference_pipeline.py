@@ -559,3 +559,105 @@ def test_lineage_forward_source_data_to_decision() -> None:
     assert decision.decision_id in entity_ids, (
         f"Decision '{decision.decision_id}' not reachable from source_data via forward queries"
     )
+
+
+def test_evidence_filtered_by_horizon_5() -> None:
+    base = runtime_dir("ev_horizon5")
+    event_path = base / "cpi.csv"
+    gold_path = base / "gold.csv"
+    write_csv(event_path, [
+        {"Date": "2020-01-01", "Value": 100.0},
+        {"Date": "2020-02-01", "Value": 101.0},
+        {"Date": "2020-03-01", "Value": 99.0},
+        {"Date": "2020-04-01", "Value": 102.0},
+    ])
+    write_csv(gold_path, gold_rows())
+    cal_path = write_calendar(base)
+
+    ctx = PipelineContext(
+        event=CPIEvent(),
+        event_data_path=event_path,
+        gold_path=gold_path,
+        output_dir=base / "output",
+        knowledge_prefix="cpi_gold_summary_v1",
+        condition_columns=("cpi_pressure",),
+        asset="GOLD",
+        query="gold outlook after CPI",
+        release_calendar_path=cal_path,
+        reasoning_horizon=5,
+    )
+    result = InferencePipeline().run(ctx)
+    evidence = result.evidence
+    assert evidence is not None
+    assert len(evidence) > 0, "Expected at least one evidence item for horizon=5"
+    for ev in evidence:
+        assert ev.horizon_days == 5, f"Expected horizon_days=5, got {ev.horizon_days}"
+
+
+def test_evidence_filtered_by_horizon_20() -> None:
+    base = runtime_dir("ev_horizon20")
+    event_path = base / "cpi.csv"
+    gold_path = base / "gold.csv"
+    write_csv(event_path, [
+        {"Date": "2020-01-01", "Value": 100.0},
+        {"Date": "2020-02-01", "Value": 101.0},
+        {"Date": "2020-03-01", "Value": 99.0},
+        {"Date": "2020-04-01", "Value": 102.0},
+    ])
+    write_csv(gold_path, gold_rows())
+    cal_path = write_calendar(base)
+
+    ctx = PipelineContext(
+        event=CPIEvent(),
+        event_data_path=event_path,
+        gold_path=gold_path,
+        output_dir=base / "output",
+        knowledge_prefix="cpi_gold_summary_v1",
+        condition_columns=("cpi_pressure",),
+        asset="GOLD",
+        query="gold outlook after CPI",
+        release_calendar_path=cal_path,
+        reasoning_horizon=20,
+    )
+    result = InferencePipeline().run(ctx)
+    evidence = result.evidence
+    assert evidence is not None
+    assert len(evidence) > 0, "Expected at least one evidence item for horizon=20"
+    for ev in evidence:
+        assert ev.horizon_days == 20, f"Expected horizon_days=20, got {ev.horizon_days}"
+
+
+def test_evidence_filtered_by_condition() -> None:
+    base = runtime_dir("ev_condition")
+    event_path = base / "cpi.csv"
+    gold_path = base / "gold.csv"
+    write_csv(event_path, [
+        {"Date": "2020-01-01", "Value": 100.0},
+        {"Date": "2020-02-01", "Value": 101.0},
+        {"Date": "2020-03-01", "Value": 99.0},
+        {"Date": "2020-04-01", "Value": 102.0},
+    ])
+    write_csv(gold_path, gold_rows())
+    cal_path = write_calendar(base)
+
+    condition = {"cpi_pressure": "inflation_pressure_up"}
+    ctx = PipelineContext(
+        event=CPIEvent(),
+        event_data_path=event_path,
+        gold_path=gold_path,
+        output_dir=base / "output",
+        knowledge_prefix="cpi_gold_summary_v1",
+        condition_columns=("cpi_pressure",),
+        asset="GOLD",
+        query="gold outlook after CPI",
+        release_calendar_path=cal_path,
+        reasoning_condition=condition,
+    )
+    result = InferencePipeline().run(ctx)
+    evidence = result.evidence
+    assert evidence is not None
+    assert len(evidence) > 0, "Expected at least one evidence item for condition"
+    for ev in evidence:
+        assert ev.condition == condition, (
+            f"Expected condition={condition}, got {ev.condition}"
+        )

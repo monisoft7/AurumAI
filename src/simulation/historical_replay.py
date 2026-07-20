@@ -416,12 +416,12 @@ class HistoricalReplayEngine:
             try:
                 tmp_cpi = tmp / "cpi.csv"
                 tmp_gold = tmp / "gold.csv"
+                tmp_gold_lessons = tmp / "gold_lessons.csv"
                 cpi_snapshot.to_csv(tmp_cpi, index=False)
-                # Use full gold data (not filtered by as_of) so lesson building
-                # can compute future returns (labels).  The gold snapshot filter
-                # would leave no gold rows on/after the release timestamp,
-                # producing zero lessons.
-                gold.to_csv(tmp_gold, index=False)
+                # Filtered gold for forecast stages (point-in-time).
+                gold[gold["Date"] <= as_of].to_csv(tmp_gold, index=False)
+                # Full gold for lesson building (needs future returns as labels).
+                gold.to_csv(tmp_gold_lessons, index=False)
 
                 orch = InstitutionalOrchestrator.with_default_pipeline(
                     checkpoint_dir=self._checkpoint_dir,
@@ -440,6 +440,7 @@ class HistoricalReplayEngine:
                     event_type=event_type,
                     data_path=str(tmp_cpi),
                     gold_path=str(tmp_gold),
+                    gold_lessons_path=str(tmp_gold_lessons),
                     output_dir=str(output_dir),
                     asset="XAU/USD",
                     horizon=self._horizon,
