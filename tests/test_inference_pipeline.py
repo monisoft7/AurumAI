@@ -14,6 +14,7 @@ from knowledge.decision.decision import (
     DECISION_STRONG_POSITIVE,
     DECISION_POSITIVE,
     DECISION_NEUTRAL,
+    DECISION_INSUFFICIENT_EVIDENCE,
     VALID_DECISION_TYPES,
 )
 from knowledge.integrity.lineage import LineageRegistry, LineageRelationType
@@ -661,3 +662,72 @@ def test_evidence_filtered_by_condition() -> None:
         assert ev.condition == condition, (
             f"Expected condition={condition}, got {ev.condition}"
         )
+
+
+def test_min_evidence_count_default_one() -> None:
+    base = runtime_dir("min_ev_default")
+    event_path = base / "cpi.csv"
+    gold_path = base / "gold.csv"
+    write_csv(event_path, [
+        {"Date": "2020-01-01", "Value": 100.0},
+        {"Date": "2020-02-01", "Value": 101.0},
+        {"Date": "2020-03-01", "Value": 99.0},
+        {"Date": "2020-04-01", "Value": 102.0},
+    ])
+    write_csv(gold_path, gold_rows())
+    cal_path = write_calendar(base)
+
+    ctx = PipelineContext(
+        event=CPIEvent(),
+        event_data_path=event_path,
+        gold_path=gold_path,
+        output_dir=base / "output",
+        knowledge_prefix="cpi_gold_summary_v1",
+        condition_columns=("cpi_pressure",),
+        asset="GOLD",
+        query="gold outlook after CPI",
+        release_calendar_path=cal_path,
+    )
+    result = InferencePipeline().run(ctx)
+    assert result.evidence is not None
+    assert len(result.evidence) > 0, "Expected evidence with default settings"
+    assert result.decision is not None
+    assert result.decision.decision_type != DECISION_INSUFFICIENT_EVIDENCE, (
+        "Default min_evidence_count=1 should not trigger INSUFFICIENT_EVIDENCE when evidence exists"
+    )
+
+
+def test_min_evidence_count_high_threshold() -> None:
+    base = runtime_dir("min_ev_high")
+    event_path = base / "cpi.csv"
+    gold_path = base / "gold.csv"
+    write_csv(event_path, [
+        {"Date": "2020-01-01", "Value": 100.0},
+        {"Date": "2020-02-01", "Value": 101.0},
+        {"Date": "2020-03-01", "Value": 99.0},
+        {"Date": "2020-04-01", "Value": 102.0},
+    ])
+    write_csv(gold_path, gold_rows())
+    cal_path = write_calendar(base)
+
+    ctx = PipelineContext(
+        event=CPIEvent(),
+        event_data_path=event_path,
+        gold_path=gold_path,
+        output_dir=base / "output",
+        knowledge_prefix="cpi_gold_summary_v1",
+        condition_columns=("cpi_pressure",),
+        asset="GOLD",
+        query="gold outlook after CPI",
+        release_calendar_path=cal_path,
+        min_evidence_count=100,
+    )
+    result = InferencePipeline().run(ctx)
+    assert result.evidence is not None
+    assert len(result.evidence) < 100, "Test expects fewer than 100 evidence items"
+    assert result.decision is not None
+    assert result.decision.decision_type == DECISION_INSUFFICIENT_EVIDENCE, (
+        f"Expected INSUFFICIENT_EVIDENCE with min_evidence_count=100 "
+        f"(evidence_count={len(result.evidence)}), "
+        f"got {result.decision.decision_type}"
+    )

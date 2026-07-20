@@ -82,6 +82,7 @@ def _build_legacy_pipeline(params: dict[str, Any], results: dict[str, Any]) -> A
         lesson_builder=lesson_builder,
         reasoning_horizon=params.get("reasoning_horizon"),
         reasoning_condition=params.get("reasoning_condition"),
+        min_evidence_count=params.get("min_evidence_count", 1),
     )
 
     pipe = InferencePipeline()
