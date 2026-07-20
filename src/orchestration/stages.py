@@ -44,6 +44,7 @@ def _ingest_news(params: dict[str, Any], results: dict[str, Any]) -> Any:
 
 
 def _build_legacy_pipeline(params: dict[str, Any], results: dict[str, Any]) -> Any:
+    from knowledge.integrity.lineage import LineageRegistry
     from knowledge.pipeline.pipeline import InferencePipeline
     from knowledge.pipeline.context import PipelineContext
 
@@ -86,10 +87,12 @@ def _build_legacy_pipeline(params: dict[str, Any], results: dict[str, Any]) -> A
     )
 
     pipe = InferencePipeline()
-    result = pipe.run(ctx)
+    reg = LineageRegistry()
+    result = pipe.run(ctx, lineage_registry=reg)
 
     return {
         "pipeline_result": result,
+        "lineage_registry": reg,
         "decision": result.decision,
         "reasoning_chain": result.reasoning_chain,
         "evidence": result.evidence,

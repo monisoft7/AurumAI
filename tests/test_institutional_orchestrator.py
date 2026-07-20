@@ -821,6 +821,127 @@ class TestStageFunctions:
 
 
 # ===========================================================================
+# Production lineage — production orchestration now creates lineage records
+# ===========================================================================
+
+
+class TestProductionLineage:
+    """Verify that _build_legacy_pipeline activates lineage recording."""
+
+    def _write_calendar(self, base_path: Path) -> str:
+        import pandas as pd
+        cal_dir = base_path / "calendar"
+        cal_dir.mkdir(parents=True, exist_ok=True)
+        cal_path = cal_dir / "cpi_releases.csv"
+        pd.DataFrame([
+            {"reference_period": "2020-01-01", "release_date": "2020-01-14", "release_time": "08:30", "timezone": "US/Eastern"},
+            {"reference_period": "2020-02-01", "release_date": "2020-02-01", "release_time": "08:30", "timezone": "US/Eastern"},
+            {"reference_period": "2020-03-01", "release_date": "2020-03-02", "release_time": "08:30", "timezone": "US/Eastern"},
+            {"reference_period": "2020-04-01", "release_date": "2020-04-01", "release_time": "08:30", "timezone": "US/Eastern"},
+        ]).to_csv(cal_path, index=False)
+        return str(cal_path)
+
+    def _gold_rows(self) -> list[dict]:
+        import pandas as pd
+        rows = []
+        price = 1000.0
+        for i in range(60):
+            d = pd.Timestamp("2020-01-31") + pd.Timedelta(days=i)
+            if d.weekday() >= 5:
+                continue
+            rows.append({"Date": d.date().isoformat(), "Close": price})
+            price += 2.0 if i < 30 else -1.0
+        return rows
+
+    def test_production_pipeline_creates_lineage(self, tmp_path: Path) -> None:
+        from orchestration.institutional_orchestrator import _build_legacy_pipeline
+        from knowledge.events.cpi import CPIEvent
+        import pandas as pd
+
+        event_path = tmp_path / "cpi.csv"
+        pd.DataFrame([
+            {"Date": "2020-01-01", "Value": 100.0},
+            {"Date": "2020-02-01", "Value": 101.0},
+            {"Date": "2020-03-01", "Value": 99.0},
+        ]).to_csv(event_path, index=False)
+
+        gold_path = tmp_path / "gold.csv"
+        pd.DataFrame(self._gold_rows()).to_csv(gold_path, index=False)
+
+        cal_path = self._write_calendar(tmp_path)
+        output_dir = tmp_path / "output"
+
+        params = {
+            "_event": CPIEvent(),
+            "data_path": str(event_path),
+            "gold_path": str(gold_path),
+            "gold_lessons_path": str(gold_path),
+            "output_dir": str(output_dir),
+            "release_calendar_path": cal_path,
+            "asset": "GOLD",
+            "reasoning_horizon": 5,
+        }
+        result = _build_legacy_pipeline(params, {})
+
+        assert "lineage_registry" in result, (
+            "lineage_registry missing from _build_legacy_pipeline output"
+        )
+        reg = result["lineage_registry"]
+        records = reg.all_records()
+        assert len(records) > 0, (
+            "Expected at least one lineage record from production pipeline"
+        )
+
+    def test_production_lineage_backward_trace(self, tmp_path: Path) -> None:
+        from orchestration.institutional_orchestrator import _build_legacy_pipeline
+        from knowledge.events.cpi import CPIEvent
+        import pandas as pd
+
+        event_path = tmp_path / "cpi.csv"
+        pd.DataFrame([
+            {"Date": "2020-01-01", "Value": 100.0},
+            {"Date": "2020-02-01", "Value": 101.0},
+            {"Date": "2020-03-01", "Value": 99.0},
+        ]).to_csv(event_path, index=False)
+
+        gold_path = tmp_path / "gold.csv"
+        pd.DataFrame(self._gold_rows()).to_csv(gold_path, index=False)
+
+        cal_path = self._write_calendar(tmp_path)
+        output_dir = tmp_path / "output"
+
+        params = {
+            "_event": CPIEvent(),
+            "data_path": str(event_path),
+            "gold_path": str(gold_path),
+            "gold_lessons_path": str(gold_path),
+            "output_dir": str(output_dir),
+            "release_calendar_path": cal_path,
+            "asset": "GOLD",
+            "reasoning_horizon": 5,
+        }
+        result = _build_legacy_pipeline(params, {})
+
+        reg = result["lineage_registry"]
+        decision = result.get("decision")
+        assert decision is not None, "No decision produced"
+
+        path = reg.trace(decision.decision_id, "decision")
+        assert len(path) >= 3, (
+            f"Expected at least 3 lineage hops from decision, got {len(path)}"
+        )
+
+        entity_types: set[str] = set()
+        for r in path:
+            entity_types.add(r.source_type)
+            entity_types.add(r.target_type)
+        for t in ("source_data", "lesson", "knowledge_record"):
+            assert t in entity_types, (
+                f"Entity type '{t}' missing from backward trace"
+            )
+
+
+# ===========================================================================
 # Default pipeline integration — smoke tests with fixtures
 # ===========================================================================
 
