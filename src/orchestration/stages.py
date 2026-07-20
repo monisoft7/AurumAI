@@ -53,6 +53,21 @@ def _build_legacy_pipeline(params: dict[str, Any], results: dict[str, Any]) -> A
 
     from pathlib import Path
 
+    lesson_builder = None
+    if params.get("release_calendar_path") is None:
+        from knowledge.builders.lesson_builder import (
+            LegacyLessonBuilder,
+            LessonBuilderConfig,
+        )
+        lesson_builder = LegacyLessonBuilder(
+            config=LessonBuilderConfig(
+                event_data_path=Path(params["data_path"]),
+                gold_path=Path(params["gold_path"]),
+                output_path=Path(params["output_dir"]) / "lessons.csv",
+            ),
+            event=event,
+        )
+
     ctx = PipelineContext(
         event=event,
         event_data_path=Path(params["data_path"]),
@@ -64,6 +79,7 @@ def _build_legacy_pipeline(params: dict[str, Any], results: dict[str, Any]) -> A
         condition_columns=tuple(
             getattr(event, "condition_columns", ("condition",))
         ),
+        lesson_builder=lesson_builder,
     )
 
     pipe = InferencePipeline()

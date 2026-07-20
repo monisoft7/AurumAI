@@ -360,11 +360,21 @@ class TestHistoricalReplayEngine:
             "2020-03-01,0.25\n",
             encoding="utf-8",
         )
-        # Gold price (Date,Close)
+        # CPI release calendar matching the CPI data reference periods
+        (cal / "cpi_releases.csv").write_text(
+            "reference_period,release_date,release_time,timezone\n"
+            "2020-01-15,2020-01-15,08:30,US/Eastern\n"
+            "2020-02-15,2020-02-15,08:30,US/Eastern\n"
+            "2020-03-15,2020-03-15,08:30,US/Eastern\n"
+            "2020-04-15,2020-04-15,08:30,US/Eastern\n",
+            encoding="utf-8",
+        )
+        # Gold price (Date,Close) — 200 weekly rows starting 2019-01-01 so
+        # the earliest CPI release snapshot (2020-01-15) has enough data.
         lines = ["Date,Close"]
         price = 1500.0
-        for idx in range(100):
-            dt = pd.Timestamp("2020-01-01") + pd.Timedelta(days=idx * 7)
+        for idx in range(200):
+            dt = pd.Timestamp("2019-01-01") + pd.Timedelta(days=idx * 7)
             if dt.weekday() >= 5:
                 continue
             lines.append(f"{dt.date().isoformat()},{price:.1f}")

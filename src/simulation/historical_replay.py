@@ -412,14 +412,16 @@ class HistoricalReplayEngine:
             cpi_snapshot["Date"] = cpi_snapshot["Date"].dt.strftime("%Y-%m-%d")
             cpi_snapshot["release_timestamp"] = cpi_snapshot["release_timestamp"].dt.strftime("%Y-%m-%d %H:%M:%S")
 
-            gold_snapshot = gold[gold["Date"] <= as_of].copy()
-
             tmp = Path(tempfile.mkdtemp(prefix="aurumai_release_"))
             try:
                 tmp_cpi = tmp / "cpi.csv"
                 tmp_gold = tmp / "gold.csv"
                 cpi_snapshot.to_csv(tmp_cpi, index=False)
-                gold_snapshot.to_csv(tmp_gold, index=False)
+                # Use full gold data (not filtered by as_of) so lesson building
+                # can compute future returns (labels).  The gold snapshot filter
+                # would leave no gold rows on/after the release timestamp,
+                # producing zero lessons.
+                gold.to_csv(tmp_gold, index=False)
 
                 orch = InstitutionalOrchestrator.with_default_pipeline(
                     checkpoint_dir=self._checkpoint_dir,

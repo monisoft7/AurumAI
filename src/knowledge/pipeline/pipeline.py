@@ -6,7 +6,6 @@ from pathlib import Path
 from knowledge.builders.lesson_builder import (
     LessonBuilder,
     LessonBuilderConfig,
-    LegacyLessonBuilder,
 )
 from knowledge.context.comparison import (
     ContextComparisonConfig,
@@ -58,10 +57,16 @@ class InferencePipeline:
             horizons=context.horizons,
             release_calendar_path=context.release_calendar_path,
         )
-        if context.release_calendar_path is not None:
-            builder = LessonBuilder(config=config, event=context.event)
+        if context.lesson_builder is not None:
+            builder = context.lesson_builder
         else:
-            builder = LegacyLessonBuilder(config=config, event=context.event)
+            if context.release_calendar_path is None:
+                raise ValueError(
+                    "release_calendar_path is required in PipelineContext "
+                    "for the canonical institutional pipeline. "
+                    "Use explicit LegacyLessonBuilder injection in compatibility code."
+                )
+            builder = LessonBuilder(config=config, event=context.event)
         lessons = builder.build_and_save()
         references = {"event_type": context.event.event_type}
         if context.yield_data_path is not None:
@@ -85,26 +90,38 @@ class InferencePipeline:
     ) -> None:
         t0 = time.perf_counter()
         lessons_output = result._stage_output("build_lessons")
-        lessons_path = lessons_output["path"]
-        knowledge_path = context.output_dir / "knowledge.json"
-        config = LessonSummaryConfig(
-            lessons_path=lessons_path,
-            output_path=knowledge_path,
-            condition_columns=context.condition_columns,
-            knowledge_prefix=context.knowledge_prefix,
-            event_type=context.event.event_type,
-            asset=context.asset,
-            horizons=context.horizons,
-            min_samples_for_confidence=context.min_samples_for_confidence,
-        )
-        aggregator = LessonSummaryAggregator(config)
-        summary = aggregator.build_and_save()
+        lesson_count = lessons_output.get("count", 0)
+
+        if lesson_count == 0:
+            summary = {
+                "knowledge_version": context.knowledge_prefix,
+                "source_lessons": str(lessons_output.get("path", "")),
+                "event_type": context.event.event_type,
+                "asset": context.asset,
+                "record_count": 0,
+                "records": [],
+            }
+        else:
+            lessons_path = lessons_output["path"]
+            knowledge_path = context.output_dir / "knowledge.json"
+            config = LessonSummaryConfig(
+                lessons_path=lessons_path,
+                output_path=knowledge_path,
+                condition_columns=context.condition_columns,
+                knowledge_prefix=context.knowledge_prefix,
+                event_type=context.event.event_type,
+                asset=context.asset,
+                horizons=context.horizons,
+                min_samples_for_confidence=context.min_samples_for_confidence,
+            )
+            aggregator = LessonSummaryAggregator(config)
+            summary = aggregator.build_and_save()
         elapsed = (time.perf_counter() - t0) * 1000
         result.add_stage(
             "build_knowledge",
             summary,
             elapsed,
-            {"lessons_path": str(lessons_path), "record_count": summary.get("record_count", 0)},
+            {"lessons_path": str(lessons_output.get("path", "")), "record_count": summary.get("record_count", 0)},
         )
         if self._lineage_registry is not None:
             for record in summary.get("records", []):
