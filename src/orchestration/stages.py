@@ -60,6 +60,10 @@ def _build_legacy_pipeline(params: dict[str, Any], results: dict[str, Any]) -> A
         output_dir=Path(params["output_dir"]),
         query=params.get("query", ""),
         asset=params.get("asset", "XAU/USD"),
+        release_calendar_path=params.get("release_calendar_path"),
+        condition_columns=tuple(
+            getattr(event, "condition_columns", ("condition",))
+        ),
     )
 
     pipe = InferencePipeline()
@@ -82,7 +86,7 @@ def _forecast(params: dict[str, Any], results: dict[str, Any]) -> Any:
     gold_path = params["gold_path"]
     horizon = params.get("horizon", 12)
 
-    df = pd.read_csv(gold_path, parse_dates=True)
+    df = pd.read_csv(gold_path, parse_dates=["Date"])
     if "ds" not in df.columns:
         ds_col = df.select_dtypes(include=["datetime64"]).columns
         if len(ds_col) > 0:
@@ -104,18 +108,41 @@ def _forecast_confidence(params: dict[str, Any], results: dict[str, Any]) -> Any
     from forecasting.confidence import ForecastConfidenceComputer
     from forecasting.knowledge import ForecastPackage
     from forecasting.context import ForecastContextBuilder
+    from forecasting.provenance import ForecastProvenance
+    from forecasting.registry import ForecastRegistry
+    import datetime as _dt
+    import pandas as pd
 
     forecast_result = results.get("forecast")
     if forecast_result is None:
         raise ValueError("'forecast' stage must complete first")
 
+    gold_df = pd.read_csv(params["gold_path"])
     ctx_builder = ForecastContextBuilder()
-    context = ctx_builder.build(forecast_result, params.get("_event"))
+    context = ctx_builder.build(
+        forecast_result.model_name if hasattr(forecast_result, "model_name") else str(forecast_result),
+        gold_df,
+    )
+
+    model_name = forecast_result.model_name if hasattr(forecast_result, "model_name") else "default"
+    specs = ForecastRegistry.for_target(str(params.get("asset", "XAU/USD")))
+    provenance = ForecastProvenance(
+        source=str(params.get("asset", "XAU/USD")),
+        model_version=str(ForecastRegistry.version()),
+        training_window=f"{len(gold_df)} obs",
+        registry_version=str(ForecastRegistry.version()),
+        git_commit=ForecastProvenance.resolve_git_commit(),
+        data_hash=ForecastProvenance.compute_data_hash(gold_df),
+        created_at=_dt.datetime.now(_dt.timezone.utc).isoformat(),
+    )
 
     pkg = ForecastPackage(
-        forecasts={"default": forecast_result},
+        target_variable=str(params.get("asset", "XAU/USD")),
         context=context,
-        evidence=[],
+        results={model_name: forecast_result},
+        provenance=provenance,
+        model_specs=tuple(specs) if specs else (),
+        horizon=int(params.get("horizon", 12)),
     )
 
     computer = ForecastConfidenceComputer()
@@ -126,7 +153,6 @@ def _forecast_confidence(params: dict[str, Any], results: dict[str, Any]) -> Any
 
 def _forecast_validation(params: dict[str, Any], results: dict[str, Any]) -> Any:
     from forecasting.validation import ForecastValidator
-    from forecasting.context import ForecastContextBuilder
     import pandas as pd
 
     forecast_result = results.get("forecast")
@@ -134,32 +160,28 @@ def _forecast_validation(params: dict[str, Any], results: dict[str, Any]) -> Any
         raise ValueError("'forecast' stage must complete first")
 
     validator = ForecastValidator()
-    df = pd.read_csv(params["gold_path"], parse_dates=True)
-    ctx_builder = ForecastContextBuilder()
-    context = ctx_builder.build(forecast_result, params.get("_event"))
-    report = validator.validate(df, forecast_result, context)
+    df = pd.read_csv(params["gold_path"])
+    forecast_results = {}
+    if hasattr(forecast_result, "model_name"):
+        forecast_results[forecast_result.model_name] = forecast_result
+    report = validator.validate(df, forecast_results, strategy="walk_forward", horizon=1)
 
     return report
 
 
 def _build_context(params: dict[str, Any], results: dict[str, Any]) -> Any:
     from forecasting.context import ForecastContextBuilder
-    from knowledge.regime.macro_regime_detector import MacroRegimeDetector
     import pandas as pd
 
     forecast_result = results.get("forecast")
     if forecast_result is None:
         raise ValueError("'forecast' stage must complete first")
 
-    regime = MacroRegimeDetector()
-    gold_df = pd.read_csv(params["gold_path"], parse_dates=True)
-    regime_id = regime.detect(gold_df)
-
+    gold_df = pd.read_csv(params["gold_path"])
     ctx_builder = ForecastContextBuilder()
     context = ctx_builder.build(
-        forecast_result,
-        params.get("_event"),
-        regime_override={"regime": regime_id},
+        forecast_result.model_name if hasattr(forecast_result, "model_name") else str(forecast_result),
+        gold_df,
     )
 
     return context
@@ -187,7 +209,8 @@ def _risk_measures(params: dict[str, Any], results: dict[str, Any]) -> Any:
     cvar_95 = compute_cvar(residuals, 0.95)
 
     detector = TailRiskDetector()
-    tail_index = detector.estimate(residuals)
+    tail_result = detector.detect(residuals)
+    tail_index = tail_result.get("tail_index")
 
     from forecasting.risk_measures import RiskMetrics
 
@@ -223,22 +246,41 @@ def _position_sizing(params: dict[str, Any], results: dict[str, Any]) -> Any:
 
 
 def _risk_gate(params: dict[str, Any], results: dict[str, Any]) -> Any:
-    from forecasting.decision_gate import DecisionGate
-    from knowledge.decision.decision import Decision
-
-    decision: Decision | None = None
-    pipe_result = results.get("build_legacy_pipeline", {})
-    if isinstance(pipe_result, dict):
-        decision = pipe_result.get("decision")
+    from forecasting.decision_gate import DecisionGate, RegimeRiskOverlay, UncertaintyBudget
 
     risk_metrics = results.get("risk_measures")
     context = results.get("build_context")
 
+    regime_label = context.current_regime if context else None
+    regime_confidence = context.regime_confidence if context else 0.0
+    overlay = RegimeRiskOverlay()
+    regime_info = overlay.evaluate(regime_label or "UNKNOWN", regime_confidence)
+
+    var_95 = getattr(risk_metrics, "var_95", None) if risk_metrics else None
+    tail_index = getattr(risk_metrics, "tail_index", None) if risk_metrics else None
+    budget = UncertaintyBudget()
+    uncertainty = budget.evaluate(
+        context_coherence=0.5,
+        var_95=var_95 or -0.05,
+        tail_index=tail_index,
+    )
+
+    ps_result = results.get("position_sizing", {})
+    if isinstance(ps_result, dict):
+        scaling_factor = ps_result.get("position_sizing", 0.5)
+        if hasattr(scaling_factor, "scaling_factor"):
+            scaling_factor = scaling_factor.scaling_factor
+    else:
+        scaling_factor = 0.5
+
+    drawdown_state = "normal"
+
     gate = DecisionGate()
     gate_result = gate.evaluate(
-        decision=decision,
-        risk_metrics=risk_metrics,
-        forecast_context=context,
+        regime_info=regime_info,
+        uncertainty=uncertainty,
+        scaling_factor=float(scaling_factor),
+        drawdown_state=drawdown_state,
     )
 
     return gate_result

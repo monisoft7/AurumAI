@@ -426,6 +426,9 @@ class TestHistoricalReplayEngine:
         )
         report = engine.run_all()
         cpi_result = next(r for r in report.results if r.event_type == "CPI")
+        assert cpi_result.success is True, (
+            f"CPI replay failed: {cpi_result.error}"
+        )
         assert cpi_result.event_count > 0
         assert cpi_result.execution_time_ms > 0
 

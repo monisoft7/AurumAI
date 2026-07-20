@@ -441,6 +441,7 @@ class HistoricalReplayEngine:
                     output_dir=str(output_dir),
                     asset="XAU/USD",
                     horizon=self._horizon,
+                    release_calendar_path=str(calendar_path),
                 )
                 release_elapsed = (time.perf_counter() - t0) * 1000.0
 
