@@ -12,7 +12,11 @@ from knowledge.features.extractors.nfp import (
     NFE_HIGH_THRESHOLD,
     NFE_LOW_THRESHOLD,
 )
-from knowledge.builders.lesson_builder import LessonBuilder, LessonBuilderConfig
+from knowledge.builders.lesson_builder import (
+    LessonBuilder,
+    LessonBuilderConfig,
+    LegacyLessonBuilder,
+)
 from knowledge.lesson_summary import LessonSummaryAggregator, LessonSummaryConfig
 
 
@@ -280,7 +284,7 @@ class TestLessonBuilderWithNFPEvent:
             gold_path=gold_path,
             output_path=output_path,
         )
-        builder = LessonBuilder(config=config, event=NFPEvent())
+        builder = LegacyLessonBuilder(config=config, event=NFPEvent())
         lessons = builder.build()
 
         assert len(lessons) == 2
@@ -332,7 +336,7 @@ class TestNFPPipelineEndToEnd:
             gold_path, index=False
         )
 
-        builder = LessonBuilder(
+        builder = LegacyLessonBuilder(
             LessonBuilderConfig(
                 event_data_path=nfp_path,
                 gold_path=gold_path,
@@ -379,7 +383,7 @@ class TestNFPPipelineEndToEnd:
         gold_subset = gold_data.tail(500)
         gold_subset.to_csv(gold_path, index=False)
 
-        builder = LessonBuilder(
+        builder = LegacyLessonBuilder(
             LessonBuilderConfig(
                 event_data_path=real_path,
                 gold_path=gold_path,

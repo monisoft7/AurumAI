@@ -7,7 +7,11 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from knowledge.builders.lesson_builder import LessonBuilder, LessonBuilderConfig
+from knowledge.builders.lesson_builder import (
+    LessonBuilder,
+    LessonBuilderConfig,
+    LegacyLessonBuilder,
+)
 from knowledge.events.base import ReleaseCalendar
 from knowledge.events.cpi import CPIEvent
 from knowledge.events.release_calendar import ReleaseRecord
@@ -158,6 +162,7 @@ class TestExtraColumnPassthrough:
 def _calendar_anchor_fixture(
     base_path: Path,
     cpi_rows: list[dict],
+    cal_rows: list[dict] | None = None,
 ) -> LessonBuilder:
     cpi_path = base_path / "economic" / "CPIAUCSL.csv"
     gold_path = base_path / "history" / "gold.csv"
@@ -166,12 +171,23 @@ def _calendar_anchor_fixture(
     write_csv(cpi_path, cpi_rows)
     write_gold(gold_path, start="2020-01-02")
 
+    if cal_rows is not None:
+        cal_path = base_path / "calendar" / "cpi_releases.csv"
+        write_csv(cal_path, cal_rows)
+        config = LessonBuilderConfig(
+            event_data_path=cpi_path,
+            gold_path=gold_path,
+            output_path=output_path,
+            release_calendar_path=str(cal_path),
+        )
+        return LessonBuilder(config)
+
     config = LessonBuilderConfig(
         event_data_path=cpi_path,
         gold_path=gold_path,
         output_path=output_path,
     )
-    return LessonBuilder(config)
+    return LegacyLessonBuilder(config)
 
 
 class TestLessonBuilderCalendarAnchoring:
@@ -182,9 +198,14 @@ class TestLessonBuilderCalendarAnchoring:
         builder = _calendar_anchor_fixture(
             runtime_dir("anchor_release"),
             [
-                {"Date": "2019-12-01", "Value": 99.0, "release_timestamp": "2020-01-14 08:30:00"},
-                {"Date": "2020-01-01", "Value": 100.0, "release_timestamp": "2020-02-13 08:30:00"},
-                {"Date": "2020-02-01", "Value": 101.0, "release_timestamp": "2020-03-12 08:30:00"},
+                {"Date": "2019-12-01", "Value": 99.0},
+                {"Date": "2020-01-01", "Value": 100.0},
+                {"Date": "2020-02-01", "Value": 101.0},
+            ],
+            cal_rows=[
+                {"reference_period": "2019-12-01", "release_date": "2020-01-14", "release_time": "08:30", "timezone": "US/Eastern"},
+                {"reference_period": "2020-01-01", "release_date": "2020-02-13", "release_time": "08:30", "timezone": "US/Eastern"},
+                {"reference_period": "2020-02-01", "release_date": "2020-03-12", "release_time": "08:30", "timezone": "US/Eastern"},
             ],
         )
         lessons = builder.build()
@@ -217,7 +238,7 @@ class TestLessonBuilderCalendarAnchoring:
             gold_path=gold_path,
             output_path=output_path,
         )
-        builder = LessonBuilder(config)
+        builder = LegacyLessonBuilder(config)
         lessons = builder.build()
 
         row1 = lessons[lessons["event_date"] == "2020-01-01"].iloc[0]
@@ -292,7 +313,7 @@ class TestDeterminism:
             gold_path=gold_path,
             output_path=output_path,
         )
-        builder = LessonBuilder(config)
+        builder = LegacyLessonBuilder(config)
 
         first = builder.build()
         second = builder.build()
@@ -326,7 +347,7 @@ class TestLessonIdUniqueness:
             gold_path=gold_path,
             output_path=output_path,
         )
-        builder = LessonBuilder(config)
+        builder = LegacyLessonBuilder(config)
         lessons = builder.build()
 
         assert lessons["lesson_id"].is_unique
@@ -349,7 +370,7 @@ class TestFailClosed:
             [{"Date": "2020-01-02", "Open": 1000.0}],
         )
 
-        builder = LessonBuilder(
+        builder = LegacyLessonBuilder(
             LessonBuilderConfig(
                 event_data_path=base / "economic" / "CPIAUCSL.csv",
                 gold_path=base / "history" / "gold.csv",
@@ -364,7 +385,7 @@ class TestFailClosed:
         gold_csv = tmp_path / "gold.csv"
         write_gold(gold_csv, n=10)
 
-        builder = LessonBuilder(
+        builder = LegacyLessonBuilder(
             LessonBuilderConfig(
                 event_data_path=cpi_csv,
                 gold_path=gold_csv,
@@ -385,14 +406,17 @@ class TestReplayDispatch:
 
     def test_release_calendar_path_for_returns_cpi(self) -> None:
         from simulation.historical_replay import HistoricalReplayEngine
-        path = HistoricalReplayEngine._release_calendar_path_for("CPI")
+        engine = HistoricalReplayEngine(Path("."), Path("dummy.csv"))
+        path = engine._release_calendar_path_for("CPI")
         assert path is not None
         assert "cpi_releases" in path.name
+        assert "calendar" in path.parts
 
     def test_release_calendar_path_for_returns_none_for_other(self) -> None:
         from simulation.historical_replay import HistoricalReplayEngine
+        engine = HistoricalReplayEngine(Path("."), Path("dummy.csv"))
         for etype in ("NFP", "GDP", "PPI", "INTEREST_RATE", "PMI", "FOMC"):
-            assert HistoricalReplayEngine._release_calendar_path_for(etype) is None
+            assert engine._release_calendar_path_for(etype) is None
 
 
 # ===========================================================================
@@ -466,7 +490,7 @@ class TestBackwardCompatibility:
             gold_path=gold_path,
             output_path=output_path,
         )
-        builder = LessonBuilder(config)
+        builder = LegacyLessonBuilder(config)
         lessons = builder.build()
 
         assert len(lessons) == 1
@@ -504,7 +528,7 @@ class TestLessonSchemaIntegrity:
             gold_path=gold_path,
             output_path=output_path,
         )
-        builder = LessonBuilder(config)
+        builder = LegacyLessonBuilder(config)
         lessons = builder.build()
 
         required = {
@@ -512,7 +536,7 @@ class TestLessonSchemaIntegrity:
             "anchor_gold_date", "alignment_method", "gold_close_at_event",
             "cpi_pressure", "gold_return_1d_pct", "gold_return_5d_pct",
             "gold_return_20d_pct", "gold_direction_20d", "primary_horizon_days",
-            "lesson_text", "release_timestamp",
+            "lesson_text",
         }
         assert required.issubset(set(lessons.columns)), (
             f"Missing columns: {required - set(lessons.columns)}"
@@ -688,12 +712,11 @@ class TestLessonIdFormat:
             gold_path=gold_path,
             output_path=output_path,
         )
-        builder = LessonBuilder(config)
+        builder = LegacyLessonBuilder(config)
         lessons = builder.build()
 
         assert lessons.iloc[0]["lesson_id"] == "CPI_GOLD_2020-01-01"
         assert lessons.iloc[0]["event_date"] == "2020-01-01"
-        assert "release_timestamp" in lessons.columns
 
 
 # ===========================================================================

@@ -11,7 +11,11 @@ from knowledge.events.fomc import FOMCEvent
 from knowledge.features.extractors.fomc import (
     FOMCFeatureExtractor,
 )
-from knowledge.builders.lesson_builder import LessonBuilder, LessonBuilderConfig
+from knowledge.builders.lesson_builder import (
+    LessonBuilder,
+    LessonBuilderConfig,
+    LegacyLessonBuilder,
+)
 from knowledge.lesson_summary import LessonSummaryAggregator, LessonSummaryConfig
 from knowledge.events.registry import EventRegistry
 
@@ -217,7 +221,7 @@ class TestFOMCEventPipelineEndToEnd:
             output_path=tmp_path / "lessons.csv",
             horizons=(1, 5),
         )
-        builder = LessonBuilder(config=config, event=ev)
+        builder = LegacyLessonBuilder(config=config, event=ev)
         lessons = builder.build_and_save()
         assert len(lessons) > 0
         assert "event_type" in lessons.columns

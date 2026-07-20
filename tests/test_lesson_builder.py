@@ -3,7 +3,11 @@ import shutil
 
 import pandas as pd
 
-from knowledge.builders.lesson_builder import LessonBuilder, LessonBuilderConfig
+from knowledge.builders.lesson_builder import (
+    LessonBuilder,
+    LessonBuilderConfig,
+    LegacyLessonBuilder,
+)
 
 
 def runtime_dir(name: str) -> Path:
@@ -19,7 +23,7 @@ def write_csv(path: Path, rows: list[dict[str, object]]) -> None:
     pd.DataFrame(rows).to_csv(path, index=False)
 
 
-def build_fixture(base_path: Path) -> LessonBuilder:
+def build_fixture(base_path: Path) -> LegacyLessonBuilder:
     cpi_path = base_path / "economic" / "CPIAUCSL.csv"
     gold_path = base_path / "history" / "gold.csv"
     output_path = base_path / "lessons" / "cpi_gold_lessons.csv"
@@ -85,7 +89,7 @@ def build_fixture(base_path: Path) -> LessonBuilder:
         gold_path=gold_path,
         output_path=output_path,
     )
-    return LessonBuilder(config)
+    return LegacyLessonBuilder(config)
 
 
 def test_builds_explainable_cpi_gold_lesson_schema() -> None:
@@ -130,7 +134,7 @@ def test_missing_required_columns_fail_fast() -> None:
     write_csv(cpi_path, [{"Date": "2020-01-01", "Value": 100.0}])
     write_csv(gold_path, [{"Date": "2020-01-01", "Open": 1000.0}])
 
-    builder = LessonBuilder(
+    builder = LegacyLessonBuilder(
         LessonBuilderConfig(event_data_path=cpi_path, gold_path=gold_path)
     )
 

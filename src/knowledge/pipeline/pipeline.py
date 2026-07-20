@@ -3,7 +3,11 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-from knowledge.builders.lesson_builder import LessonBuilder, LessonBuilderConfig
+from knowledge.builders.lesson_builder import (
+    LessonBuilder,
+    LessonBuilderConfig,
+    LegacyLessonBuilder,
+)
 from knowledge.context.comparison import (
     ContextComparisonConfig,
     ContextComparisonReport,
@@ -53,7 +57,7 @@ class InferencePipeline:
             output_path=lessons_path,
             horizons=context.horizons,
         )
-        builder = LessonBuilder(config=config, event=context.event)
+        builder = LegacyLessonBuilder(config=config, event=context.event)
         lessons = builder.build_and_save()
         references = {"event_type": context.event.event_type}
         if context.yield_data_path is not None:

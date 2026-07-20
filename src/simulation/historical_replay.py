@@ -255,12 +255,13 @@ class HistoricalReplayEngine:
             return self._replay_event_release_by_release(event_type, csv_path, release_csv)
         return self._replay_event_legacy(event_type, csv_path)
 
-    @staticmethod
-    def _release_calendar_path_for(event_type: str) -> Path | None:
+    def _release_calendar_path_for(self, event_type: str) -> Path | None:
         cal = {
-            "CPI": "calendar/cpi_releases.csv",
+            "CPI": "cpi_releases.csv",
         }.get(event_type)
-        return Path(cal) if cal else None
+        if cal is None:
+            return None
+        return self._data_dir / "calendar" / cal
 
     def _replay_event_legacy(
         self,
