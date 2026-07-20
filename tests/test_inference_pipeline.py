@@ -32,6 +32,19 @@ def write_csv(path: Path, rows: list[dict]) -> None:
     pd.DataFrame(rows).to_csv(path, index=False)
 
 
+def write_calendar(base_path: Path) -> str:
+    cal_dir = base_path / "calendar"
+    cal_dir.mkdir(parents=True, exist_ok=True)
+    cal_path = cal_dir / "cpi_releases.csv"
+    pd.DataFrame([
+        {"reference_period": "2020-01-01", "release_date": "2020-01-14", "release_time": "08:30", "timezone": "US/Eastern"},
+        {"reference_period": "2020-02-01", "release_date": "2020-02-01", "release_time": "08:30", "timezone": "US/Eastern"},
+        {"reference_period": "2020-03-01", "release_date": "2020-03-02", "release_time": "08:30", "timezone": "US/Eastern"},
+        {"reference_period": "2020-04-01", "release_date": "2020-04-01", "release_time": "08:30", "timezone": "US/Eastern"},
+    ]).to_csv(cal_path, index=False)
+    return str(cal_path)
+
+
 def gold_rows() -> list[dict]:
     rows = []
     # 60 trading days starting 2020-01-31
@@ -57,6 +70,7 @@ def test_pipeline_creates_stages_in_order() -> None:
         {"Date": "2020-04-01", "Value": 102.0},
     ])
     write_csv(gold_path, gold_rows())
+    cal_path = write_calendar(base)
 
     ctx = PipelineContext(
         event=CPIEvent(),
@@ -67,6 +81,7 @@ def test_pipeline_creates_stages_in_order() -> None:
         condition_columns=("cpi_pressure",),
         asset="GOLD",
         query="gold outlook after CPI",
+        release_calendar_path=cal_path,
     )
     result = InferencePipeline().run(ctx)
 
@@ -90,6 +105,7 @@ def test_pipeline_lessons_stage() -> None:
         {"Date": "2020-02-01", "Value": 101.0},
     ])
     write_csv(gold_path, gold_rows())
+    cal_path = write_calendar(base)
 
     ctx = PipelineContext(
         event=CPIEvent(),
@@ -99,6 +115,7 @@ def test_pipeline_lessons_stage() -> None:
         knowledge_prefix="cpi_gold_summary_v1",
         condition_columns=("cpi_pressure",),
         asset="GOLD",
+        release_calendar_path=cal_path,
     )
     result = InferencePipeline().run(ctx)
     lessons = result.lessons
@@ -116,6 +133,7 @@ def test_pipeline_knowledge_stage() -> None:
         {"Date": "2020-03-01", "Value": 99.0},
     ])
     write_csv(gold_path, gold_rows())
+    cal_path = write_calendar(base)
 
     ctx = PipelineContext(
         event=CPIEvent(),
@@ -125,6 +143,7 @@ def test_pipeline_knowledge_stage() -> None:
         knowledge_prefix="cpi_gold_summary_v1",
         condition_columns=("cpi_pressure",),
         asset="GOLD",
+        release_calendar_path=cal_path,
     )
     result = InferencePipeline().run(ctx)
     knowledge = result.knowledge_summary
@@ -149,6 +168,7 @@ def test_pipeline_graph_stage() -> None:
         {"Date": "2020-03-01", "Value": 99.0},
     ])
     write_csv(gold_path, gold_rows())
+    cal_path = write_calendar(base)
 
     ctx = PipelineContext(
         event=CPIEvent(),
@@ -158,6 +178,7 @@ def test_pipeline_graph_stage() -> None:
         knowledge_prefix="cpi_gold_summary_v1",
         condition_columns=("cpi_pressure",),
         asset="GOLD",
+        release_calendar_path=cal_path,
     )
     result = InferencePipeline().run(ctx)
     graph = result.knowledge_graph
@@ -175,6 +196,7 @@ def test_pipeline_evidence_stage() -> None:
         {"Date": "2020-03-01", "Value": 99.0},
     ])
     write_csv(gold_path, gold_rows())
+    cal_path = write_calendar(base)
 
     ctx = PipelineContext(
         event=CPIEvent(),
@@ -184,6 +206,7 @@ def test_pipeline_evidence_stage() -> None:
         knowledge_prefix="cpi_gold_summary_v1",
         condition_columns=("cpi_pressure",),
         asset="GOLD",
+        release_calendar_path=cal_path,
     )
     result = InferencePipeline().run(ctx)
     evidence = result.evidence
@@ -201,6 +224,7 @@ def test_pipeline_decision_produced() -> None:
         {"Date": "2020-03-01", "Value": 99.0},
     ])
     write_csv(gold_path, gold_rows())
+    cal_path = write_calendar(base)
 
     ctx = PipelineContext(
         event=CPIEvent(),
@@ -211,6 +235,7 @@ def test_pipeline_decision_produced() -> None:
         condition_columns=("cpi_pressure",),
         asset="GOLD",
         query="gold outlook",
+        release_calendar_path=cal_path,
     )
     result = InferencePipeline().run(ctx)
     decision = result.decision
@@ -230,6 +255,7 @@ def test_pipeline_traceability() -> None:
         {"Date": "2020-03-01", "Value": 99.0},
     ])
     write_csv(gold_path, gold_rows())
+    cal_path = write_calendar(base)
 
     ctx = PipelineContext(
         event=CPIEvent(),
@@ -239,6 +265,7 @@ def test_pipeline_traceability() -> None:
         knowledge_prefix="cpi_gold_summary_v1",
         condition_columns=("cpi_pressure",),
         asset="GOLD",
+        release_calendar_path=cal_path,
     )
     result = InferencePipeline().run(ctx)
 
@@ -285,6 +312,7 @@ def test_pipeline_validator_passes() -> None:
         {"Date": "2020-03-01", "Value": 99.0},
     ])
     write_csv(gold_path, gold_rows())
+    cal_path = write_calendar(base)
 
     ctx = PipelineContext(
         event=CPIEvent(),
@@ -294,6 +322,7 @@ def test_pipeline_validator_passes() -> None:
         knowledge_prefix="cpi_gold_summary_v1",
         condition_columns=("cpi_pressure",),
         asset="GOLD",
+        release_calendar_path=cal_path,
     )
     result = InferencePipeline().run(ctx)
     assert PipelineValidator.is_valid(result)
@@ -310,6 +339,7 @@ def test_pipeline_repository_serialization(tmp_path: Path) -> None:
         {"Date": "2020-03-01", "Value": 99.0},
     ])
     write_csv(gold_path, gold_rows())
+    cal_path = write_calendar(base)
 
     ctx = PipelineContext(
         event=CPIEvent(),
@@ -319,6 +349,7 @@ def test_pipeline_repository_serialization(tmp_path: Path) -> None:
         knowledge_prefix="cpi_gold_summary_v1",
         condition_columns=("cpi_pressure",),
         asset="GOLD",
+        release_calendar_path=cal_path,
     )
     result = InferencePipeline().run(ctx)
     repo_path = tmp_path / "pipeline_result.json"
@@ -355,6 +386,7 @@ def test_pipeline_can_build_yield_context_conditioned_knowledge() -> None:
         {"Date": "2020-03-01", "Value": 1.70},
         {"Date": "2020-04-01", "Value": 1.72},
     ])
+    cal_path = write_calendar(base)
 
     ctx = PipelineContext(
         event=CPIEvent(),
@@ -365,6 +397,7 @@ def test_pipeline_can_build_yield_context_conditioned_knowledge() -> None:
         knowledge_prefix="cpi_gold_yield_context_v1",
         condition_columns=("cpi_pressure", "us10y_trend"),
         asset="GOLD",
+        release_calendar_path=cal_path,
     )
     result = InferencePipeline().run(ctx)
 
@@ -397,6 +430,7 @@ def test_pipeline_persists_context_comparison_artifact() -> None:
         {"Date": "2020-04-01", "Value": 1.72},
     ])
 
+    cal_path = write_calendar(base)
     baseline_output = base / "baseline_output"
     baseline_ctx = PipelineContext(
         event=CPIEvent(),
@@ -406,6 +440,7 @@ def test_pipeline_persists_context_comparison_artifact() -> None:
         knowledge_prefix="cpi_gold_summary_v1",
         condition_columns=("cpi_pressure",),
         asset="GOLD",
+        release_calendar_path=cal_path,
     )
     InferencePipeline().run(baseline_ctx)
 
@@ -424,6 +459,7 @@ def test_pipeline_persists_context_comparison_artifact() -> None:
         context_comparison_base_columns=("cpi_pressure",),
         context_comparison_context_columns=("us10y_trend",),
         asset="GOLD",
+        release_calendar_path=cal_path,
     )
     result = InferencePipeline().run(contextual_ctx)
 
@@ -440,7 +476,7 @@ def test_pipeline_persists_context_comparison_artifact() -> None:
     assert compare_stage.references["output_path"] == str(report_path)
 
 
-def _lineage_test_context(base: str, name: str) -> PipelineContext:
+def _lineage_test_context(base: Path, name: str) -> PipelineContext:
     event_path = base / "cpi.csv"
     gold_path = base / "gold.csv"
     write_csv(event_path, [
@@ -449,6 +485,7 @@ def _lineage_test_context(base: str, name: str) -> PipelineContext:
         {"Date": "2020-03-01", "Value": 99.0},
     ])
     write_csv(gold_path, gold_rows())
+    cal_path = write_calendar(base)
     return PipelineContext(
         event=CPIEvent(),
         event_data_path=event_path,
@@ -457,6 +494,7 @@ def _lineage_test_context(base: str, name: str) -> PipelineContext:
         knowledge_prefix="cpi_gold_summary_v1",
         condition_columns=("cpi_pressure",),
         asset="GOLD",
+        release_calendar_path=cal_path,
     )
 
 
