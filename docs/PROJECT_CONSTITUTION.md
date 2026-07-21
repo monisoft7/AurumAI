@@ -2,13 +2,15 @@
 
 Status: Ratified
 Owner: Lead Software Engineer (CTO role, per docs/08_AI_Agents.md)
-Precedence: This document is the highest-level authority in the repository.
+Precedence: This document governs constitutional rules and architecture. It is
+subordinate to [PROJECT_NORTH_STAR.md](../PROJECT_NORTH_STAR.md), which is the
+highest engineering authority in the repository.
 
 If any other document, ADR, comment, or piece of code conflicts with this
-constitution, this constitution wins. The conflicting artifact must be
-updated to match it, not the other way around. Amendments to this
-constitution require an explicit decision recorded as a dated entry in the
-Amendment Log at the bottom of this file.
+constitution, this constitution wins, subject to the supremacy of
+PROJECT_NORTH_STAR.md. The conflicting artifact must be updated to match,
+not the other way around. Amendments to this constitution require an explicit
+decision recorded as a dated entry in the Amendment Log at the bottom of this file.
 
 ---
 
@@ -602,3 +604,8 @@ extractors.
   active). Added `archive/` to repository organization. Established
   Documentation Index (`docs/INDEX.md`) as the single source of truth for
   topic locations and converted duplicate docs into canonical references.
+- 2026-07-21: Documentation Consolidation. Updated precedence to declare
+  PROJECT_NORTH_STAR.md as highest engineering authority. Added Documentation
+  Authority hierarchy. All project docs synchronized with current repository
+  state (Production Hardening complete, Institutional Readiness active,
+  Lineage-PROD-DISCONNECT resolved, all AUR-FINAL items closed).

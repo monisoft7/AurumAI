@@ -94,6 +94,13 @@
 - [x] Documentation updated
 
 ## Phase 12 — Core Stabilization Gates (Deferred from Core v1.0)
+
+### ADR-0004: Gates 1–3 (CLOSED)
+- [x] Gate 1: Evidence filtered by event type, condition, requested horizon
+- [x] Gate 2: INSUFFICIENT_EVIDENCE in normal orchestration flow
+- [x] Gate 3: Optional pipeline stages validated without corrupting order
+
+### ADR-0004: Gates 4–7 (OPEN)
 - [ ] Gate 4: Every knowledge record identifies source lessons + artifact
 - [ ] Gate 5: Atomic, immutable, content-addressed persistence
 - [ ] Gate 6: Real CPI/US10Y out-of-sample evaluation
@@ -301,15 +308,6 @@ Dependency flow:
 | **Output** | `MacroForecaster` at `src/forecasting/macro_forecaster.py` — thin adapter wrapping StatsForecast. `ForecastResult` frozen dataclass with forecast values + 95% prediction intervals. |
 | **Status** | ✅ Capability 16.1 — Time Series Forecasting |
 
-### 16.2 Risk Intelligence (Phase 17)
-| Field | Value |
-|-------|-------|
-| **Purpose** | Portfolio-level risk assessment: VaR, CVaR, tail-risk detection, drawdown analysis, position sizing constraints. Feeds risk-weighted confidence into Decision Gate. |
-| **Reuse** | **Build** — pure numpy/pandas implementation. VaR/CVaR (~50 lines), TailRiskDetector (~80 lines). Zero new dependencies. |
-| **Dependencies** | Forecast Intelligence (ForecastConfidence, ForecastContext, ForecastValidator) |
-| **Complexity** | Medium |
-| **Status** | ✅ Phase 17.1 Complete (Core Risk Measures) |
-
 ---
 
 ## Phase 17 — Risk Intelligence
@@ -443,6 +441,56 @@ Risk Intelligence is an **advisory layer**. It evaluates institutional risk. It 
 
 ---
 
+## Phase 22 — Production Hardening (Complete)
+
+### 22.1 AUR-FINAL Fixes
+| Field | Value |
+|-------|-------|
+| **Purpose** | Fix all five AUR-FINAL issues identified during production hardening audit. |
+| **Items** | 001 (look-ahead gap), 002 (reasoning_horizon/condition wiring), 003 (INSUFFICIENT_EVIDENCE verify), 004 (min_evidence_count wiring), 005 (compare_context verify) |
+| **Dependencies** | Core pipeline |
+| **Tests** | 5 new tests, 1584 total, zero regressions |
+
+### 22.2 Lineage Production Activation
+| Field | Value |
+|-------|-------|
+| **Purpose** | Activate LineageRegistry in production pipeline (`_build_legacy_pipeline`) — all 4 lineage hooks were dead code. |
+| **Dependencies** | Orchestrator |
+| **Tests** | 2 new tests (TestProductionLineage), 60/60 orchestrator tests pass |
+
+### 22.3 Reproducibility Audit
+| Field | Value |
+|-------|-------|
+| **Purpose** | Full deterministic audit of all pipeline stages. Verdict: A — Fully deterministic. All IDs content-derived, RNG seeded, source CSVs in-repo. |
+| **Dependencies** | All pipeline stages |
+
+---
+
+## Phase 23 — Institutional Readiness (Active)
+
+### 23.1 OOS Validation (ADR-0004 Gate 6)
+| Field | Value |
+|-------|-------|
+| **Purpose** | Real CPI/US10Y out-of-sample evaluation using expanding-window chronological split. Must prove measurable predictive value before new capabilities. |
+| **Dependencies** | CPI + US10Y context, historical replay |
+| **Complexity** | Medium |
+
+### 23.2 Immutable Persistence (ADR-0004 Gate 5)
+| Field | Value |
+|-------|-------|
+| **Purpose** | Atomic writes, content-addressed versions, immutable artifact storage. |
+| **Dependencies** | Core pipeline |
+| **Complexity** | Medium |
+
+### 23.3 CI Pipeline (ADR-0004 Gate 7)
+| Field | Value |
+|-------|-------|
+| **Purpose** | Clean CI pipeline from fresh clone. |
+| **Dependencies** | All of the above |
+| **Complexity** | Low |
+
+---
+
 ## Phase 19 — Scaling & Production (Planned)
 
 ### 19.1 Neo4j Knowledge Graph Migration
@@ -471,12 +519,17 @@ Risk Intelligence is an **advisory layer**. It evaluates institutional risk. It 
 
 ---
 
+## Documentation Authority
+
+See [PROJECT_NORTH_STAR.md](PROJECT_NORTH_STAR.md) for the full authority hierarchy.
+This roadmap is governed by PROJECT_NORTH_STAR.md and the Project Constitution.
+
 ## Dependency Graph (Text Summary)
 
 ```
 Core v1.0 (frozen)
   │
-  ├──12. Stabilization Gates──────────No downstream deps (prerequisite)
+  ├──12. Stabilization Gates──────────Gates 1-3 CLOSED; Gates 4-7 OPEN
   │
   ├──13.1 DXY Context─────────────────No downstream deps
   ├──13.2 Economic Calendar───────────Supports 14.1, 14.4
@@ -486,7 +539,7 @@ Core v1.0 (frozen)
   ├──14.2 FOMC Calendar───────────────✅ (Cap 14.2)
   ├──14.3 FOMC Event─────────────────✅ (Cap 14.3)
   ├──14.4 GDP Event / PPI Event / Regime───✅ (14.1, 15.4, 15.3)
-├──14.5 PMI Event────────────────────────✅ (Cap 15.5)
+  ├──14.5 PMI Event──────────────────✅ (Cap 15.5)
   │
   ├──15.1 FOMC NLP───────────────────✅ (Cap 15.1)
   ├──15.2 News Pipeline──────────────✅ (Cap 15.2)
@@ -494,21 +547,28 @@ Core v1.0 (frozen)
   ├──15.4 Technical Indicators───────✅ (Cap 15.4)
   │
   ├──16.1 Time Series Forecasting────✅ (Cap 16.1)
-  ├──16.2 Risk Intelligence──────────✅ (Phase 17.1 complete)
   │
-  ├──17.1 Core Risk Measures─────────✅ (Phase 17.1, 36 tests)
-  ├──17.2 Position Sizing────────────Depends on 17.1
-  ├──17.3 Risk Budgeting─────────────Depends on 17.1
-  ├──17.4 Decision Gate──────────────Depends on 17.1–17.3, Forecast Intelligence
-  ├──17.5 Integration───────────────Depends on 17.1–17.4
+  ├──17.1 Core Risk Measures─────────✅ (36 tests)
+  ├──17.2 Position Sizing────────────✅ Depends on 17.1
+  ├──17.3 Risk Budgeting─────────────✅ Depends on 17.1
+  ├──17.4 Decision Gate──────────────✅ Depends on 17.1–17.3
+  ├──17.5 Integration───────────────✅ Depends on 17.1–17.4
   │
-  ├──18.1 Broker/Paper Trading───────Depends on 17.x, 16.x
+  ├──18.1 Broker Adapter─────────────Planned; Depends on 17.x, 21.x
   │
-  ├──20.1–20.5 Hardening────────────Depends on Core v1.0
+  ├──20.1–20.5 Hardening────────────✅ Depends on Core v1.0
   │
-  ├──21.1 Paper Trading Core─────────✅ (63 tests, standalone)
-  ├──21.2 Slippage & Commission──────✅ (66 tests, standalone)
-  ├──21.3 Execution Engine──────────✅ (38 tests, standalone)
+  ├──21.1 Paper Trading Core─────────✅ (63 tests)
+  ├──21.2 Slippage & Commission──────✅ (66 tests)
+  ├──21.3 Execution Engine──────────✅ (38 tests)
+  │
+  ├──22.1 AUR-FINAL Fixes───────────✅ (5 items, all closed)
+  ├──22.2 Lineage Activation─────────✅ (2 tests)
+  ├──22.3 Reproducibility Audit──────✅ (Verdict: A — Fully deterministic)
+  │
+  ├──23.1 OOS Validation────────────Active; Gates on all new capabilities
+  ├──23.2 Immutable Persistence──────Open
+  ├──23.3 CI Pipeline────────────────Open
   │
   └──19.1–19.3 Scaling──────────────Depends on all above
 ```

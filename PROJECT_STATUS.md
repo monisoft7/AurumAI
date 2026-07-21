@@ -1,120 +1,116 @@
 # PROJECT STATUS
 
+## Documentation Authority
+
+This file is governed by the following hierarchy:
+1. **PROJECT_NORTH_STAR.md** — Highest engineering authority
+2. **PROJECT_CONSTITUTION.md** — Constitutional rules and governance
+3. **CURRENT_STATE.md** — Canonical project snapshot
+4. **ROADMAP.md** — Phased plan and gates
+5. **PROJECT_STATUS.md** — This file (version, progress, completed items)
+6. **Historical documents** — Archived records, preserved for reference
+
+---
+
 ## Current Phase
 
-ADR-0004 Final Closure — Stabilization Gates 1–7
+Institutional Readiness (Production Hardening Complete)
 
 ---
 
 ## Version
 
-0.6.0
+0.8.0
 
 ---
 
 ## Progress
 
-80%
+85%
 
 ---
 
 ## Completed
 
-- Repository
-- Project Structure
-- Vision
-- Collector Skeletons
-- Local Economic Data
-- Local Gold Data
-- First CPI/Gold Lessons Dataset
-- Initial Knowledge Engine Skeleton
-- Professional CPI/Gold LessonBuilder
-- Deterministic LessonBuilder Tests
-- CPI/Gold Lesson Summary Aggregator
-- Knowledge Memory Ingestion
-- Evidence-Backed CPI Brain Lookup
-- Feature Extraction Engine
-- NetworkX Knowledge Graph
-- Evidence Query and Ranking
-- Reasoning Engine
-- Decision Engine
-- Learning Engine
-- Economic Intelligence Layer
-- Temporal Intelligence Layer
-- Causal Intelligence Layer
+### Core Intelligence (Phases 1–11)
+- Repository, vision, collector skeletons, local economic/gold data
+- CPI/Gold LessonBuilder, Lesson Summary Aggregator, Knowledge Memory
+- Evidence-Backed Brain, Feature Extraction Engine
+- NetworkX Knowledge Graph, Evidence Query and Ranking
+- Reasoning Engine, Decision Engine, Learning Engine
 - End-to-End Inference Pipeline
+- Economic, Temporal, Causal Intelligence Layers
 - US10Y Yield Context Enrichment
-- CPI + Yield Trend Multi-Factor Knowledge Records
-- Multi-Factor Context Comparison Report
-- Pipeline Artifact for Context Comparison Report
-- Sprint Intelligence Core Stabilization Gate
-- 303 Passing Tests
-- Knowledge Integrity & Versioning Sprint
-  - Provenance system (created_at, source, version, chain)
-  - LineageRegistry (full entity traceability)
-  - VersionedStore (append-only, all versions preserved)
-  - KnowledgeRecord entity (typed replacement for plain dicts)
-  - SourceData entity
-  - Provenance field on Decision, ReasoningChain, Evidence, Lesson
-  - Repository updates for provenance serialization
-  - Lesson repository versioned save/load
-  - 35 knowledge integrity tests (338 total passing)
-- Knowledge Integrity Cleanup Sprint
-  - Centralized Provenance serialize/deserialize in provenance.py (removed 3x duplication)
-  - VersionedStore now accepts optional loader factory for typed deserialization
-  - LineageRegistry wired into InferencePipeline (optional, non-breaking)
-  - KnowledgeRecord.from_dict() / to_dict() for explicit dict↔entity conversion
-  - GraphBuilder accepts list[dict | KnowledgeRecord] via _as_dict()
-  - All 338 tests continue to pass — zero regressions
-- Intelligence Orchestration Engine Sprint
-  - OrchestrationEngine: runs Economic + Temporal + Causal + Core layers in one pass
-  - EvidenceAggregator: merges multi-layer evidence, deduplicates, detects conflicts
-  - OrchestrationContext: holds all layer references + query parameters
-  - OrchestrationReport: full traceability per layer + aggregation + chain + decision
-  - 13 orchestration tests (351 total passing)
-  - Zero external dependencies — reuses existing Evidence, Pipeline, Reasoning, Decision
-- Adaptive Intelligence Policy Engine Sprint
-  - LayerPolicy: dataclass with callable layer_fn, condition predicate (run_if), priority
-  - evaluate_policies(): filter + sort — deterministic, context-only, no side effects
-  - OrchestrationEngine.analyze() accepts optional policies parameter
-  - Default (no policies) = unchanged backward-compatible behavior
-  - 6 policy tests (357 total passing)
-  - Zero new dependencies, ~25 lines of new code
-- Institutional Intelligence Validation Sprint
-  - 10 validation scenarios across 10 categories
-  - Results: 8 PASS, 2 WARNING, 0 FAIL (scenario 9 resolved from WARNING to PASS)
-  - Unified report generated (institutional_validation_report.md)
-  - Findings documented neutrally (2 findings), zero fixes without approval
-- ADR-0004 Final Closure Sprint (previous)
-  - EvidenceQuery.matching() is now the canonical lookup in both InferencePipeline and OrchestrationEngine
-  - INSUFFICIENT_EVIDENCE reachable via normal orchestration flow (no evidence → INSUFFICIENT_EVIDENCE)
-  - Lineage normalized: Decision → ReasoningChain → Evidence → KnowledgeRecord → Lesson → SourceData
-  - pytest no longer creates repository-local temporary directories (removed --basetemp=.pytest_tmp)
-  - OrchestrationEngine documented as adapter pattern around InferencePipeline
-  - 358 tests passing
-- Knowledge Chain Completion Sprint
-  - Lineage records reversed for bidirectional traversal:
-    - knowledge_record → evidence (was evidence → knowledge_record)
-    - evidence → reasoning_chain (was reasoning_chain → evidence)
-  - Orchestration engine now also records knowledge_record → evidence for core layer
-  - Backward trace: every Decision reaches its original SourceData
-  - Forward trace: every SourceData enumerates all downstream entities
-  - 2 new lineage end-to-end tests (360 total passing)
-- Project Stabilization Sprint
-  - Dead code removed: 6 legacy files deleted (build_knowledge.py, build_lessons.py, csv_to_lessons.py, historical_teacher.py, lesson_repository.py, knowledge/calendar/fomc_calendar.py)
-  - 1 legacy test removed: test_fomc_calendar.py (duplicate of test_fomc_calendar_connector.py)
-  - Unused imports removed from 4 source files (weighting.py, lifecycle.py, validator.py, engine.py)
-  - 7 unused imports removed from pipeline/repository.py
-  - integrity/__init__.py __all__ completed with serialize_provenance, deserialize_provenance
-  - Documents synchronized (CURRENT_STATE.md, MEMORY.md, PROJECT_STATUS.md, ROADMAP.md)
-  - Test count stabilized at 786 (all passing)
+- CPI + Yield Multi-Factor Knowledge Records
+- Context Comparison Report
+- Knowledge Integrity & Versioning (Provenance, LineageRegistry, VersionedStore)
+- Intelligence Orchestration Engine (13 tests)
+- Adaptive Intelligence Policy Engine (6 tests)
+- Institutional Intelligence Validation (10 scenarios, 8 PASS / 2 WARNING)
+- ADR-0004 Final Closure (canonical path, lineage normalization, clean pytest)
+- Knowledge Chain Completion (bidirectional lineage, 2 end-to-end tests)
+- Project Stabilization (dead code removal, import cleanup, documents sync)
+- 786 tests passing (post-stabilization)
+
+### Capability Expansion (Phases 13–21)
+- DXY Context Layer (13.1)
+- Economic Calendar Connector (13.2)
+- Multi-Event Knowledge Comparison (13.3)
+- NFPEvent Implementation (14.1)
+- FOMC Calendar (14.2), FOMC Event (14.3)
+- GDP Event, PPI Event, Macro Regime (14.4)
+- PMI Event (14.5)
+- FOMC Minutes NLP (15.1)
+- News Data Pipeline (15.2), News Sentiment Engine (15.3)
+- Technical Indicators Engine (15.4)
+- Time Series Forecasting (16.1)
+- Risk Intelligence Phase 17 (17.1–17.5, 117 tests)
+- Phase 20 Hardening (20.1–20.5)
+  - Determinism Hardening, Data Integrity (FrozenDict, atomic writes)
+  - Performance Hardening (GraphBuilder indexed)
+  - Maintainability Hardening (orchestrator module split)
+  - Packaging Hardening (pyproject.toml audit)
+  - 253 tests across 20.x–21.x
+- Phase 21 Paper Trading (21.1–21.3)
+  - VirtualPortfolio, Slippage & Commission, Execution Engine
+  - 167 tests across 21.x, 1551 total (all passing)
+
+### Production Hardening & Lineage Activation (Phase 22)
+- **AUR-FINAL-001**: Fixed look-ahead gap in `_replay_event_release_by_release`
+- **AUR-FINAL-002**: Wired `reasoning_horizon`/`reasoning_condition` through legacy pipeline (3 tests)
+- **AUR-FINAL-003**: Verified INSUFFICIENT_EVIDENCE guard already functional
+- **AUR-FINAL-004**: Added `min_evidence_count` wiring (2 tests)
+- **AUR-FINAL-005**: Verified `compare_context` validation already correct
+- **LINEAGE-PROD-DISCONNECT**: LineageRegistry created/passed in `_build_legacy_pipeline` (2 tests)
+- **Production Hardening Validation**: 1584/1584 pass, 0 regressions, READY
+- **Full Reproducibility Assessment**: Verdict A — Fully deterministic
+  - All IDs content-derived (no uuid4)
+  - All RNG uses fixed seed 42
+  - Only cosmetic timestamps differ across runs
+
+### Phase 21.3 Paper Trading Execution Engine (COMPLETE)
+- Created `src/execution/execution_engine.py` — `ExecutionEngine` class with `evaluate()` method
+- `ExecutionDecision` enum: `EXECUTE`, `REJECT`, `HOLD`
+- Respects RiskDecision: `halt`/`delay` → REJECT, no portfolio mutation
+- Applies slippage + commission on execute
+- Deterministic, no broker/MT5/forecasting/reasoning
+
+| Sprint | Tests |
+|--------|-------|
+| AUR-FINAL Fixes | 5 |
+| LINEAGE-PROD Activation | 2 |
+| 20.1–20.5 Hardening | 253 |
+| 21.1–21.3 Paper Trading | 167 |
+
+| Total Tests | 1593 |
 
 ---
 
 ## Next
 
-- Remaining stabilization (ADR-0004 Gates 4–7 deferred, see [ADR-0004](docs/adr/ADR-0004-canonical-inference-path.md))
-  - Gate 4: Every knowledge record identifies its source lessons and source artifact
-  - Gate 5: Persisted artifacts written atomically, immutable content-addressed versions
-  - Gate 6: CPI/US10Y context evaluated out of sample on real local history
-  - Gate 7: Test command succeeds in clean environment + CI
+### Institutional Readiness (Phase 23 — Active)
+- **OOS Validation (Gate 6)**: Real CPI/US10Y out-of-sample evaluation using expanding-window chronological split
+- **Immutable Persistence (Gate 5)**: Atomic writes, content-addressed versions
+- **CI Pipeline (Gate 7)**: Clean CI from fresh clone
+
+No new intelligence capability will be added before OOS validation demonstrates measurable predictive value.

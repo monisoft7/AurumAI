@@ -123,6 +123,76 @@ _SYNTHETIC_EVENTS: dict[str, _EventSpec] = {
 
 
 # ---------------------------------------------------------------------------
+# OOS correctness helpers
+# ---------------------------------------------------------------------------
+
+
+def _classify_actual_direction(
+    actual_return_pct: float,
+    dead_zone: float = 0.10,
+) -> str:
+    """Classify actual gold return as UP (>dead_zone), DOWN (<-dead_zone),
+    or FLAT (|return| <= dead_zone)."""
+    if actual_return_pct > dead_zone:
+        return "UP"
+    elif actual_return_pct < -dead_zone:
+        return "DOWN"
+    else:
+        return "FLAT"
+
+
+def _decision_is_correct(
+    decision: str,
+    actual_direction: str,
+) -> bool | None:
+    """Return True/False for a directional bet, or None for abstention.
+
+    POSITIVE / STRONG_POSITIVE → correct if actual is UP.
+    NEGATIVE / STRONG_NEGATIVE → correct if actual is DOWN.
+    NEUTRAL                   → correct if actual is FLAT.
+    INSUFFICIENT_EVIDENCE     → None (not scored).
+    """
+    decision_upper = decision.upper()
+    if decision_upper == "INSUFFICIENT_EVIDENCE":
+        return None
+    if decision_upper in ("POSITIVE", "STRONG_POSITIVE"):
+        return actual_direction == "UP"
+    if decision_upper in ("NEGATIVE", "STRONG_NEGATIVE"):
+        return actual_direction == "DOWN"
+    if decision_upper == "NEUTRAL":
+        return actual_direction == "FLAT"
+    return None
+
+
+def _compute_gold_return(
+    gold: "pd.DataFrame",
+    entry_date: datetime.datetime,
+    horizon_days: int = 5,
+) -> float | None:
+    """Forward percentage return of gold from *entry_date* over *horizon_days*
+    calendar days.  Uses the nearest price at-or-before entry and the nearest
+    price at-or-after entry+horizon."""
+    target_date = entry_date + datetime.timedelta(days=horizon_days)
+
+    entry_mask = gold["Date"] <= entry_date
+    entry_rows = gold.loc[entry_mask, "Close"]
+    if entry_rows.empty:
+        return None
+    entry_price = entry_rows.iloc[-1]
+
+    future_mask = gold["Date"] >= target_date
+    future_rows = gold.loc[future_mask, "Close"]
+    if future_rows.empty:
+        return None
+    future_price = future_rows.iloc[0]
+
+    if entry_price == 0:
+        return None
+
+    return float((future_price - entry_price) / entry_price * 100.0)
+
+
+# ---------------------------------------------------------------------------
 # Engine
 # ---------------------------------------------------------------------------
 
@@ -484,6 +554,17 @@ class HistoricalReplayEngine:
         position_scaling = self._extract_position_scaling(final_finalize)
         risk_gate_action, risk_gate_score = self._extract_risk_gate(final_finalize)
 
+        # ---- OOS correctness --------------------------------------------
+        decision_correct: bool | None = None
+        decision_actual_return_pct: float | None = None
+        if decision is not None and gold is not None and all_outputs:
+            last_as_of = cpi_merged.iloc[-1]["release_timestamp"]
+            gold_return = _compute_gold_return(gold, last_as_of)
+            if gold_return is not None:
+                decision_actual_return_pct = gold_return
+                actual_dir = _classify_actual_direction(gold_return)
+                decision_correct = _decision_is_correct(decision, actual_dir)
+
         return EventRunResult(
             event_type=event_type,
             event_date_min=date_min,
@@ -505,6 +586,8 @@ class HistoricalReplayEngine:
             position_scaling=position_scaling,
             risk_gate_action=risk_gate_action,
             risk_gate_score=risk_gate_score,
+            decision_correct=decision_correct,
+            decision_actual_return_pct=decision_actual_return_pct,
             error=errors[0] if errors else None,
             errors=tuple(errors),
         )

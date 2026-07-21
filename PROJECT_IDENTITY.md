@@ -1,10 +1,11 @@
 # AurumAI Project Identity
 
 Status: Historical record. Superseded in authority by
-[docs/PROJECT_CONSTITUTION.md](docs/PROJECT_CONSTITUTION.md), which is now
-the highest-level document in the repository. This file is kept as the
-original CTO decision record; where it conflicts with the constitution,
-the constitution governs.
+[PROJECT_NORTH_STAR.md](PROJECT_NORTH_STAR.md) (highest engineering authority).
+[docs/PROJECT_CONSTITUTION.md](docs/PROJECT_CONSTITUTION.md) governs
+constitutional rules. This file is kept as the original CTO decision record;
+where it conflicts with PROJECT_NORTH_STAR.md or the constitution, those
+documents govern.
 
 ## CTO Decision
 
@@ -175,12 +176,13 @@ Acts as Reviewer:
 
 ## Current Strategic Position
 
-AurumAI is at the end of early Data Engine setup and the beginning of the
-Knowledge Engine.
+AurumAI is in Institutional Readiness. The core intelligence pipeline is
+frozen at v1.0, Production Hardening is complete, Lineage is active in
+production, and reproducibility is proven (A — Fully deterministic).
 
-The next priority is to stabilize module contracts and create the first
-professional LessonBuilder pipeline that converts aligned CPI and gold history
-into versioned, testable lessons.
+The next priority is Out-of-Sample Validation (ADR-0004 Gate 6): prove
+measurable predictive value on unseen historical data before adding any
+new intelligence capability.
 
 ## Related ADRs
 

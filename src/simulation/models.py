@@ -26,6 +26,8 @@ class EventRunResult:
     position_scaling: float | None = None
     risk_gate_action: str | None = None
     risk_gate_score: float | None = None
+    decision_correct: bool | None = None
+    decision_actual_return_pct: float | None = None
     error: str | None = None
     errors: tuple[str, ...] = ()
 
@@ -45,6 +47,7 @@ class EventRunResult:
             "forecast_confidence", "validation_passed",
             "var_95", "cvar_95", "tail_index", "position_scaling",
             "risk_gate_action", "risk_gate_score", "error",
+            "decision_correct", "decision_actual_return_pct",
         ):
             val = getattr(self, fld, None)
             if val is not None:

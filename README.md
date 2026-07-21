@@ -10,7 +10,7 @@ The project builds the connective intelligence between mature open-source tools
 instead of rebuilding indicators, backtesters, news APIs, broker wrappers,
 sentiment models, RAG frameworks, or vector databases.
 
-Current stage: Intelligence Core stabilization.
+Current stage: Institutional Readiness (Production Hardening Complete).
 
 Current working pipeline:
 
@@ -33,8 +33,9 @@ accepts more macro context.
 py -3 -m pytest -q
 ```
 
-See [docs/PROJECT_CONSTITUTION.md](docs/PROJECT_CONSTITUTION.md) for the
-operating doctrine. [PROJECT_IDENTITY.md](PROJECT_IDENTITY.md) remains as a
+See [PROJECT_NORTH_STAR.md](PROJECT_NORTH_STAR.md) for the highest engineering
+authority and [docs/PROJECT_CONSTITUTION.md](docs/PROJECT_CONSTITUTION.md) for
+the operating doctrine. [PROJECT_IDENTITY.md](PROJECT_IDENTITY.md) remains as a
 historical CTO decision record and defers to the constitution wherever the
 two differ.
 

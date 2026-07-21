@@ -15,6 +15,9 @@ from simulation.historical_replay import (
     HistoricalReplayEngine,
     _BUILTIN_EVENTS,
     _SYNTHETIC_EVENTS,
+    _classify_actual_direction,
+    _decision_is_correct,
+    _compute_gold_return,
     run_simulation,
 )
 from simulation.models import (
@@ -503,6 +506,35 @@ class TestHistoricalReplayEngine:
         cpi = next((r for r in report.results if r.event_type == "CPI"), None)
         assert cpi is not None
 
+    # -- OOS correctness integration ---------------------------------------
+
+    def test_cpi_result_has_correctness_fields(self, sim_data_dir: Path) -> None:
+        engine = HistoricalReplayEngine(
+            data_dir=sim_data_dir,
+            gold_path=sim_data_dir / "history" / "gold" / "gold.csv",
+        )
+        report = engine.run_all()
+        cpi = next(r for r in report.results if r.event_type == "CPI")
+        # decision_actual_return_pct is always computed when gold data exists
+        assert cpi.decision_actual_return_pct is not None
+        assert isinstance(cpi.decision_actual_return_pct, float)
+        # decision_correct is None when system abstains (INSUFFICIENT_EVIDENCE)
+        if cpi.decision == "INSUFFICIENT_EVIDENCE":
+            assert cpi.decision_correct is None
+        else:
+            assert cpi.decision_correct is not None
+
+    def test_non_cpi_result_no_correctness(self, sim_data_dir: Path) -> None:
+        engine = HistoricalReplayEngine(
+            data_dir=sim_data_dir,
+            gold_path=sim_data_dir / "history" / "gold" / "gold.csv",
+        )
+        report = engine.run_all()
+        for r in report.results:
+            if r.event_type != "CPI":
+                assert r.decision_correct is None, f"{r.event_type} should not have correctness"
+                assert r.decision_actual_return_pct is None
+
 
 # ===========================================================================
 # End‑to‑end with real repository data
@@ -654,3 +686,131 @@ class TestEdgeCases:
         # Verify the pre-created file was not overwritten
         gdp_df = pd.read_csv(econ / "GDP.csv")
         assert gdp_df["Value"].iloc[0] == 42.0
+
+
+# ===========================================================================
+# OOS correctness evaluation
+# ===========================================================================
+
+
+class TestOosCorrectnessEvaluation:
+    """Unit tests for the OOS correctness helpers and integration test
+    verifying the fields are populated on EventRunResult."""
+
+    # -- _classify_actual_direction -----------------------------------------
+
+    def test_classify_up(self) -> None:
+        assert _classify_actual_direction(0.50) == "UP"
+        assert _classify_actual_direction(0.11) == "UP"
+        assert _classify_actual_direction(99.0) == "UP"
+
+    def test_classify_down(self) -> None:
+        assert _classify_actual_direction(-0.50) == "DOWN"
+        assert _classify_actual_direction(-0.11) == "DOWN"
+        assert _classify_actual_direction(-99.0) == "DOWN"
+
+    def test_classify_flat(self) -> None:
+        assert _classify_actual_direction(0.0) == "FLAT"
+        assert _classify_actual_direction(0.05) == "FLAT"
+        assert _classify_actual_direction(-0.05) == "FLAT"
+
+    def test_classify_boundary(self) -> None:
+        assert _classify_actual_direction(0.10) == "FLAT"
+        assert _classify_actual_direction(-0.10) == "FLAT"
+        assert _classify_actual_direction(0.1001) == "UP"
+        assert _classify_actual_direction(-0.1001) == "DOWN"
+
+    # -- _decision_is_correct -----------------------------------------------
+
+    def test_positive_correct(self) -> None:
+        assert _decision_is_correct("POSITIVE", "UP") is True
+        assert _decision_is_correct("POSITIVE", "DOWN") is False
+        assert _decision_is_correct("POSITIVE", "FLAT") is False
+
+    def test_negative_correct(self) -> None:
+        assert _decision_is_correct("NEGATIVE", "DOWN") is True
+        assert _decision_is_correct("NEGATIVE", "UP") is False
+        assert _decision_is_correct("NEGATIVE", "FLAT") is False
+
+    def test_strong_positive_correct(self) -> None:
+        assert _decision_is_correct("STRONG_POSITIVE", "UP") is True
+        assert _decision_is_correct("STRONG_POSITIVE", "DOWN") is False
+        assert _decision_is_correct("STRONG_POSITIVE", "FLAT") is False
+
+    def test_strong_negative_correct(self) -> None:
+        assert _decision_is_correct("STRONG_NEGATIVE", "DOWN") is True
+        assert _decision_is_correct("STRONG_NEGATIVE", "UP") is False
+        assert _decision_is_correct("STRONG_NEGATIVE", "FLAT") is False
+
+    def test_neutral_correct(self) -> None:
+        assert _decision_is_correct("NEUTRAL", "FLAT") is True
+        assert _decision_is_correct("NEUTRAL", "UP") is False
+        assert _decision_is_correct("NEUTRAL", "DOWN") is False
+
+    def test_insufficient_evidence_abstains(self) -> None:
+        assert _decision_is_correct("INSUFFICIENT_EVIDENCE", "UP") is None
+        assert _decision_is_correct("INSUFFICIENT_EVIDENCE", "DOWN") is None
+        assert _decision_is_correct("INSUFFICIENT_EVIDENCE", "FLAT") is None
+
+    def test_unknown_decision_returns_none(self) -> None:
+        assert _decision_is_correct("BANANAS", "UP") is None
+
+    # -- _compute_gold_return -----------------------------------------------
+
+    def test_gold_return_positive(self) -> None:
+        gold = pd.DataFrame({
+            "Date": pd.to_datetime([
+                "2024-01-01", "2024-01-02",
+                "2024-01-06", "2024-01-07",
+            ]),
+            "Close": [100.0, 101.0, 105.0, 106.0],
+        })
+        entry = pd.Timestamp("2024-01-02")
+        ret = _compute_gold_return(gold, entry, horizon_days=5)
+        assert ret is not None
+        # entry=101.0 (2024-01-02), future=106.0 (2024-01-07) => (106-101)/101*100
+        assert ret == pytest.approx(4.950495, abs=1e-5)
+
+    def test_gold_return_negative(self) -> None:
+        gold = pd.DataFrame({
+            "Date": pd.to_datetime([
+                "2024-01-01", "2024-01-02",
+                "2024-01-06", "2024-01-07",
+            ]),
+            "Close": [100.0, 101.0, 95.0, 94.0],
+        })
+        entry = pd.Timestamp("2024-01-02")
+        ret = _compute_gold_return(gold, entry, horizon_days=5)
+        assert ret is not None
+        # entry=101.0 (2024-01-02), future=94.0 (2024-01-07) => (94-101)/101*100
+        assert ret == pytest.approx(-6.930693, abs=1e-5)
+
+    def test_gold_return_exact_day_match(self) -> None:
+        gold = pd.DataFrame({
+            "Date": pd.to_datetime(["2024-06-01", "2024-06-06"]),
+            "Close": [200.0, 210.0],
+        })
+        entry = pd.Timestamp("2024-06-01")
+        ret = _compute_gold_return(gold, entry, horizon_days=5)
+        assert ret is not None
+        assert ret == pytest.approx(5.0, abs=1e-5)
+
+    def test_gold_return_no_entry_data(self) -> None:
+        gold = pd.DataFrame({
+            "Date": pd.to_datetime(["2024-06-10", "2024-06-15"]),
+            "Close": [200.0, 210.0],
+        })
+        entry = pd.Timestamp("2024-06-01")
+        ret = _compute_gold_return(gold, entry, horizon_days=5)
+        assert ret is None
+
+    def test_gold_return_no_future_data(self) -> None:
+        gold = pd.DataFrame({
+            "Date": pd.to_datetime(["2024-06-01", "2024-06-02"]),
+            "Close": [200.0, 201.0],
+        })
+        entry = pd.Timestamp("2024-06-02")
+        ret = _compute_gold_return(gold, entry, horizon_days=10)
+        assert ret is None
+
+
