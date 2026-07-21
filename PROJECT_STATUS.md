@@ -122,6 +122,12 @@ Institutional Readiness (Experiment Framework Complete)
 - DecisionComparison: decisions changed/improved/degraded
 - 12 unit tests, 29/29 tests pass (12 + 11 HistoricalReplayEngine + 6 ChronologicalOOSEngine)
 
+#### ✅ Institutional Experiment Registry (Complete)
+- ExperimentRecord: immutable record with id, config snapshot, metrics summary
+- Deterministic SHA-256 IDs (no UUIDs), file-based persistence (atomic_write_json)
+- Registry API: register, get, list, search, compare, approval workflow
+- 27 unit tests
+
 #### ⬜ Experiment 001 (Pending)
 - CPI baseline vs CPI + US10Y candidate
 - Uses Experiment Framework, no new intelligence

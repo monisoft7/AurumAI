@@ -99,6 +99,9 @@ Decision correctness evaluation per event type, OOS summary with directional acc
 **Institutional Experiment Framework**
 ExperimentConfig/RunConfig configuration-driven comparison, ExperimentRunner composes ChronologicalOOSEngine, ExperimentComparator with delta metrics and per-event decision comparison, ExperimentReportBuilder (human + machine readable), no CPI/US10Y-specific knowledge — experiments are configurations
 
+**Institutional Experiment Registry**
+Immutable file-based record of every experiment execution, deterministic SHA-256 IDs (no UUIDs), approval workflow (PENDING/APPROVED/REJECTED/SUPERSEDED), search by name/tag/commit, cross-experiment comparison, atomic_write_json persistence, corrupt-file resilience, 27 tests
+
 **Production Hardening (Phases 20.1–20.5)**
 Determinism Hardening (EvidenceWeighter, MacroRegimeDetector, ForecastEvidence)
 Data Integrity (FrozenDict, atomic writes across 11 files, 70 tests)
@@ -130,7 +133,7 @@ Backward trace verified: decision→source_data
 |--------|-------|
 | Project Version | 0.9.0 |
 | Python Support | >=3.10 |
-| Total Tests | 1611 |
+| Total Tests | 1638 |
 | Benchmark Status | 18/18 passing |
 | Core Status | Frozen v1.0 |
 | Runtime Dependencies | 6 (pandas, numpy, networkx, statsmodels, statsforecast, feedparser) |
@@ -177,13 +180,24 @@ Backward trace verified: decision→source_data
 - 12 unit tests covering all models, comparator, config, report
 - 29/29 tests pass (12 experiment + 11 HistoricalReplayEngine + 6 ChronologicalOOSEngine)
 
+**Institutional Experiment Registry (COMPLETE).**
+- ExperimentRecord: immutable record with id, config snapshot, metrics summary, approval status, tags
+- Deterministic IDs: SHA-256 of config + git commit (no UUIDs)
+- File-based persistence via atomic_write_json (no databases, no services)
+- Registry API: register, get, list, latest, latest_approved, compare_two, find_by_name/find_by_tag/find_by_commit
+- Approval workflow: PENDING → APPROVED / REJECTED / SUPERSEDED with timestamped notes
+- Serialization: to_dict (machine), to_json, summary_text (human)
+- Corrupt-file resilience, idempotent registration
+- 27 unit tests
+
 | Milestone | Component | Tests |
 |-----------|-----------|-------|
 | A | Decision correctness | — |
 | B | OOS summary | 5 |
 | C | ChronologicalOOSEngine | 6 |
 | Experiment Framework | ExperimentConfig/Comparator/Report | 12 |
-| **OOS total** | | **23** |
+| Experiment Registry | ExperimentRecord/Registry API/Approval | 27 |
+| **OOS total** | | **50** |
 
 ## 8. Immediate Next Capability
 
