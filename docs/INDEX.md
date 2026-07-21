@@ -95,6 +95,7 @@ All documentation is governed by the following hierarchy:
 | Knowledge Engine Flow | [`docs/architecture/knowledge_engine.md`](architecture/knowledge_engine.md) | ADR-0004 |
 | Feature Extraction Layer | Constitution §16 | — |
 | ADR-0004: Canonical Inference Path | [`docs/adr/ADR-0004-canonical-inference-path.md`](adr/ADR-0004-canonical-inference-path.md) | All architecture docs |
+| ADR-0013: Context Enrichment Boundary | [`docs/adr/ADR-0013-context-enrichment-boundary.md`](adr/ADR-0013-context-enrichment-boundary.md) | ADR-0005, Institutional Experiment Framework |
 
 ### Open Source & Research
 | Topic | Canonical Source | Also Referenced In |
