@@ -1,0 +1,114 @@
+[
+  {
+    "experiment_id": "exp_c3b433e5606b0d15",
+    "experiment_name": "EXP-001-CPI-vs-CPI-US10Y",
+    "timestamp": "2026-07-21T20:16:25.524439+00:00",
+    "git_commit": "4dc7d030f57038e59bbe28b72e66f4959a3cc53c",
+    "framework_version": "0.1.0",
+    "baseline_config": {
+      "name": "CPI",
+      "horizon": 12,
+      "max_workers": 4,
+      "knowledge_dir": null
+    },
+    "candidate_config": {
+      "name": "CPI+US10Y",
+      "horizon": 12,
+      "max_workers": 4,
+      "knowledge_dir": null
+    },
+    "cutoff_date": "2024-01-01",
+    "evaluation_horizon": 12,
+    "metrics_summary": {
+      "directional_accuracy_delta": 0.0,
+      "macro_precision_delta": 0.0,
+      "macro_recall_delta": 0.0,
+      "coverage_delta": 0.0,
+      "abstention_rate_delta": 0.0,
+      "strong_error_rate_delta": null,
+      "ece_delta": 0.0,
+      "total_decisions_changed": 0,
+      "total_decisions_improved": 0,
+      "total_decisions_degraded": 0
+    },
+    "recommendation": "",
+    "approval_status": "REJECTED",
+    "notes": "[2026-07-21T20:16:58.933597+00:00] REJECTED: Verdict: REJECT US10Y. Zero measurable difference across all OOS metrics. Directional accuracy delta = 0.00, precision delta = 0.00, recall delta = 0.00, ECE delta = 0.00, decisions changed = 0, decisions improved = 0, decisions degraded = 0. Baseline and candidate produced identical decisions for all 24 CPI events. US10Y context enrichment produced no measurable effect on gold directional decisions.",
+    "tags": [
+      "cpi",
+      "us10y",
+      "context-enrichment",
+      "experiment-001"
+    ],
+    "machine_dict": {
+      "experiment_name": "EXP-001-CPI-vs-CPI-US10Y",
+      "cutoff_date": "2024-01-01",
+      "baseline": {
+        "name": "CPI",
+        "summary": {
+          "total_events": 3,
+          "scored_events": 1,
+          "abstained_events": 0,
+          "directional_accuracy": 1.0,
+          "macro_precision": 1.0,
+          "macro_recall": 1.0,
+          "precision_up": 1.0,
+          "recall_up": 1.0,
+          "coverage": 1.0,
+          "abstention_rate": 0.0,
+          "ece": 0.31282,
+          "decision_distribution": {
+            "POSITIVE": 1,
+            "NO_DECISION": 2
+          }
+        },
+        "evaluation_events": 3
+      },
+      "candidate": {
+        "name": "CPI+US10Y",
+        "summary": {
+          "total_events": 3,
+          "scored_events": 1,
+          "abstained_events": 0,
+          "directional_accuracy": 1.0,
+          "macro_precision": 1.0,
+          "macro_recall": 1.0,
+          "precision_up": 1.0,
+          "recall_up": 1.0,
+          "coverage": 1.0,
+          "abstention_rate": 0.0,
+          "ece": 0.31282,
+          "decision_distribution": {
+            "POSITIVE": 1,
+            "NO_DECISION": 2
+          }
+        },
+        "evaluation_events": 3
+      },
+      "comparison": {
+        "directional_accuracy_delta": 0.0,
+        "macro_precision_delta": 0.0,
+        "macro_recall_delta": 0.0,
+        "coverage_delta": 0.0,
+        "abstention_rate_delta": 0.0,
+        "strong_error_rate_delta": null,
+        "ece_delta": 0.0,
+        "decision_comparisons": [
+          {
+            "event_type": "CPI",
+            "total_events": 24,
+            "decisions_changed": 0,
+            "decisions_improved": 0,
+            "decisions_degraded": 0,
+            "baseline_correct": 24,
+            "candidate_correct": 24
+          }
+        ],
+        "total_decisions_changed": 0,
+        "total_decisions_improved": 0,
+        "total_decisions_degraded": 0
+      }
+    },
+    "human_summary": "========================================================================\n  Experiment: EXP-001-CPI-vs-CPI-US10Y\n  Description: Compare CPI-only vs CPI+US10Y for gold directional decisions.\n  Cutoff:      2024-01-01\n========================================================================\n\n  --- Baseline: CPI ---\n  Horizon:        12 weeks\n  Max workers:    4\n  Total events:   3\n  Scored events:  1\n  Abstained:      0\n  Directional Acc: 100.00%\n  Macro Precision: 100.00%\n  Macro Recall:    100.00%\n  Coverage:        100.00%\n  Abstention Rate: 0.00%\n  Strong Error:    N/A\n  ECE:             31.28%\n\n  --- Candidate: CPI+US10Y ---\n  Horizon:        12 weeks\n  Max workers:    4\n  Total events:   3\n  Scored events:  1\n  Abstained:      0\n  Directional Acc: 100.00%\n  Macro Precision: 100.00%\n  Macro Recall:    100.00%\n  Coverage:        100.00%\n  Abstention Rate: 0.00%\n  Strong Error:    N/A\n  ECE:             31.28%\n\n  --- Comparison (candidate - baseline) ---\n  Directional Acc \u0394: +0.00%\n  Macro Precision \u0394: +0.00%\n  Macro Recall \u0394:    +0.00%\n  Coverage \u0394:        +0.00%\n  Abstention Rate \u0394: +0.00%\n  Strong Error \u0394:    N/A\n  ECE \u0394:             +0.00%\n\n  Decisions changed:  0\n  Decisions improved: 0\n  Decisions degraded: 0\n\n  Per-event-type decision comparison:\n    Type                  Total  Chngd  Imprv  Degrd B_Corr C_Corr\n    --------------------------------------------------------------\n    CPI                      24      0      0      0     24     24\n\n  --- Errors ---\n  [baseline] [eval/NFP] 'str' object has no attribute 'strftime'\n  [baseline] [eval/INTEREST_RATE] 'str' object has no attribute 'strftime'\n  [baseline] [eval/PMI] 'str' object has no attribute 'strftime'\n  [baseline] [eval/PPI] 'str' object has no attribute 'strftime'\n  [candidate] [eval/NFP] 'str' object has no attribute 'strftime'\n  [candidate] [eval/INTEREST_RATE] 'str' object has no attribute 'strftime'\n  [candidate] [eval/PMI] 'str' object has no attribute 'strftime'\n  [candidate] [eval/PPI] 'str' object has no attribute 'strftime'\n\n========================================================================"
+  }
+]

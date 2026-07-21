@@ -128,9 +128,14 @@ Institutional Readiness (Experiment Framework Complete)
 - Registry API: register, get, list, search, compare, approval workflow
 - 27 unit tests
 
-#### ⬜ Experiment 001 (Pending)
+#### ✅ Experiment 001 (Complete — REJECT US10Y)
 - CPI baseline vs CPI + US10Y candidate
-- Uses Experiment Framework, no new intelligence
+- Zero measurable difference across all OOS metrics
+- Δ directional accuracy = 0.00%, Δ precision = 0.00%, Δ recall = 0.00%
+- 0 decisions changed, 0 improved, 0 degraded
+- Verdict: **REJECT US10Y** — context enrichment produced no effect on gold directional decisions
+- Registry ID: exp_c3b433e5606b0d15
+- Tag: `cpi/us10y/context-enrichment/experiment-001`
 
 #### ⬜ Immutable Persistence (Gate 5)
 - Atomic writes, content-addressed versions

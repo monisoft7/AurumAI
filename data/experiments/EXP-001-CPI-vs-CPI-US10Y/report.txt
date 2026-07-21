@@ -1,0 +1,63 @@
+========================================================================
+  Experiment: EXP-001-CPI-vs-CPI-US10Y
+  Description: Compare CPI-only vs CPI+US10Y for gold directional decisions.
+  Cutoff:      2024-01-01
+========================================================================
+
+  --- Baseline: CPI ---
+  Horizon:        12 weeks
+  Max workers:    4
+  Total events:   3
+  Scored events:  1
+  Abstained:      0
+  Directional Acc: 100.00%
+  Macro Precision: 100.00%
+  Macro Recall:    100.00%
+  Coverage:        100.00%
+  Abstention Rate: 0.00%
+  Strong Error:    N/A
+  ECE:             31.28%
+
+  --- Candidate: CPI+US10Y ---
+  Horizon:        12 weeks
+  Max workers:    4
+  Total events:   3
+  Scored events:  1
+  Abstained:      0
+  Directional Acc: 100.00%
+  Macro Precision: 100.00%
+  Macro Recall:    100.00%
+  Coverage:        100.00%
+  Abstention Rate: 0.00%
+  Strong Error:    N/A
+  ECE:             31.28%
+
+  --- Comparison (candidate - baseline) ---
+  Directional Acc Δ: +0.00%
+  Macro Precision Δ: +0.00%
+  Macro Recall Δ:    +0.00%
+  Coverage Δ:        +0.00%
+  Abstention Rate Δ: +0.00%
+  Strong Error Δ:    N/A
+  ECE Δ:             +0.00%
+
+  Decisions changed:  0
+  Decisions improved: 0
+  Decisions degraded: 0
+
+  Per-event-type decision comparison:
+    Type                  Total  Chngd  Imprv  Degrd B_Corr C_Corr
+    --------------------------------------------------------------
+    CPI                      24      0      0      0     24     24
+
+  --- Errors ---
+  [baseline] [eval/NFP] 'str' object has no attribute 'strftime'
+  [baseline] [eval/INTEREST_RATE] 'str' object has no attribute 'strftime'
+  [baseline] [eval/PMI] 'str' object has no attribute 'strftime'
+  [baseline] [eval/PPI] 'str' object has no attribute 'strftime'
+  [candidate] [eval/NFP] 'str' object has no attribute 'strftime'
+  [candidate] [eval/INTEREST_RATE] 'str' object has no attribute 'strftime'
+  [candidate] [eval/PMI] 'str' object has no attribute 'strftime'
+  [candidate] [eval/PPI] 'str' object has no attribute 'strftime'
+
+========================================================================

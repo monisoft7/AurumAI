@@ -201,7 +201,7 @@ Backward trace verified: decision→source_data
 
 ## 8. Immediate Next Capability
 
-**Experiment 001** — First institutional experiment: CPI baseline vs CPI + US10Y candidate. Uses the Institutional Experiment Framework. No new intelligence.
+**Pending**: Experiment 002 — next institutional experiment. Experiment 001 (CPI vs CPI+US10Y) completed with verdict **REJECT US10Y** — zero measurable difference in any OOS metric. Candidate to be determined by engineering lead.
 
 ## 9. Long-Term Roadmap
 
