@@ -93,6 +93,12 @@ EventScaffolder + ExpansionSpec, EventValidator + ValidationReport, ExpansionLif
 **Benchmark & Validation**
 18 benchmark tests, institutional validation report
 
+**OOS Validation Engine (Milestones A–C)**
+Decision correctness evaluation per event type, OOS summary with directional accuracy/precision/recall/ECE, ChronologicalOOSEngine with strict train/eval split via prebuilt_lessons_path mechanism, no future leakage
+
+**Institutional Experiment Framework**
+ExperimentConfig/RunConfig configuration-driven comparison, ExperimentRunner composes ChronologicalOOSEngine, ExperimentComparator with delta metrics and per-event decision comparison, ExperimentReportBuilder (human + machine readable), no CPI/US10Y-specific knowledge — experiments are configurations
+
 **Production Hardening (Phases 20.1–20.5)**
 Determinism Hardening (EvidenceWeighter, MacroRegimeDetector, ForecastEvidence)
 Data Integrity (FrozenDict, atomic writes across 11 files, 70 tests)
@@ -122,14 +128,14 @@ Backward trace verified: decision→source_data
 
 | Metric | Value |
 |--------|-------|
-| Project Version | 0.8.0 |
+| Project Version | 0.9.0 |
 | Python Support | >=3.10 |
-| Total Tests | 1593 |
+| Total Tests | 1611 |
 | Benchmark Status | 18/18 passing |
 | Core Status | Frozen v1.0 |
 | Runtime Dependencies | 6 (pandas, numpy, networkx, statsmodels, statsforecast, feedparser) |
 | Execution Components | VirtualPortfolio, VirtualPosition, VirtualTrade, PortfolioSnapshot, ExecutionEngine, SlippageModel, CommissionModel |
-| Current Phase | Institutional Readiness (Production Hardening Complete) |
+| Current Phase | Institutional Readiness (Experiment Framework Complete) |
 
 ## 7. Current Phase
 
@@ -155,9 +161,33 @@ Backward trace verified: decision→source_data
 | LINEAGE-PROD | LineageRegistry production activation | 2 |
 | **Phase total** | | **7+** |
 
+**OOS Validation — Milestones A–C (COMPLETE).**
+- Milestone A: Decision correctness evaluation per event type, gold return computation
+- Milestone B: OOS summary with directional accuracy, precision/recall, coverage, ECE
+- Milestone C: ChronologicalOOSEngine with strict train/eval split, prebuilt_lessons_path, no future leakage
+- ChronologicalOOSResult model with to_dict()
+- 6 integration tests (ChronologicalOOSEngine)
+
+**Institutional Experiment Framework (COMPLETE).**
+- ExperimentConfig / RunConfig: configuration-driven, no hardcoded event types
+- ExperimentRunner: composes ChronologicalOOSEngine for baseline + candidate arms
+- ExperimentComparator: delta metrics (directional accuracy, precision, recall, coverage, abstention, strong error rate, ECE)
+- DecisionComparison: per-event-type decisions changed/improved/degraded tracking
+- ExperimentReportBuilder: human-readable text + machine-readable dict
+- 12 unit tests covering all models, comparator, config, report
+- 29/29 tests pass (12 experiment + 11 HistoricalReplayEngine + 6 ChronologicalOOSEngine)
+
+| Milestone | Component | Tests |
+|-----------|-----------|-------|
+| A | Decision correctness | — |
+| B | OOS summary | 5 |
+| C | ChronologicalOOSEngine | 6 |
+| Experiment Framework | ExperimentConfig/Comparator/Report | 12 |
+| **OOS total** | | **23** |
+
 ## 8. Immediate Next Capability
 
-**OOS Validation (ADR-0004 Gate 6)** — Real CPI/US10Y out-of-sample evaluation. No new intelligence capability will be added before OOS validation demonstrates measurable predictive value.
+**Experiment 001** — First institutional experiment: CPI baseline vs CPI + US10Y candidate. Uses the Institutional Experiment Framework. No new intelligence.
 
 ## 9. Long-Term Roadmap
 

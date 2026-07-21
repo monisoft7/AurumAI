@@ -474,6 +474,25 @@ Risk Intelligence is an **advisory layer**. It evaluates institutional risk. It 
 | **Purpose** | Real CPI/US10Y out-of-sample evaluation using expanding-window chronological split. Must prove measurable predictive value before new capabilities. |
 | **Dependencies** | CPI + US10Y context, historical replay |
 | **Complexity** | Medium |
+| **Status** | ✅ Milestone A (decision correctness), ✅ B (OOS summary), ✅ C (ChronologicalOOSEngine) |
+
+### 23.1a Institutional Experiment Framework
+| Field | Value |
+|-------|-------|
+| **Purpose** | Generic experiment framework for controlled institutional comparisons. Experiments are configurations, not implementations. |
+| **Reuse** | **Compose** — ChronologicalOOSEngine, OOSSummary, EventRunResult, decision evaluation policy |
+| **Dependencies** | 23.1 (ChronologicalOOSEngine) |
+| **Complexity** | Low |
+| **Status** | ✅ ExperimentConfig, ✅ ExperimentRunner, ✅ ExperimentComparator, ✅ ExperimentReportBuilder, ✅ 12 unit tests |
+
+### 23.1b Experiment 001 (Pending)
+| Field | Value |
+|-------|-------|
+| **Purpose** | First institutional experiment: CPI baseline vs CPI + US10Y candidate using the Experiment Framework. |
+| **Reuse** | **Compose** — ExperimentRunner, ChronologicalOOSEngine |
+| **Dependencies** | 23.1a (Experiment Framework), real CPI + US10Y + Gold data |
+| **Complexity** | Low |
+| **Status** | ⬜ Not started |
 
 ### 23.2 Immutable Persistence (ADR-0004 Gate 5)
 | Field | Value |
@@ -566,7 +585,9 @@ Core v1.0 (frozen)
   ├──22.2 Lineage Activation─────────✅ (2 tests)
   ├──22.3 Reproducibility Audit──────✅ (Verdict: A — Fully deterministic)
   │
-  ├──23.1 OOS Validation────────────Active; Gates on all new capabilities
+  ├──23.1 OOS Validation────────────✅ Milestones A–C complete
+  ├──23.1a Experiment Framework─────✅ 12 tests, generic config-driven
+  ├──23.1b Experiment 001───────────⬜ Pending
   ├──23.2 Immutable Persistence──────Open
   ├──23.3 CI Pipeline────────────────Open
   │

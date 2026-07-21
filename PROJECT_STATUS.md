@@ -14,19 +14,19 @@ This file is governed by the following hierarchy:
 
 ## Current Phase
 
-Institutional Readiness (Production Hardening Complete)
+Institutional Readiness (Experiment Framework Complete)
 
 ---
 
 ## Version
 
-0.8.0
+0.9.0
 
 ---
 
 ## Progress
 
-85%
+88%
 
 ---
 
@@ -102,15 +102,34 @@ Institutional Readiness (Production Hardening Complete)
 | 20.1–20.5 Hardening | 253 |
 | 21.1–21.3 Paper Trading | 167 |
 
-| Total Tests | 1593 |
+| Total Tests | 1611 |
 
 ---
 
 ## Next
 
 ### Institutional Readiness (Phase 23 — Active)
-- **OOS Validation (Gate 6)**: Real CPI/US10Y out-of-sample evaluation using expanding-window chronological split
-- **Immutable Persistence (Gate 5)**: Atomic writes, content-addressed versions
-- **CI Pipeline (Gate 7)**: Clean CI from fresh clone
+
+#### ✅ OOS Validation — Milestones A–C (Complete)
+- Milestone A: Decision correctness evaluation per event type
+- Milestone B: OOS summary (directional accuracy, precision/recall, coverage, ECE)
+- Milestone C: ChronologicalOOSEngine (strict train/eval split, no future leakage)
+- 6 integration tests
+
+#### ✅ Institutional Experiment Framework (Complete)
+- ExperimentConfig / RunConfig: configuration-driven, no CPI/US10Y specifics
+- ExperimentRunner, ExperimentComparator, ExperimentReportBuilder
+- DecisionComparison: decisions changed/improved/degraded
+- 12 unit tests, 29/29 tests pass (12 + 11 HistoricalReplayEngine + 6 ChronologicalOOSEngine)
+
+#### ⬜ Experiment 001 (Pending)
+- CPI baseline vs CPI + US10Y candidate
+- Uses Experiment Framework, no new intelligence
+
+#### ⬜ Immutable Persistence (Gate 5)
+- Atomic writes, content-addressed versions
+
+#### ⬜ CI Pipeline (Gate 7)
+- Clean CI from fresh clone
 
 No new intelligence capability will be added before OOS validation demonstrates measurable predictive value.
