@@ -1156,6 +1156,7 @@ class ChronologicalOOSEngine:
         max_workers: int = 4,
         horizon: int = 12,
         knowledge_dir: str | Path | None = None,
+        yield_data_path: str | Path | None = None,
     ):
         import pandas as pd
 
@@ -1169,6 +1170,7 @@ class ChronologicalOOSEngine:
             Path(knowledge_dir) if knowledge_dir
             else self._data_dir / "oos_knowledge"
         )
+        self._yield_data_path = str(Path(yield_data_path)) if yield_data_path else None
 
     # -- public API ---------------------------------------------------------
 
@@ -1266,6 +1268,7 @@ class ChronologicalOOSEngine:
                     asset="XAU/USD",
                     horizon=self._horizon,
                     release_calendar_path=str(release_csv),
+                    yield_data_path=self._yield_data_path,
                 )
             else:
                 orch = InstitutionalOrchestrator.with_default_pipeline(
@@ -1283,6 +1286,7 @@ class ChronologicalOOSEngine:
                     output_dir=str(tmp_dir),
                     asset="XAU/USD",
                     horizon=self._horizon,
+                    yield_data_path=self._yield_data_path,
                 )
 
             src = tmp_dir / "lessons.csv"
@@ -1382,6 +1386,7 @@ class ChronologicalOOSEngine:
             data_dir=self._data_dir,
             gold_path=self._gold_path,
             prebuilt_lessons_path=prebuilt_lessons_path,
+            yield_data_path=self._yield_data_path,
         )
         return engine.run(event_type, csv_path, calendar_path, cpi_merged)
 
@@ -1440,6 +1445,7 @@ class ChronologicalOOSEngine:
                 asset="XAU/USD",
                 horizon=self._horizon,
                 prebuilt_lessons_path=prebuilt_lessons_path,
+                yield_data_path=self._yield_data_path,
             )
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
@@ -1480,6 +1486,7 @@ class _EvalReplayEngine:
         data_dir: Path,
         gold_path: Path,
         prebuilt_lessons_path: str,
+        yield_data_path: str | None = None,
     ):
         self._gold_df = gold_df
         self._checkpoint_dir = checkpoint_dir
@@ -1488,6 +1495,7 @@ class _EvalReplayEngine:
         self._data_dir = data_dir
         self._gold_path = gold_path
         self._prebuilt_lessons_path = prebuilt_lessons_path
+        self._yield_data_path = yield_data_path
 
     def run(
         self,
@@ -1558,6 +1566,7 @@ class _EvalReplayEngine:
                     horizon=self._horizon,
                     release_calendar_path=str(calendar_path),
                     prebuilt_lessons_path=self._prebuilt_lessons_path,
+                    yield_data_path=self._yield_data_path,
                 )
                 release_elapsed = (time.perf_counter() - t0) * 1000.0
 

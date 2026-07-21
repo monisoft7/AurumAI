@@ -50,6 +50,7 @@ class RunConfig:
     horizon: int = 12
     max_workers: int = 4
     knowledge_dir: str | Path | None = None
+    yield_data_path: str | Path | None = None
 
 
 @dataclass(frozen=True)
@@ -385,6 +386,7 @@ class ExperimentRunner:
             max_workers=self._config.baseline.max_workers,
             horizon=self._config.baseline.horizon,
             knowledge_dir=b_knowledge,
+            yield_data_path=self._config.baseline.yield_data_path,
         )
         baseline_result = b_engine.run()
 
@@ -402,6 +404,7 @@ class ExperimentRunner:
             max_workers=self._config.candidate.max_workers,
             horizon=self._config.candidate.horizon,
             knowledge_dir=c_knowledge,
+            yield_data_path=self._config.candidate.yield_data_path,
         )
         candidate_result = c_engine.run()
 

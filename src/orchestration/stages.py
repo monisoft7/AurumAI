@@ -85,6 +85,8 @@ def _build_legacy_pipeline(params: dict[str, Any], results: dict[str, Any]) -> A
         reasoning_horizon=params.get("reasoning_horizon"),
         reasoning_condition=params.get("reasoning_condition"),
         min_evidence_count=params.get("min_evidence_count", 1),
+        yield_data_path=Path(params["yield_data_path"]) if params.get("yield_data_path") else None,
+        yield_context_lookback_days=params.get("yield_context_lookback_days", 30),
     )
 
     pipe = InferencePipeline()
