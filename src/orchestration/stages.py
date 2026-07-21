@@ -81,6 +81,7 @@ def _build_legacy_pipeline(params: dict[str, Any], results: dict[str, Any]) -> A
             getattr(event, "condition_columns", ("condition",))
         ),
         lesson_builder=lesson_builder,
+        prebuilt_lessons_path=params.get("prebuilt_lessons_path"),
         reasoning_horizon=params.get("reasoning_horizon"),
         reasoning_condition=params.get("reasoning_condition"),
         min_evidence_count=params.get("min_evidence_count", 1),

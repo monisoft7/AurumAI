@@ -28,4 +28,5 @@ class PipelineContext:
     min_evidence_count: int = 1
     release_calendar_path: str | None = None
     lesson_builder: Any | None = None
+    prebuilt_lessons_path: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)

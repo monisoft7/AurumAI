@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Any
 
 from orchestration.institutional_orchestrator import InstitutionalOrchestrator
+from dataclasses import dataclass
+
 from simulation.models import (
     EventRunResult,
     ForecastAccuracySummary,
@@ -451,7 +453,7 @@ class HistoricalReplayEngine:
         synthetic_tmp: Path | None = None
 
         # Synthetic CSV files for event types that have no historical file
-        synthetic_tmp = self._ensure_synthetic_csvs()
+        synthetic_tmp = HistoricalReplayEngine._ensure_synthetic_csvs(self._data_dir)
 
         for event_type in self._iter_event_types():
             spec = _BUILTIN_EVENTS.get(event_type) or _SYNTHETIC_EVENTS.get(event_type)
@@ -475,30 +477,32 @@ class HistoricalReplayEngine:
 
     # -- synthetic CSV generation ------------------------------------------
 
-    def _ensure_synthetic_csvs(self) -> Path | None:
+    @staticmethod
+    def _ensure_synthetic_csvs(data_dir: Path) -> Path | None:
         """Write synthetic CSV files for event types that have no real data
         file in ``data/``.  Returns the temp directory path if any files were
         created, else ``None``."""
+        import shutil
+        import tempfile
+
         tmp: Path | None = None
         for event_type, spec in _SYNTHETIC_EVENTS.items():
             csv_rel = spec["csv"]
-            target = self._data_dir / csv_rel
+            target = data_dir / csv_rel
             if target.exists():
                 continue
             if tmp is None:
                 tmp = Path(tempfile.mkdtemp(prefix="aurumai_sim_"))
             fake_path = tmp / csv_rel
             fake_path.parent.mkdir(parents=True, exist_ok=True)
-            self._write_synthetic_csv(
+            HistoricalReplayEngine._write_synthetic_csv(
                 fake_path,
                 rows=spec["_synthetic_rows"],
                 start=spec["_synthetic_start"],
                 mean=spec["_synthetic_mean"],
                 std=spec["_synthetic_std"],
             )
-            # Copy to the expected location
             target.parent.mkdir(parents=True, exist_ok=True)
-            import shutil
             shutil.copy2(str(fake_path), str(target))
         return tmp
 
@@ -546,18 +550,19 @@ class HistoricalReplayEngine:
         release to enforce point-in-time data boundaries.  All others use the
         legacy single-run path.
         """
-        release_csv = self._release_calendar_path_for(event_type)
+        release_csv = HistoricalReplayEngine._release_calendar_path_for(event_type, self._data_dir)
         if release_csv is not None and release_csv.exists():
             return self._replay_event_release_by_release(event_type, csv_path, release_csv)
         return self._replay_event_legacy(event_type, csv_path)
 
-    def _release_calendar_path_for(self, event_type: str) -> Path | None:
+    @staticmethod
+    def _release_calendar_path_for(event_type: str, data_dir: Path) -> Path | None:
         cal = {
             "CPI": "cpi_releases.csv",
         }.get(event_type)
         if cal is None:
             return None
-        return self._data_dir / "calendar" / cal
+        return data_dir / "calendar" / cal
 
     def _replay_event_legacy(
         self,
@@ -1071,3 +1076,558 @@ class HistoricalReplayEngine:
         if score is None and isinstance(rg, dict):
             score = rg.get("score")
         return (action, float(score) if score is not None else None)
+
+
+# ===========================================================================
+# Chronological OOS Engine
+# ===========================================================================
+
+
+@dataclass(frozen=True)
+class ChronologicalOOSResult:
+    """Result of a chronological out-of-sample evaluation run.
+
+    .. py:attribute:: cutoff_date
+
+        The chronological split point (ISO date string).
+
+    .. py:attribute:: training_results
+
+        |EventRunResult| objects from the training (knowledge-building)
+        phase.  These are **not** included in OOS metrics.
+
+    .. py:attribute:: evaluation_results
+
+        |EventRunResult| objects from the evaluation (unseen-event) phase.
+        These are the events on or after *cutoff_date*.
+
+    .. py:attribute:: summary
+
+        |OOSSummary| computed from *evaluation_results* only.
+
+    .. py:attribute:: errors
+
+        Any errors captured during the run.
+    """
+
+    cutoff_date: str
+    training_results: tuple[EventRunResult, ...] = ()
+    evaluation_results: tuple[EventRunResult, ...] = ()
+    summary: OOSSummary | None = None
+    errors: tuple[str, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
+            "cutoff_date": self.cutoff_date,
+            "training_events": len(self.training_results),
+            "evaluation_events": len(self.evaluation_results),
+        }
+        if self.summary is not None:
+            d["summary"] = self.summary.to_dict()
+        if self.errors:
+            d["errors"] = list(self.errors)
+        return d
+
+
+class ChronologicalOOSEngine:
+    """Chronological Out-of-Sample evaluation engine.
+
+    Splits historical event data at a configurable cutoff date:
+
+    **Training phase** — all events strictly before *cutoff_date* are
+    replayed and their lessons (knowledge) are saved to a dedicated
+    knowledge directory.
+
+    **Evaluation phase** — all events on or after *cutoff_date* are
+    replayed **using only the pre-built training knowledge**.  No
+    evaluation-period lesson enters the knowledge graph, guaranteeing
+    strict chronological separation.
+
+    The final |OOSSummary| is computed from the *evaluation* results
+    only.
+    """
+
+    def __init__(
+        self,
+        cutoff_date: str | datetime.date | datetime.datetime,
+        data_dir: str | Path,
+        gold_path: str | Path,
+        checkpoint_dir: str | None = None,
+        max_workers: int = 4,
+        horizon: int = 12,
+        knowledge_dir: str | Path | None = None,
+    ):
+        import pandas as pd
+
+        self._cutoff = pd.Timestamp(cutoff_date)
+        self._data_dir = Path(data_dir)
+        self._gold_path = Path(gold_path)
+        self._checkpoint_dir = checkpoint_dir
+        self._max_workers = max_workers
+        self._horizon = horizon
+        self._knowledge_dir = (
+            Path(knowledge_dir) if knowledge_dir
+            else self._data_dir / "oos_knowledge"
+        )
+
+    # -- public API ---------------------------------------------------------
+
+    def run(
+        self,
+    ) -> ChronologicalOOSResult:
+        """Execute the chronological OOS evaluation.
+
+        Returns a |ChronologicalOOSResult| with training results,
+        evaluation results, and OOS summary.
+        """
+        self._knowledge_dir.mkdir(parents=True, exist_ok=True)
+        errors: list[str] = []
+
+        # Ensure synthetic CSV files exist for event types without real data
+        HistoricalReplayEngine._ensure_synthetic_csvs(self._data_dir)
+
+        # Phase 1 — build training knowledge for each event type
+        for event_type in HistoricalReplayEngine._iter_event_types():
+            try:
+                self._build_training_knowledge(event_type)
+            except Exception as exc:
+                errors.append(f"[train/{event_type}] {exc}")
+
+        # Phase 2 — evaluate unseen events using pre-built knowledge
+        eval_results: list[EventRunResult] = []
+        for event_type in HistoricalReplayEngine._iter_event_types():
+            try:
+                result = self._run_evaluation(event_type)
+                eval_results.append(result)
+            except Exception as exc:
+                errors.append(f"[eval/{event_type}] {exc}")
+
+        summary = compute_oos_summary(tuple(eval_results))
+
+        return ChronologicalOOSResult(
+            cutoff_date=self._cutoff.date().isoformat(),
+            evaluation_results=tuple(eval_results),
+            summary=summary,
+            errors=tuple(errors),
+        )
+
+    # -- training knowledge ------------------------------------------------
+    def _build_training_knowledge(self, event_type: str) -> None:
+        """Run the full pipeline on all pre-cutoff data to build lessons.
+
+        Loads ALL event data strictly before *cutoff_date*, runs the
+        institutional pipeline once (not release-by-release), and saves
+        the resulting ``lessons.csv`` to the knowledge directory.
+
+        This guarantees the evaluation phase uses only pre-cutoff knowledge.
+        """
+        import shutil
+        import tempfile
+
+        import pandas as pd
+
+        spec = _BUILTIN_EVENTS.get(event_type) or _SYNTHETIC_EVENTS.get(event_type)
+        csv_path = self._data_dir / spec["csv"]
+        event_knowledge_dir = self._knowledge_dir / event_type
+        event_knowledge_dir.mkdir(parents=True, exist_ok=True)
+
+        df = pd.read_csv(csv_path)
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+        df = df.dropna(subset=["Date"])
+        train_df = df[df["Date"] < self._cutoff].copy()
+        if train_df.empty:
+            return
+
+        tmp_dir = Path(tempfile.mkdtemp(prefix="aurumai_oos_train_"))
+        try:
+            train_df["Date"] = train_df["Date"].dt.strftime("%Y-%m-%d")
+            tmp_csv = tmp_dir / f"{event_type.lower()}.csv"
+            train_df.to_csv(tmp_csv, index=False)
+
+            gold_df = self._load_gold_data()
+            gold_df["Date"] = pd.to_datetime(gold_df["Date"], errors="coerce")
+            gold_df = gold_df.dropna(subset=["Date"]).sort_values("Date")
+
+            release_csv = HistoricalReplayEngine._release_calendar_path_for(event_type, self._data_dir)
+            if release_csv is not None and release_csv.exists():
+                orch = InstitutionalOrchestrator.with_default_pipeline(
+                    checkpoint_dir=self._checkpoint_dir,
+                    max_workers=self._max_workers,
+                )
+                orch.run_all(
+                    trigger="oos_train",
+                    pipeline_id=f"oos_train_{event_type.lower()}_release",
+                    force=True,
+                    event_type=event_type,
+                    data_path=str(tmp_csv),
+                    gold_path=str(self._gold_path),
+                    gold_lessons_path=str(self._gold_path),
+                    output_dir=str(tmp_dir),
+                    asset="XAU/USD",
+                    horizon=self._horizon,
+                    release_calendar_path=str(release_csv),
+                )
+            else:
+                orch = InstitutionalOrchestrator.with_default_pipeline(
+                    checkpoint_dir=self._checkpoint_dir,
+                    max_workers=self._max_workers,
+                )
+                orch.run_all(
+                    trigger="oos_train",
+                    pipeline_id=f"oos_train_{event_type.lower()}_legacy",
+                    force=True,
+                    event_type=event_type,
+                    data_path=str(tmp_csv),
+                    gold_path=str(self._gold_path),
+                    gold_lessons_path=str(self._gold_path),
+                    output_dir=str(tmp_dir),
+                    asset="XAU/USD",
+                    horizon=self._horizon,
+                )
+
+            src = tmp_dir / "lessons.csv"
+            if src.exists():
+                shutil.copy2(src, event_knowledge_dir / "lessons.csv")
+        finally:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    # -- evaluation --------------------------------------------------------
+
+    def _run_evaluation(self, event_type: str) -> EventRunResult:
+        """Replay post-cutoff events using pre-built training knowledge."""
+        import shutil
+
+        import pandas as pd
+
+        spec = _BUILTIN_EVENTS.get(event_type) or _SYNTHETIC_EVENTS.get(event_type)
+        csv_path = self._data_dir / spec["csv"]
+        release_csv = HistoricalReplayEngine._release_calendar_path_for(event_type, self._data_dir)
+
+        prebuilt = self._knowledge_dir / event_type / "lessons.csv"
+        prebuilt_str = str(prebuilt)
+
+        if release_csv is not None and release_csv.exists():
+            return self._eval_release_event(event_type, csv_path, release_csv, prebuilt_str)
+        return self._eval_legacy_event(event_type, csv_path, prebuilt_str)
+
+    def _eval_release_event(
+        self,
+        event_type: str,
+        csv_path: Path,
+        calendar_path: Path,
+        prebuilt_lessons_path: str,
+    ) -> EventRunResult:
+        import pandas as pd
+        import tempfile
+
+        calendar = pd.read_csv(calendar_path)
+        if "release_timestamp" not in calendar.columns:
+            calendar["release_timestamp"] = (
+                calendar["release_date"] + " " + calendar["release_time"]
+            )
+        calendar["release_timestamp"] = pd.to_datetime(calendar["release_timestamp"])
+        eval_cal = calendar[calendar["release_timestamp"] >= self._cutoff].copy()
+        if eval_cal.empty:
+            return EventRunResult(
+                event_type=event_type,
+                event_date_min="",
+                event_date_max="",
+                event_count=0,
+                success=True,
+                execution_time_ms=0.0,
+                cache_hits=0,
+                checkpoints_used=0,
+                error=f"No evaluation events on or after {self._cutoff.date()}",
+                errors=(f"No evaluation events on or after {self._cutoff.date()}",),
+            )
+
+        eval_cal["reference_period"] = pd.to_datetime(eval_cal["reference_period"], errors="coerce")
+        eval_cal = eval_cal.dropna(subset=["reference_period"])
+
+        cpi_raw = pd.read_csv(csv_path)
+        cpi_raw["Date"] = pd.to_datetime(cpi_raw["Date"], errors="coerce")
+        cpi_raw = cpi_raw.dropna(subset=["Date"]).sort_values("Date")
+
+        cpi_merged = cpi_raw.merge(
+            eval_cal, left_on="Date", right_on="reference_period", how="inner"
+        )
+        cpi_merged["release_timestamp"] = pd.to_datetime(cpi_merged["release_timestamp"])
+        cpi_merged = cpi_merged.sort_values("release_timestamp")
+
+        if cpi_merged.empty:
+            return EventRunResult(
+                event_type=event_type,
+                event_date_min="",
+                event_date_max="",
+                event_count=0,
+                success=True,
+                execution_time_ms=0.0,
+                cache_hits=0,
+                checkpoints_used=0,
+                decision=None,
+                error=f"No CPI data matching evaluation calendar on or after {self._cutoff.date()}",
+                errors=(f"No CPI data matching evaluation calendar on or after {self._cutoff.date()}",),
+            )
+
+        gold_df = self._load_gold_data()
+        gold_df["Date"] = pd.to_datetime(gold_df["Date"], errors="coerce")
+        gold_df = gold_df.dropna(subset=["Date"]).sort_values("Date")
+
+        # Reuse the release-by-release replay with pre-built knowledge
+        engine = _EvalReplayEngine(
+            gold_df=gold_df,
+            checkpoint_dir=self._checkpoint_dir,
+            max_workers=self._max_workers,
+            horizon=self._horizon,
+            data_dir=self._data_dir,
+            gold_path=self._gold_path,
+            prebuilt_lessons_path=prebuilt_lessons_path,
+        )
+        return engine.run(event_type, csv_path, calendar_path, cpi_merged)
+
+    def _eval_legacy_event(
+        self,
+        event_type: str,
+        csv_path: Path,
+        prebuilt_lessons_path: str,
+    ) -> EventRunResult:
+        import shutil
+        import tempfile
+
+        import pandas as pd
+
+        df = pd.read_csv(csv_path)
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+        df = df.dropna(subset=["Date"])
+        eval_df = df[df["Date"] >= self._cutoff].copy()
+        if eval_df.empty:
+            return EventRunResult(
+                event_type=event_type,
+                event_date_min="",
+                event_date_max="",
+                event_count=0,
+                success=True,
+                execution_time_ms=0.0,
+                cache_hits=0,
+                checkpoints_used=0,
+                error=f"No evaluation events on or after {self._cutoff.date()}",
+                errors=(f"No evaluation events on or after {self._cutoff.date()}",),
+            )
+
+        output_dir = csv_path.parent / "output"
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        tmp_dir = Path(tempfile.mkdtemp(prefix="aurumai_oos_eval_"))
+        try:
+            tmp_csv = tmp_dir / f"{event_type.lower()}.csv"
+            eval_df["Date"] = eval_df["Date"].dt.strftime("%Y-%m-%d")
+            eval_df.to_csv(tmp_csv, index=False)
+
+            orch = InstitutionalOrchestrator.with_default_pipeline(
+                checkpoint_dir=self._checkpoint_dir,
+                max_workers=self._max_workers,
+            )
+            t0 = time.perf_counter()
+            assessment = orch.run_all(
+                trigger="oos_eval",
+                pipeline_id=f"oos_eval_{event_type.lower()}_legacy",
+                force=True,
+                event_type=event_type,
+                data_path=str(tmp_csv),
+                gold_path=str(self._gold_path),
+                gold_lessons_path=str(self._gold_path),
+                output_dir=str(output_dir),
+                asset="XAU/USD",
+                horizon=self._horizon,
+                prebuilt_lessons_path=prebuilt_lessons_path,
+            )
+            elapsed_ms = (time.perf_counter() - t0) * 1000.0
+
+            event_count = len(eval_df)
+            date_min = eval_df["Date"].min().strftime("%Y-%m-%d")
+            date_max = eval_df["Date"].max().strftime("%Y-%m-%d")
+
+            return HistoricalReplayEngine._assessment_to_result(
+                event_type=event_type,
+                csv_path=csv_path,
+                assessment=assessment,
+                event_count=event_count,
+                elapsed_ms=elapsed_ms,
+            )
+        finally:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    def _load_gold_data(self) -> pd.DataFrame:
+        import pandas as pd
+        df = pd.read_csv(self._gold_path)
+        return df
+
+
+class _EvalReplayEngine:
+    """Minimal release-by-release replay for the evaluation phase.
+
+    Mirrors the structure of ``HistoricalReplayEngine._replay_event_release_by_release``
+    but injects ``prebuilt_lessons_path`` into every pipeline invocation so that
+    knowledge is always sourced from training-period lessons.
+    """
+
+    def __init__(
+        self,
+        gold_df: pd.DataFrame,
+        checkpoint_dir: str | None,
+        max_workers: int,
+        horizon: int,
+        data_dir: Path,
+        gold_path: Path,
+        prebuilt_lessons_path: str,
+    ):
+        self._gold_df = gold_df
+        self._checkpoint_dir = checkpoint_dir
+        self._max_workers = max_workers
+        self._horizon = horizon
+        self._data_dir = data_dir
+        self._gold_path = gold_path
+        self._prebuilt_lessons_path = prebuilt_lessons_path
+
+    def run(
+        self,
+        event_type: str,
+        csv_path: Path,
+        calendar_path: Path,
+        cpi_merged: pd.DataFrame,
+    ) -> EventRunResult:
+        import shutil
+        import tempfile
+
+        import pandas as pd
+
+        output_dir = csv_path.parent / "output"
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        gold = self._gold_df
+
+        total_elapsed_ms = 0.0
+        total_cache_hits = 0
+        total_checkpoints = 0
+        release_count = 0
+        errors: list[str] = []
+        all_outputs: list[dict[str, Any]] = []
+        n_releases = len(cpi_merged)
+
+        for idx, (_cal_idx, release_row) in enumerate(cpi_merged.iterrows()):
+            as_of = release_row["release_timestamp"]
+
+            cpi_snapshot = cpi_merged[
+                cpi_merged["release_timestamp"] <= as_of
+            ].copy()
+            cpi_snapshot = cpi_snapshot[["Date", "Value", "release_timestamp"]]
+            cpi_snapshot["Date"] = cpi_snapshot["Date"].dt.strftime("%Y-%m-%d")
+            cpi_snapshot["release_timestamp"] = cpi_snapshot["release_timestamp"].dt.strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+
+            tmp = Path(tempfile.mkdtemp(prefix="aurumai_eval_release_"))
+            try:
+                tmp_cpi = tmp / "cpi.csv"
+                tmp_gold = tmp / "gold.csv"
+                tmp_gold_lessons = tmp / "gold_lessons.csv"
+                cpi_snapshot.to_csv(tmp_cpi, index=False)
+                gold[gold["Date"] <= as_of].to_csv(tmp_gold, index=False)
+                gold.to_csv(tmp_gold_lessons, index=False)
+
+                orch = InstitutionalOrchestrator.with_default_pipeline(
+                    checkpoint_dir=self._checkpoint_dir,
+                    max_workers=self._max_workers,
+                )
+
+                pipeline_id = (
+                    f"oos_eval_{event_type.lower()}_{as_of.strftime('%Y%m%d_%H%M%S')}"
+                )
+
+                t0 = time.perf_counter()
+                assessment = orch.run_all(
+                    trigger="oos_eval",
+                    pipeline_id=pipeline_id,
+                    force=True,
+                    event_type=event_type,
+                    data_path=str(tmp_cpi),
+                    gold_path=str(tmp_gold),
+                    gold_lessons_path=str(tmp_gold_lessons),
+                    output_dir=str(output_dir),
+                    asset="XAU/USD",
+                    horizon=self._horizon,
+                    release_calendar_path=str(calendar_path),
+                    prebuilt_lessons_path=self._prebuilt_lessons_path,
+                )
+                release_elapsed = (time.perf_counter() - t0) * 1000.0
+
+                total_elapsed_ms += release_elapsed
+                total_cache_hits += assessment.cache_hits
+                total_checkpoints += sum(
+                    1 for s in assessment.stages if s.checkpoint is not None
+                )
+                release_count += 1
+
+                if assessment.errors:
+                    errors.extend(
+                        f"[release {idx + 1}/{n_releases} as_of={as_of}] {e}"
+                        for e in assessment.errors
+                    )
+
+                finalize_out = assessment.outputs.get("finalize", {}) or {}
+                all_outputs.append(finalize_out)
+
+            finally:
+                shutil.rmtree(tmp, ignore_errors=True)
+
+        success = len(errors) == 0
+        date_min = cpi_merged["Date"].min().strftime("%Y-%m-%d")
+        date_max = cpi_merged["Date"].max().strftime("%Y-%m-%d")
+
+        final_finalize = all_outputs[-1] if all_outputs else {}
+        decision = HistoricalReplayEngine._extract_decision(final_finalize)
+        risk_decision = HistoricalReplayEngine._extract_risk_decision(final_finalize)
+        forecast_model = HistoricalReplayEngine._extract_forecast_model(final_finalize)
+        forecast_confidence = HistoricalReplayEngine._extract_forecast_confidence(final_finalize)
+        validation_passed, validation_metrics = HistoricalReplayEngine._extract_validation(final_finalize)
+        var_95, cvar_95, tail_index = HistoricalReplayEngine._extract_risk_metrics(final_finalize)
+        position_scaling = HistoricalReplayEngine._extract_position_scaling(final_finalize)
+        risk_gate_action, risk_gate_score = HistoricalReplayEngine._extract_risk_gate(final_finalize)
+
+        # OOS correctness (same logic as HistoricalReplayEngine)
+        decision_correct: bool | None = None
+        decision_actual_return_pct: float | None = None
+        if decision is not None and gold is not None and all_outputs:
+            last_as_of = cpi_merged.iloc[-1]["release_timestamp"]
+            gold_return = _compute_gold_return(gold, last_as_of)
+            if gold_return is not None:
+                decision_actual_return_pct = gold_return
+                actual_dir = _classify_actual_direction(gold_return)
+                decision_correct = _decision_is_correct(decision, actual_dir)
+
+        return EventRunResult(
+            event_type=event_type,
+            event_date_min=date_min,
+            event_date_max=date_max,
+            event_count=release_count,
+            success=success,
+            execution_time_ms=total_elapsed_ms,
+            cache_hits=total_cache_hits,
+            checkpoints_used=total_checkpoints,
+            decision=decision,
+            risk_decision=risk_decision,
+            forecast_model=forecast_model,
+            forecast_confidence=forecast_confidence,
+            validation_passed=validation_passed,
+            validation_metrics=validation_metrics,
+            var_95=var_95,
+            cvar_95=cvar_95,
+            tail_index=tail_index,
+            position_scaling=position_scaling,
+            risk_gate_action=risk_gate_action,
+            risk_gate_score=risk_gate_score,
+            decision_correct=decision_correct,
+            decision_actual_return_pct=decision_actual_return_pct,
+            error=errors[0] if errors else None,
+            errors=tuple(errors),
+        )

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import shutil
 import time
 from pathlib import Path
+
+import pandas as pd
 
 from knowledge.builders.lesson_builder import (
     LessonBuilder,
@@ -50,6 +53,20 @@ class InferencePipeline:
     ) -> None:
         t0 = time.perf_counter()
         lessons_path = context.output_dir / "lessons.csv"
+
+        # Pre-built lessons — skip lesson building entirely
+        if context.prebuilt_lessons_path is not None:
+            shutil.copy2(context.prebuilt_lessons_path, lessons_path)
+            lessons = pd.read_csv(lessons_path)
+            elapsed = (time.perf_counter() - t0) * 1000
+            result.add_stage(
+                "build_lessons",
+                {"dataframe": lessons, "count": len(lessons), "path": lessons_path},
+                elapsed,
+                {"prebuilt": str(context.prebuilt_lessons_path)},
+            )
+            return
+
         config = LessonBuilderConfig(
             event_data_path=context.event_data_path,
             gold_path=context.gold_path,

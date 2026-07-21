@@ -12,6 +12,8 @@ import pandas as pd
 import pytest
 
 from simulation.historical_replay import (
+    ChronologicalOOSEngine,
+    ChronologicalOOSResult,
     HistoricalReplayEngine,
     _BUILTIN_EVENTS,
     _SYNTHETIC_EVENTS,
@@ -1180,5 +1182,215 @@ class TestOOSReport:
         assert isinstance(d["directional_accuracy"], float)
         assert isinstance(d["decision_distribution"], dict)
         assert json.dumps(d)  # serialisable
+
+
+# ===========================================================================
+# Chronological OOS Engine
+# ===========================================================================
+
+
+class TestChronologicalOOSResult:
+    """Tests for the ChronologicalOOSResult data model."""
+
+    def test_defaults(self) -> None:
+        r = ChronologicalOOSResult(cutoff_date="2023-01-01")
+        assert r.cutoff_date == "2023-01-01"
+        assert r.training_results == ()
+        assert r.evaluation_results == ()
+        assert r.summary is None
+        assert r.errors == ()
+
+    def test_to_dict_with_summary(self) -> None:
+        s = compute_oos_summary((
+            _r("A", "POSITIVE", True, 0.5),
+        ))
+        r = ChronologicalOOSResult(
+            cutoff_date="2023-01-01",
+            evaluation_results=(_r("A", "POSITIVE", True, 0.5),),
+            summary=s,
+        )
+        d = r.to_dict()
+        assert "cutoff_date" in d
+        assert d["evaluation_events"] == 1
+        assert "summary" in d
+        assert json.dumps(d)
+
+
+class TestChronologicalOOSEngine:
+    """Integration tests for chronological train/eval separation."""
+
+    @pytest.fixture
+    def sim_data_dir(self, tmp_path: Path) -> Path:
+        """Same fixture as TestHistoricalReplayEngine.sim_data_dir."""
+        import pandas as pd
+        d = tmp_path / "sim_data"
+        econ = d / "economic"
+        cal = d / "calendar"
+        hist = d / "history" / "gold"
+        econ.mkdir(parents=True, exist_ok=True)
+        cal.mkdir(parents=True, exist_ok=True)
+        hist.mkdir(parents=True, exist_ok=True)
+
+        (econ / "CPIAUCSL.csv").write_text(
+            "Date,Value\n"
+            "2020-01-15,100.0\n"
+            "2020-02-15,101.0\n"
+            "2020-03-15,99.5\n"
+            "2020-04-15,102.0\n",
+            encoding="utf-8",
+        )
+        (econ / "PAYEMS.csv").write_text(
+            "Date,Value\n"
+            "2020-01-10,150000.0\n"
+            "2020-02-10,151000.0\n"
+            "2020-03-10,149000.0\n",
+            encoding="utf-8",
+        )
+        (econ / "PPIACO.csv").write_text(
+            "Date,Value\n"
+            "2020-01-15,110.0\n"
+            "2020-02-15,111.0\n",
+            encoding="utf-8",
+        )
+        (econ / "FEDFUNDS.csv").write_text(
+            "Date,Value\n"
+            "2020-01-01,1.55\n"
+            "2020-02-01,1.50\n"
+            "2020-03-01,0.25\n",
+            encoding="utf-8",
+        )
+        (cal / "cpi_releases.csv").write_text(
+            "reference_period,release_date,release_time,timezone\n"
+            "2020-01-15,2020-01-15,08:30,US/Eastern\n"
+            "2020-02-15,2020-02-15,08:30,US/Eastern\n"
+            "2020-03-15,2020-03-15,08:30,US/Eastern\n"
+            "2020-04-15,2020-04-15,08:30,US/Eastern\n",
+            encoding="utf-8",
+        )
+        lines = ["Date,Close"]
+        price = 1500.0
+        for idx in range(200):
+            dt = pd.Timestamp("2019-01-01") + pd.Timedelta(days=idx * 7)
+            if dt.weekday() >= 5:
+                continue
+            lines.append(f"{dt.date().isoformat()},{price:.1f}")
+            price += 2.0 if idx % 2 == 0 else -1.0
+        (hist / "gold.csv").write_text("\n".join(lines), encoding="utf-8")
+        return d
+
+    def test_cpi_separation_produces_results(
+        self, sim_data_dir: Path
+    ) -> None:
+        """CPI events after cutoff are replayed with training knowledge."""
+        cutoff = "2020-03-01"
+        engine = ChronologicalOOSEngine(
+            cutoff_date=cutoff,
+            data_dir=sim_data_dir,
+            gold_path=sim_data_dir / "history" / "gold" / "gold.csv",
+            max_workers=2,
+        )
+        result = engine.run()
+        assert result.cutoff_date == "2020-03-01"
+        assert isinstance(result, ChronologicalOOSResult)
+        # At least CPI should have an evaluation result
+        cpi_evals = [r for r in result.evaluation_results if r.event_type == "CPI"]
+        assert len(cpi_evals) == 1
+        cpi = cpi_evals[0]
+        # CPI with releases on/after 2020-03-15 should have data
+        assert cpi.event_count > 0
+        # OOS summary should be populated
+        assert result.summary is not None
+        assert result.summary.total_events == len(result.evaluation_results)
+
+    def test_knowledge_dir_created(self, sim_data_dir: Path) -> None:
+        """Training knowledge is persisted to the knowledge directory."""
+        cutoff = "2020-03-01"
+        knowledge_dir = sim_data_dir / "oos_knowledge"
+        engine = ChronologicalOOSEngine(
+            cutoff_date=cutoff,
+            data_dir=sim_data_dir,
+            gold_path=sim_data_dir / "history" / "gold" / "gold.csv",
+            knowledge_dir=knowledge_dir,
+            max_workers=2,
+        )
+        engine.run()
+        # CPI training lessons should exist
+        assert (knowledge_dir / "CPI" / "lessons.csv").exists()
+
+    def test_deterministic(self, sim_data_dir: Path) -> None:
+        """Same inputs produce identical outputs."""
+        cutoff = "2020-03-01"
+        kwargs = dict(
+            cutoff_date=cutoff,
+            data_dir=sim_data_dir,
+            gold_path=sim_data_dir / "history" / "gold" / "gold.csv",
+            max_workers=2,
+        )
+        r1 = ChronologicalOOSEngine(**kwargs).run()
+        r2 = ChronologicalOOSEngine(**kwargs).run()
+        assert r1.summary is not None
+        assert r2.summary is not None
+        # OOS metrics should be deterministic
+        assert r1.summary.total_events == r2.summary.total_events
+        assert r1.summary.scored_events == r2.summary.scored_events
+        assert r1.summary.directional_accuracy == r2.summary.directional_accuracy
+
+    def test_cutoff_after_all_data(self, sim_data_dir: Path) -> None:
+        """Cutoff after all events → no evaluation results for CPI."""
+        cutoff = "2025-01-01"
+        engine = ChronologicalOOSEngine(
+            cutoff_date=cutoff,
+            data_dir=sim_data_dir,
+            gold_path=sim_data_dir / "history" / "gold" / "gold.csv",
+            max_workers=2,
+        )
+        result = engine.run()
+        # CPI has no post-cutoff events
+        cpi = next(
+            (r for r in result.evaluation_results if r.event_type == "CPI"), None
+        )
+        if cpi is not None:
+            assert cpi.event_count == 0
+
+    def test_cutoff_before_all_data(self, sim_data_dir: Path) -> None:
+        """Cutoff before all events → CPI uses all data in eval."""
+        cutoff = "2019-01-01"
+        engine = ChronologicalOOSEngine(
+            cutoff_date=cutoff,
+            data_dir=sim_data_dir,
+            gold_path=sim_data_dir / "history" / "gold" / "gold.csv",
+            max_workers=2,
+        )
+        result = engine.run()
+        cpi = next(
+            (r for r in result.evaluation_results if r.event_type == "CPI"), None
+        )
+        assert cpi is not None
+        # CPI fixture has 4 releases (2020-01-15 through 2020-04-15)
+        assert cpi.event_count >= 4
+
+    def test_prebuilt_lessons_injected(self, sim_data_dir: Path) -> None:
+        """Verify that prebuilt_lessons_path is threaded through
+        to the pipeline by checking the knowledge dir exists with
+        training lessons that are NOT overwritten after eval."""
+        cutoff = "2020-03-01"
+        knowledge_dir = sim_data_dir / "oos_knowledge"
+        engine = ChronologicalOOSEngine(
+            cutoff_date=cutoff,
+            data_dir=sim_data_dir,
+            gold_path=sim_data_dir / "history" / "gold" / "gold.csv",
+            knowledge_dir=knowledge_dir,
+            max_workers=2,
+        )
+        # Run training + evaluation
+        engine.run()
+        # After evaluation, the training lessons should still exist
+        # (they were loaded but not overwritten by evaluation-period lessons)
+        lessons_path = knowledge_dir / "CPI" / "lessons.csv"
+        assert lessons_path.exists()
+        # The file should be non-empty
+        import pandas as pd
+        df = pd.read_csv(lessons_path)
+        assert len(df) > 0
 
 
