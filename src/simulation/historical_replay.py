@@ -20,6 +20,7 @@ from orchestration.institutional_orchestrator import InstitutionalOrchestrator
 from simulation.models import (
     EventRunResult,
     ForecastAccuracySummary,
+    OOSSummary,
     RiskSummary,
     SimulationReport,
 )
@@ -190,6 +191,231 @@ def _compute_gold_return(
         return None
 
     return float((future_price - entry_price) / entry_price * 100.0)
+
+
+# ---------------------------------------------------------------------------
+# OOS aggregation (pure functions)
+# ---------------------------------------------------------------------------
+
+
+def _safe_div(numerator: float, denominator: float) -> float | None:
+    """Return ``numerator / denominator`` or ``None`` if denominator is zero."""
+    if denominator == 0:
+        return None
+    return numerator / denominator
+
+
+def _predicted_direction(decision: str) -> str | None:
+    """Map a decision string to the predicted direction.
+
+    POSITIVE / STRONG_POSITIVE  →  ``"UP"``
+    NEGATIVE / STRONG_NEGATIVE  →  ``"DOWN"``
+    NEUTRAL                     →  ``"FLAT"``
+    INSUFFICIENT_EVIDENCE       →  ``None``
+    """
+    d = decision.upper()
+    if d in ("POSITIVE", "STRONG_POSITIVE"):
+        return "UP"
+    if d in ("NEGATIVE", "STRONG_NEGATIVE"):
+        return "DOWN"
+    if d == "NEUTRAL":
+        return "FLAT"
+    return None
+
+
+def _confusion_matrix_counts(
+    scored: list[EventRunResult],
+) -> dict[str, int]:
+    """Build a 3×3 confusion matrix from scored events.
+
+    Returns a dict with nine keys of the form ``pred_{dir}_act_{dir}``
+    where ``{dir}`` is ``up``, ``down``, or ``flat``.
+    """
+    counts: dict[str, int] = {
+        "pred_up_act_up": 0,
+        "pred_up_act_down": 0,
+        "pred_up_act_flat": 0,
+        "pred_down_act_up": 0,
+        "pred_down_act_down": 0,
+        "pred_down_act_flat": 0,
+        "pred_flat_act_up": 0,
+        "pred_flat_act_down": 0,
+        "pred_flat_act_flat": 0,
+    }
+    for r in scored:
+        pred = _predicted_direction(r.decision)
+        if pred is None or r.decision_actual_return_pct is None:
+            continue
+        actual = _classify_actual_direction(r.decision_actual_return_pct)
+        key = f"pred_{pred.lower()}_act_{actual.lower()}"
+        if key in counts:
+            counts[key] += 1
+    return counts
+
+
+def _strong_error_rate(scored: list[EventRunResult]) -> float | None:
+    """Fraction of STRONG_POSITIVE / STRONG_NEGATIVE bets that were wrong."""
+    strong_total = 0
+    strong_wrong = 0
+    for r in scored:
+        d = r.decision.upper() if r.decision else ""
+        if d in ("STRONG_POSITIVE", "STRONG_NEGATIVE"):
+            strong_total += 1
+            if r.decision_correct is False:
+                strong_wrong += 1
+    return _safe_div(float(strong_wrong), float(strong_total))
+
+
+def _ece(scored: list[EventRunResult], n_bins: int = 5) -> float | None:
+    """Expected Calibration Error with *n_bins* equal-width bins over [0, 1].
+
+    Only includes scored events that also have a non-``None``
+    ``forecast_confidence``.
+    """
+    confidences: list[float] = []
+    corrects: list[bool] = []
+    for r in scored:
+        if r.forecast_confidence is not None:
+            confidences.append(r.forecast_confidence)
+            corrects.append(r.decision_correct is True)
+
+    n = len(confidences)
+    if n == 0:
+        return None
+
+    bin_edges = [i / n_bins for i in range(n_bins + 1)]
+    bin_edges[-1] = 1.0 + 1e-9  # ensure the last bin is inclusive
+
+    ece_value = 0.0
+    for b in range(n_bins):
+        lo = bin_edges[b]
+        hi = bin_edges[b + 1]
+        mask = [lo <= c < hi for c in confidences]
+        bin_size = sum(mask)
+        if bin_size == 0:
+            continue
+        bin_correct = sum(c for c, m in zip(corrects, mask) if m)
+        bin_accuracy = bin_correct / bin_size
+        bin_conf = sum(c for c, m in zip(confidences, mask) if m) / bin_size
+        ece_value += (bin_size / n) * abs(bin_accuracy - bin_conf)
+
+    return ece_value
+
+
+def compute_oos_summary(results: tuple[EventRunResult, ...]) -> OOSSummary:
+    """Aggregate per-event |EventRunResult| objects into an |OOSSummary|.
+
+    Pure function — no side effects, deterministic.
+
+    Metrics
+    -------
+    *Decision Distribution* — count of each decision type across all events.
+    *Directional Accuracy* — correct UP or DOWN bets / total UP or DOWN bets.
+    *Precision / Recall* — per-class (UP, DOWN, FLAT) and macro average.
+    *Coverage* — scored events / events-with-a-decision.
+    *Abstention Rate* — INSUFFICIENT_EVIDENCE / events-with-a-decision.
+    *Strong Error Rate* — wrong STRONG bets / total STRONG bets.
+    *ECE* — Expected Calibration Error (5 equal-width bins).
+    """
+    total_events = len(results)
+
+    scored = [r for r in results if r.decision_correct is not None]
+    abstained = [
+        r for r in results
+        if r.decision_correct is None and r.decision is not None
+    ]
+    no_decision = [r for r in results if r.decision is None]
+
+    scored_events = len(scored)
+    abstained_events = len(abstained)
+    total_with_decision = scored_events + abstained_events
+
+    coverage = (
+        _safe_div(float(scored_events), float(total_with_decision))
+        if total_with_decision > 0 else None
+    )
+    abstention_rate = (
+        _safe_div(float(abstained_events), float(total_with_decision))
+        if total_with_decision > 0 else None
+    )
+
+    # Decision distribution
+    dist: dict[str, int] = {}
+    for r in results:
+        d = r.decision if r.decision else "NO_DECISION"
+        dist[d] = dist.get(d, 0) + 1
+
+    # Confusion matrix
+    cm = _confusion_matrix_counts(scored)
+
+    # Directional accuracy (directional bets = predict UP or DOWN, not FLAT)
+    total_directional = (
+        cm["pred_up_act_up"] + cm["pred_up_act_down"] + cm["pred_up_act_flat"]
+        + cm["pred_down_act_up"] + cm["pred_down_act_down"] + cm["pred_down_act_flat"]
+    )
+    correct_directional = cm["pred_up_act_up"] + cm["pred_down_act_down"]
+    directional_accuracy = (
+        _safe_div(float(correct_directional), float(total_directional))
+        if total_directional > 0 else None
+    )
+
+    # Per-class precision
+    precision_up = _safe_div(
+        float(cm["pred_up_act_up"]),
+        float(cm["pred_up_act_up"] + cm["pred_up_act_down"] + cm["pred_up_act_flat"]),
+    )
+    precision_down = _safe_div(
+        float(cm["pred_down_act_down"]),
+        float(cm["pred_down_act_up"] + cm["pred_down_act_down"] + cm["pred_down_act_flat"]),
+    )
+    precision_flat = _safe_div(
+        float(cm["pred_flat_act_flat"]),
+        float(cm["pred_flat_act_up"] + cm["pred_flat_act_down"] + cm["pred_flat_act_flat"]),
+    )
+
+    # Per-class recall
+    recall_up = _safe_div(
+        float(cm["pred_up_act_up"]),
+        float(cm["pred_up_act_up"] + cm["pred_down_act_up"] + cm["pred_flat_act_up"]),
+    )
+    recall_down = _safe_div(
+        float(cm["pred_down_act_down"]),
+        float(cm["pred_up_act_down"] + cm["pred_down_act_down"] + cm["pred_flat_act_down"]),
+    )
+    recall_flat = _safe_div(
+        float(cm["pred_flat_act_flat"]),
+        float(cm["pred_up_act_flat"] + cm["pred_down_act_flat"] + cm["pred_flat_act_flat"]),
+    )
+
+    # Macro averages
+    prec_vals = [v for v in (precision_up, precision_down, precision_flat) if v is not None]
+    rec_vals = [v for v in (recall_up, recall_down, recall_flat) if v is not None]
+    macro_precision = sum(prec_vals) / len(prec_vals) if prec_vals else None
+    macro_recall = sum(rec_vals) / len(rec_vals) if rec_vals else None
+
+    strong_err = _strong_error_rate(scored)
+
+    cal_error = _ece(scored)
+
+    return OOSSummary(
+        total_events=total_events,
+        scored_events=scored_events,
+        abstained_events=abstained_events,
+        directional_accuracy=directional_accuracy,
+        macro_precision=macro_precision,
+        macro_recall=macro_recall,
+        precision_up=precision_up,
+        precision_down=precision_down,
+        precision_flat=precision_flat,
+        recall_up=recall_up,
+        recall_down=recall_down,
+        recall_flat=recall_flat,
+        coverage=coverage,
+        abstention_rate=abstention_rate,
+        strong_error_rate=strong_err,
+        ece=cal_error,
+        decision_distribution=dist,
+    )
 
 
 # ---------------------------------------------------------------------------

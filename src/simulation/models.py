@@ -94,6 +94,54 @@ class RiskSummary:
 
 
 @dataclass(frozen=True)
+class OOSSummary:
+    """Out-of-sample validation summary — pure aggregation of
+    per-event correctness into institutional metrics.
+
+    All metrics are derived from ``decision_correct``,
+    ``decision_actual_return_pct``, ``forecast_confidence``, and
+    ``decision`` fields on |EventRunResult|.
+    """
+
+    total_events: int
+    scored_events: int
+    abstained_events: int
+    directional_accuracy: float | None = None
+    macro_precision: float | None = None
+    macro_recall: float | None = None
+    precision_up: float | None = None
+    precision_down: float | None = None
+    precision_flat: float | None = None
+    recall_up: float | None = None
+    recall_down: float | None = None
+    recall_flat: float | None = None
+    coverage: float | None = None
+    abstention_rate: float | None = None
+    strong_error_rate: float | None = None
+    ece: float | None = None
+    decision_distribution: dict[str, int] | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
+            "total_events": self.total_events,
+            "scored_events": self.scored_events,
+            "abstained_events": self.abstained_events,
+        }
+        for fld in (
+            "directional_accuracy", "macro_precision", "macro_recall",
+            "precision_up", "precision_down", "precision_flat",
+            "recall_up", "recall_down", "recall_flat",
+            "coverage", "abstention_rate", "strong_error_rate", "ece",
+        ):
+            val = getattr(self, fld, None)
+            if val is not None:
+                d[fld] = round(val, 6) if isinstance(val, float) else val
+        if self.decision_distribution:
+            d["decision_distribution"] = dict(self.decision_distribution)
+        return d
+
+
+@dataclass(frozen=True)
 class SimulationReport:
     timestamp: str
     data_dir: str

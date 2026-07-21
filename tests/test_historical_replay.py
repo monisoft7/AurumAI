@@ -18,11 +18,13 @@ from simulation.historical_replay import (
     _classify_actual_direction,
     _decision_is_correct,
     _compute_gold_return,
+    compute_oos_summary,
     run_simulation,
 )
 from simulation.models import (
     EventRunResult,
     ForecastAccuracySummary,
+    OOSSummary,
     RiskSummary,
     SimulationReport,
 )
@@ -812,5 +814,371 @@ class TestOosCorrectnessEvaluation:
         entry = pd.Timestamp("2024-06-02")
         ret = _compute_gold_return(gold, entry, horizon_days=10)
         assert ret is None
+
+
+# ===========================================================================
+# OOS report — pure aggregation tests
+# ===========================================================================
+
+
+def _r(
+    event_type: str,
+    decision: str | None,
+    decision_correct: bool | None,
+    actual_return: float | None = None,
+    confidence: float | None = None,
+) -> EventRunResult:
+    """Minimal EventRunResult factory for OOS test data."""
+    return EventRunResult(
+        event_type=event_type,
+        event_date_min="",
+        event_date_max="",
+        event_count=1,
+        success=True,
+        execution_time_ms=0.0,
+        cache_hits=0,
+        checkpoints_used=0,
+        decision=decision,
+        forecast_confidence=confidence,
+        decision_correct=decision_correct,
+        decision_actual_return_pct=actual_return,
+    )
+
+
+class TestOOSReport:
+    """Tests for compute_oos_summary and OOSSummary model."""
+
+    # -- empty / edge cases -----------------------------------------------
+
+    def test_empty_results(self) -> None:
+        s = compute_oos_summary(())
+        assert s.total_events == 0
+        assert s.scored_events == 0
+        assert s.abstained_events == 0
+        assert s.directional_accuracy is None
+        assert s.macro_precision is None
+        assert s.macro_recall is None
+        assert s.coverage is None
+        assert s.abstention_rate is None
+        assert s.strong_error_rate is None
+        assert s.ece is None
+        assert s.decision_distribution == {}
+
+    def test_all_abstained(self) -> None:
+        results = (
+            _r("CPI", "INSUFFICIENT_EVIDENCE", None),
+            _r("NFP", "INSUFFICIENT_EVIDENCE", None),
+        )
+        s = compute_oos_summary(results)
+        assert s.total_events == 2
+        assert s.scored_events == 0
+        assert s.abstained_events == 2
+        assert s.coverage == 0.0
+        assert s.abstention_rate == 1.0
+        assert s.directional_accuracy is None
+
+    def test_no_decision_events_excluded(self) -> None:
+        """Events with decision=None are counted in total_events but do
+        not affect coverage (they are structural failures, not abstentions)."""
+        results = (
+            _r("CPI", "POSITIVE", True, 0.5),
+            _r("FAILED", None, None),
+        )
+        s = compute_oos_summary(results)
+        assert s.total_events == 2
+        assert s.scored_events == 1
+        assert s.abstained_events == 0
+        assert s.coverage == 1.0  # 1 scored / 1 with decision
+        assert s.decision_distribution == {"POSITIVE": 1, "NO_DECISION": 1}
+
+    # -- directional accuracy ---------------------------------------------
+
+    def test_directional_accuracy_perfect(self) -> None:
+        results = (
+            _r("A", "POSITIVE", True, 0.5),
+            _r("B", "NEGATIVE", True, -0.5),
+            _r("C", "STRONG_POSITIVE", True, 0.3),
+        )
+        s = compute_oos_summary(results)
+        assert s.directional_accuracy == 1.0
+
+    def test_directional_accuracy_zero(self) -> None:
+        results = (
+            _r("A", "POSITIVE", False, -0.5),
+            _r("B", "NEGATIVE", False, 0.5),
+        )
+        s = compute_oos_summary(results)
+        assert s.directional_accuracy == 0.0
+
+    def test_directional_accuracy_excludes_neutral(self) -> None:
+        """NEUTRAL predictions are not directional bets."""
+        results = (
+            _r("A", "POSITIVE", True, 0.5),
+            _r("B", "NEUTRAL", True, 0.05),
+            _r("C", "NEGATIVE", False, 0.5),
+        )
+        s = compute_oos_summary(results)
+        # Directional: A correct, C wrong → 1/2 = 0.5
+        assert s.directional_accuracy == 0.5
+
+    def test_directional_accuracy_excludes_abstained(self) -> None:
+        results = (
+            _r("A", "POSITIVE", True, 0.5),
+            _r("B", "INSUFFICIENT_EVIDENCE", None),
+        )
+        s = compute_oos_summary(results)
+        assert s.directional_accuracy == 1.0
+
+    # -- precision ---------------------------------------------------------
+
+    def test_precision_up(self) -> None:
+        # 2 correct UP, 1 incorrect UP → precision_up = 2/3
+        results = (
+            _r("A", "POSITIVE", True, 0.5),
+            _r("B", "STRONG_POSITIVE", True, 0.8),
+            _r("C", "POSITIVE", False, -0.5),
+        )
+        s = compute_oos_summary(results)
+        assert s.precision_up == pytest.approx(2.0 / 3.0)
+
+    def test_precision_down(self) -> None:
+        results = (
+            _r("A", "NEGATIVE", True, -0.5),
+            _r("B", "STRONG_NEGATIVE", True, -0.8),
+            _r("C", "NEGATIVE", False, 0.5),
+            _r("D", "NEGATIVE", False, 0.05),
+        )
+        s = compute_oos_summary(results)
+        assert s.precision_down == pytest.approx(2.0 / 4.0)
+
+    def test_precision_flat(self) -> None:
+        results = (
+            _r("A", "NEUTRAL", True, 0.05),
+            _r("B", "NEUTRAL", True, -0.03),
+            _r("C", "NEUTRAL", False, 0.5),
+        )
+        s = compute_oos_summary(results)
+        assert s.precision_flat == pytest.approx(2.0 / 3.0)
+
+    def test_precision_up_no_predictions(self) -> None:
+        results = (
+            _r("A", "NEGATIVE", True, -0.5),
+            _r("B", "NEUTRAL", True, 0.05),
+        )
+        s = compute_oos_summary(results)
+        assert s.precision_up is None
+
+    # -- recall ------------------------------------------------------------
+
+    def test_recall_up(self) -> None:
+        # actual UP in 3 events: 2 predicted UP, 1 predicted DOWN → recall_up = 2/3
+        results = (
+            _r("A", "POSITIVE", True, 0.5),
+            _r("B", "STRONG_POSITIVE", True, 0.8),
+            _r("C", "NEGATIVE", False, 0.5),  # wrong: actual UP but predicted DOWN
+        )
+        s = compute_oos_summary(results)
+        assert s.recall_up == pytest.approx(2.0 / 3.0)
+
+    def test_recall_down(self) -> None:
+        results = (
+            _r("A", "NEGATIVE", True, -0.5),
+            _r("B", "POSITIVE", False, -0.5),  # wrong: actual DOWN but predicted UP
+        )
+        s = compute_oos_summary(results)
+        assert s.recall_down == pytest.approx(1.0 / 2.0)
+
+    def test_recall_flat(self) -> None:
+        results = (
+            _r("A", "NEUTRAL", True, 0.05),
+            _r("B", "NEUTRAL", True, -0.03),
+            _r("C", "POSITIVE", False, 0.03),  # wrong: actual FLAT but predicted UP
+        )
+        s = compute_oos_summary(results)
+        assert s.recall_flat == pytest.approx(2.0 / 3.0)
+
+    # -- macro averages ----------------------------------------------------
+
+    def test_macro_precision_recall(self) -> None:
+        """2 correct UP / 4 UP predictions → prec_up=0.5
+        1 correct DOWN / 3 DOWN predictions → prec_down=1/3
+        1 correct FLAT / 1 FLAT predictions → prec_flat=1.0
+        macro_precision = (0.5 + 1/3 + 1.0) / 3 = 0.611...
+
+        2 actual UP / 3 actual UP found → rec_up=2/3
+        1 actual DOWN / 3 actual DOWN found → rec_down=1/3
+        1 actual FLAT / 2 actual FLAT found → rec_flat=0.5
+        macro_recall = (2/3 + 1/3 + 0.5) / 3 = 0.5
+        """
+        results = (
+            # UP predictions: 2 correct, 2 wrong (C and G)
+            _r("A", "POSITIVE", True, 0.5),
+            _r("B", "STRONG_POSITIVE", True, 0.8),
+            _r("C", "POSITIVE", False, -0.5),     # actual DOWN
+            # DOWN predictions: 1 correct, 2 wrong
+            _r("D", "NEGATIVE", True, -0.5),
+            _r("E", "NEGATIVE", False, 0.5),       # actual UP
+            _r("H", "NEGATIVE", False, 0.03),       # actual FLAT
+            # FLAT predictions: 1 correct
+            _r("F", "NEUTRAL", True, 0.05),
+            # actual DOWN predicted UP
+            _r("G", "POSITIVE", False, -0.3),
+        )
+        s = compute_oos_summary(results)
+        assert s.precision_up == pytest.approx(2.0 / 4.0)
+        assert s.precision_down == pytest.approx(1.0 / 3.0)
+        assert s.precision_flat == 1.0
+        assert s.macro_precision == pytest.approx((0.5 + 1.0/3.0 + 1.0) / 3.0)
+        assert s.recall_up == pytest.approx(2.0 / 3.0)
+        assert s.recall_down == pytest.approx(1.0 / 3.0)
+        assert s.recall_flat == pytest.approx(1.0 / 2.0)
+        assert s.macro_recall == pytest.approx(0.5)
+
+    # -- coverage / abstention rate ----------------------------------------
+
+    def test_coverage_mixed(self) -> None:
+        results = (
+            _r("A", "POSITIVE", True, 0.5),
+            _r("B", "INSUFFICIENT_EVIDENCE", None),
+            _r("C", "NEGATIVE", True, -0.5),
+        )
+        s = compute_oos_summary(results)
+        assert s.coverage == pytest.approx(2.0 / 3.0)
+        assert s.abstention_rate == pytest.approx(1.0 / 3.0)
+
+    def test_coverage_and_abstention_sum_to_one(self) -> None:
+        results = (
+            _r("A", "POSITIVE", True, 0.5),
+            _r("B", "INSUFFICIENT_EVIDENCE", None),
+            _r("C", "NEGATIVE", True, -0.5),
+            _r("D", "INSUFFICIENT_EVIDENCE", None),
+        )
+        s = compute_oos_summary(results)
+        if s.coverage is not None and s.abstention_rate is not None:
+            assert s.coverage + s.abstention_rate == pytest.approx(1.0)
+
+    # -- strong error rate -------------------------------------------------
+
+    def test_strong_error_rate_all_correct(self) -> None:
+        results = (
+            _r("A", "STRONG_POSITIVE", True, 0.5),
+            _r("B", "STRONG_NEGATIVE", True, -0.5),
+        )
+        s = compute_oos_summary(results)
+        assert s.strong_error_rate == 0.0
+
+    def test_strong_error_rate_all_wrong(self) -> None:
+        results = (
+            _r("A", "STRONG_POSITIVE", False, -0.5),
+            _r("B", "STRONG_NEGATIVE", False, 0.5),
+        )
+        s = compute_oos_summary(results)
+        assert s.strong_error_rate == 1.0
+
+    def test_strong_error_rate_mixed(self) -> None:
+        """A (correct), B (wrong), C (wrong) → 2 wrong / 3 strong = 2/3."""
+        results = (
+            _r("A", "STRONG_POSITIVE", True, 0.5),
+            _r("B", "STRONG_NEGATIVE", False, 0.5),
+            _r("C", "STRONG_POSITIVE", False, -0.5),
+            _r("D", "POSITIVE", True, 0.3),  # not strong
+        )
+        s = compute_oos_summary(results)
+        assert s.strong_error_rate == pytest.approx(2.0 / 3.0)
+
+    def test_strong_error_rate_no_strong(self) -> None:
+        results = (
+            _r("A", "POSITIVE", True, 0.5),
+            _r("B", "NEUTRAL", True, 0.05),
+        )
+        s = compute_oos_summary(results)
+        assert s.strong_error_rate is None
+
+    # -- ECE ---------------------------------------------------------------
+
+    def test_ece_perfect_calibration(self) -> None:
+        """10 events at confidence=0.5, 5 correct, 5 wrong.
+        Bin [0.4, 0.6): accuracy=0.5, mean_conf=0.5 → |acc-conf| = 0."""
+        results = tuple(
+            _r(f"E{i}", "POSITIVE", i < 5, 0.5 if i < 5 else -0.5, confidence=0.5)
+            for i in range(10)
+        )
+        s = compute_oos_summary(results)
+        assert s.ece == pytest.approx(0.0, abs=1e-9)
+
+    def test_ece_miscalibrated(self) -> None:
+        """Overconfident: high confidence but low accuracy."""
+        results = (
+            # Bin [0.8, 1.0): conf=0.9, 0 correct / 2 → accuracy=0.0
+            _r("A", "POSITIVE", False, -0.5, confidence=0.9),
+            _r("B", "POSITIVE", False, -0.5, confidence=0.9),
+            # Bin [0.0, 0.2): conf=0.1, 2 correct / 2 → accuracy=1.0
+            _r("C", "POSITIVE", True, 0.5, confidence=0.1),
+            _r("D", "POSITIVE", True, 0.5, confidence=0.1),
+        )
+        s = compute_oos_summary(results)
+        # ECE = 0.5 * |0.0 - 0.9| + 0.5 * |1.0 - 0.1| = 0.5*0.9 + 0.5*0.9 = 0.9
+        assert s.ece == pytest.approx(0.9)
+
+    def test_ece_no_confidence(self) -> None:
+        """Events without forecast_confidence are excluded from ECE."""
+        results = (
+            _r("A", "POSITIVE", True, 0.5),  # no confidence
+            _r("B", "POSITIVE", True, 0.5, confidence=0.8),
+        )
+        s = compute_oos_summary(results)
+        # Only 1 event with confidence, single bin: |acc-conf| = |1.0-0.8| = 0.2
+        assert s.ece == pytest.approx(0.2)
+
+    # -- decision distribution ---------------------------------------------
+
+    def test_decision_distribution(self) -> None:
+        results = (
+            _r("A", "POSITIVE", True, 0.5),
+            _r("B", "NEGATIVE", True, -0.5),
+            _r("C", "NEUTRAL", True, 0.05),
+            _r("D", "INSUFFICIENT_EVIDENCE", None),
+            _r("E", "STRONG_POSITIVE", True, 0.8),
+            _r("F", "POSITIVE", False, -0.3),
+        )
+        s = compute_oos_summary(results)
+        assert s.decision_distribution == {
+            "POSITIVE": 2,
+            "NEGATIVE": 1,
+            "NEUTRAL": 1,
+            "INSUFFICIENT_EVIDENCE": 1,
+            "STRONG_POSITIVE": 1,
+        }
+
+    # -- determinism -------------------------------------------------------
+
+    def test_deterministic(self) -> None:
+        """Same input always produces the same OOSSummary."""
+        results = (
+            _r("A", "POSITIVE", True, 0.5),
+            _r("B", "NEGATIVE", False, 0.5),
+            _r("C", "INSUFFICIENT_EVIDENCE", None),
+        )
+        s1 = compute_oos_summary(results)
+        s2 = compute_oos_summary(results)
+        assert s1 == s2
+        assert s1.to_dict() == s2.to_dict()
+
+    # -- model serialisation -----------------------------------------------
+
+    def test_oos_summary_to_dict(self) -> None:
+        results = (
+            _r("A", "POSITIVE", True, 0.5),
+            _r("B", "NEGATIVE", False, 0.5),
+        )
+        s = compute_oos_summary(results)
+        d = s.to_dict()
+        assert isinstance(d, dict)
+        assert d["total_events"] == 2
+        assert d["scored_events"] == 2
+        assert d["abstained_events"] == 0
+        assert isinstance(d["directional_accuracy"], float)
+        assert isinstance(d["decision_distribution"], dict)
+        assert json.dumps(d)  # serialisable
 
 
