@@ -101,7 +101,7 @@ _SYNTHETIC_EVENTS: dict[str, _EventSpec] = {
     "GDP": {
         "csv": "economic/GDP.csv",
         "description": "Gross Domestic Product",
-        "_synthetic_rows": 20,
+        "_synthetic_rows": 26,
         "_synthetic_start": "2019-Q1",
         "_synthetic_mean": 2.5,
         "_synthetic_std": 2.0,
@@ -117,7 +117,7 @@ _SYNTHETIC_EVENTS: dict[str, _EventSpec] = {
     "FOMC": {
         "csv": "calendar/FOMC.csv",
         "description": "FOMC Rate Decisions",
-        "_synthetic_rows": 24,
+        "_synthetic_rows": 66,
         "_synthetic_start": "2020-01",
         "_synthetic_mean": 2.5,
         "_synthetic_std": 1.5,
@@ -319,7 +319,7 @@ def compute_oos_summary(results: tuple[EventRunResult, ...]) -> OOSSummary:
     *Strong Error Rate* — wrong STRONG bets / total STRONG bets.
     *ECE* — Expected Calibration Error (5 equal-width bins).
     """
-    total_events = len(results)
+    total_events = sum(r.event_count for r in results)
 
     scored = [r for r in results if r.decision_correct is not None]
     abstained = [
@@ -1199,8 +1199,8 @@ class ChronologicalOOSEngine:
         eval_results: list[EventRunResult] = []
         for event_type in HistoricalReplayEngine._iter_event_types():
             try:
-                result = self._run_evaluation(event_type)
-                eval_results.append(result)
+                results = self._run_evaluation(event_type)
+                eval_results.extend(results)
             except Exception as exc:
                 errors.append(f"[eval/{event_type}] {exc}")
 
@@ -1297,7 +1297,7 @@ class ChronologicalOOSEngine:
 
     # -- evaluation --------------------------------------------------------
 
-    def _run_evaluation(self, event_type: str) -> EventRunResult:
+    def _run_evaluation(self, event_type: str) -> tuple[EventRunResult, ...]:
         """Replay post-cutoff events using pre-built training knowledge."""
         import shutil
 
@@ -1312,7 +1312,7 @@ class ChronologicalOOSEngine:
 
         if release_csv is not None and release_csv.exists():
             return self._eval_release_event(event_type, csv_path, release_csv, prebuilt_str)
-        return self._eval_legacy_event(event_type, csv_path, prebuilt_str)
+        return (self._eval_legacy_event(event_type, csv_path, prebuilt_str),)
 
     def _eval_release_event(
         self,
@@ -1320,7 +1320,7 @@ class ChronologicalOOSEngine:
         csv_path: Path,
         calendar_path: Path,
         prebuilt_lessons_path: str,
-    ) -> EventRunResult:
+    ) -> tuple[EventRunResult, ...]:
         import pandas as pd
         import tempfile
 
@@ -1332,17 +1332,19 @@ class ChronologicalOOSEngine:
         calendar["release_timestamp"] = pd.to_datetime(calendar["release_timestamp"])
         eval_cal = calendar[calendar["release_timestamp"] >= self._cutoff].copy()
         if eval_cal.empty:
-            return EventRunResult(
-                event_type=event_type,
-                event_date_min="",
-                event_date_max="",
-                event_count=0,
-                success=True,
-                execution_time_ms=0.0,
-                cache_hits=0,
-                checkpoints_used=0,
-                error=f"No evaluation events on or after {self._cutoff.date()}",
-                errors=(f"No evaluation events on or after {self._cutoff.date()}",),
+            return (
+                EventRunResult(
+                    event_type=event_type,
+                    event_date_min="",
+                    event_date_max="",
+                    event_count=0,
+                    success=True,
+                    execution_time_ms=0.0,
+                    cache_hits=0,
+                    checkpoints_used=0,
+                    error=f"No evaluation events on or after {self._cutoff.date()}",
+                    errors=(f"No evaluation events on or after {self._cutoff.date()}",),
+                ),
             )
 
         eval_cal["reference_period"] = pd.to_datetime(eval_cal["reference_period"], errors="coerce")
@@ -1359,18 +1361,20 @@ class ChronologicalOOSEngine:
         cpi_merged = cpi_merged.sort_values("release_timestamp")
 
         if cpi_merged.empty:
-            return EventRunResult(
-                event_type=event_type,
-                event_date_min="",
-                event_date_max="",
-                event_count=0,
-                success=True,
-                execution_time_ms=0.0,
-                cache_hits=0,
-                checkpoints_used=0,
-                decision=None,
-                error=f"No CPI data matching evaluation calendar on or after {self._cutoff.date()}",
-                errors=(f"No CPI data matching evaluation calendar on or after {self._cutoff.date()}",),
+            return (
+                EventRunResult(
+                    event_type=event_type,
+                    event_date_min="",
+                    event_date_max="",
+                    event_count=0,
+                    success=True,
+                    execution_time_ms=0.0,
+                    cache_hits=0,
+                    checkpoints_used=0,
+                    decision=None,
+                    error=f"No CPI data matching evaluation calendar on or after {self._cutoff.date()}",
+                    errors=(f"No CPI data matching evaluation calendar on or after {self._cutoff.date()}",),
+                ),
             )
 
         gold_df = self._load_gold_data()
@@ -1450,8 +1454,6 @@ class ChronologicalOOSEngine:
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
             event_count = len(eval_df)
-            date_min = eval_df["Date"].min().strftime("%Y-%m-%d")
-            date_max = eval_df["Date"].max().strftime("%Y-%m-%d")
 
             return HistoricalReplayEngine._assessment_to_result(
                 event_type=event_type,
@@ -1503,7 +1505,7 @@ class _EvalReplayEngine:
         csv_path: Path,
         calendar_path: Path,
         cpi_merged: pd.DataFrame,
-    ) -> EventRunResult:
+    ) -> tuple[EventRunResult, ...]:
         import shutil
         import tempfile
 
@@ -1514,12 +1516,7 @@ class _EvalReplayEngine:
 
         gold = self._gold_df
 
-        total_elapsed_ms = 0.0
-        total_cache_hits = 0
-        total_checkpoints = 0
-        release_count = 0
-        errors: list[str] = []
-        all_outputs: list[dict[str, Any]] = []
+        results: list[EventRunResult] = []
         n_releases = len(cpi_merged)
 
         for idx, (_cal_idx, release_row) in enumerate(cpi_merged.iterrows()):
@@ -1535,6 +1532,7 @@ class _EvalReplayEngine:
             )
 
             tmp = Path(tempfile.mkdtemp(prefix="aurumai_eval_release_"))
+            release_errors: list[str] = []
             try:
                 tmp_cpi = tmp / "cpi.csv"
                 tmp_gold = tmp / "gold.csv"
@@ -1570,73 +1568,62 @@ class _EvalReplayEngine:
                 )
                 release_elapsed = (time.perf_counter() - t0) * 1000.0
 
-                total_elapsed_ms += release_elapsed
-                total_cache_hits += assessment.cache_hits
-                total_checkpoints += sum(
-                    1 for s in assessment.stages if s.checkpoint is not None
-                )
-                release_count += 1
-
                 if assessment.errors:
-                    errors.extend(
+                    release_errors.extend(
                         f"[release {idx + 1}/{n_releases} as_of={as_of}] {e}"
                         for e in assessment.errors
                     )
 
                 finalize_out = assessment.outputs.get("finalize", {}) or {}
-                all_outputs.append(finalize_out)
+
+                # Per-release field extraction
+                decision = HistoricalReplayEngine._extract_decision(finalize_out)
+                risk_decision = HistoricalReplayEngine._extract_risk_decision(finalize_out)
+                forecast_model = HistoricalReplayEngine._extract_forecast_model(finalize_out)
+                forecast_confidence = HistoricalReplayEngine._extract_forecast_confidence(finalize_out)
+                validation_passed, validation_metrics = HistoricalReplayEngine._extract_validation(finalize_out)
+                var_95, cvar_95, tail_index = HistoricalReplayEngine._extract_risk_metrics(finalize_out)
+                position_scaling = HistoricalReplayEngine._extract_position_scaling(finalize_out)
+                risk_gate_action, risk_gate_score = HistoricalReplayEngine._extract_risk_gate(finalize_out)
+
+                # Per-release OOS correctness
+                decision_correct: bool | None = None
+                decision_actual_return_pct: float | None = None
+                if decision is not None and gold is not None:
+                    gold_return = _compute_gold_return(gold, as_of)
+                    if gold_return is not None:
+                        decision_actual_return_pct = gold_return
+                        actual_dir = _classify_actual_direction(gold_return)
+                        decision_correct = _decision_is_correct(decision, actual_dir)
+
+                results.append(EventRunResult(
+                    event_type=event_type,
+                    event_date_min=as_of.strftime("%Y-%m-%d"),
+                    event_date_max=as_of.strftime("%Y-%m-%d"),
+                    event_count=1,
+                    success=len(release_errors) == 0,
+                    execution_time_ms=release_elapsed,
+                    cache_hits=assessment.cache_hits,
+                    checkpoints_used=sum(1 for s in assessment.stages if s.checkpoint is not None),
+                    decision=decision,
+                    risk_decision=risk_decision,
+                    forecast_model=forecast_model,
+                    forecast_confidence=forecast_confidence,
+                    validation_passed=validation_passed,
+                    validation_metrics=validation_metrics,
+                    var_95=var_95,
+                    cvar_95=cvar_95,
+                    tail_index=tail_index,
+                    position_scaling=position_scaling,
+                    risk_gate_action=risk_gate_action,
+                    risk_gate_score=risk_gate_score,
+                    decision_correct=decision_correct,
+                    decision_actual_return_pct=decision_actual_return_pct,
+                    error=release_errors[0] if release_errors else None,
+                    errors=tuple(release_errors),
+                ))
 
             finally:
                 shutil.rmtree(tmp, ignore_errors=True)
 
-        success = len(errors) == 0
-        date_min = cpi_merged["Date"].min().strftime("%Y-%m-%d")
-        date_max = cpi_merged["Date"].max().strftime("%Y-%m-%d")
-
-        final_finalize = all_outputs[-1] if all_outputs else {}
-        decision = HistoricalReplayEngine._extract_decision(final_finalize)
-        risk_decision = HistoricalReplayEngine._extract_risk_decision(final_finalize)
-        forecast_model = HistoricalReplayEngine._extract_forecast_model(final_finalize)
-        forecast_confidence = HistoricalReplayEngine._extract_forecast_confidence(final_finalize)
-        validation_passed, validation_metrics = HistoricalReplayEngine._extract_validation(final_finalize)
-        var_95, cvar_95, tail_index = HistoricalReplayEngine._extract_risk_metrics(final_finalize)
-        position_scaling = HistoricalReplayEngine._extract_position_scaling(final_finalize)
-        risk_gate_action, risk_gate_score = HistoricalReplayEngine._extract_risk_gate(final_finalize)
-
-        # OOS correctness (same logic as HistoricalReplayEngine)
-        decision_correct: bool | None = None
-        decision_actual_return_pct: float | None = None
-        if decision is not None and gold is not None and all_outputs:
-            last_as_of = cpi_merged.iloc[-1]["release_timestamp"]
-            gold_return = _compute_gold_return(gold, last_as_of)
-            if gold_return is not None:
-                decision_actual_return_pct = gold_return
-                actual_dir = _classify_actual_direction(gold_return)
-                decision_correct = _decision_is_correct(decision, actual_dir)
-
-        return EventRunResult(
-            event_type=event_type,
-            event_date_min=date_min,
-            event_date_max=date_max,
-            event_count=release_count,
-            success=success,
-            execution_time_ms=total_elapsed_ms,
-            cache_hits=total_cache_hits,
-            checkpoints_used=total_checkpoints,
-            decision=decision,
-            risk_decision=risk_decision,
-            forecast_model=forecast_model,
-            forecast_confidence=forecast_confidence,
-            validation_passed=validation_passed,
-            validation_metrics=validation_metrics,
-            var_95=var_95,
-            cvar_95=cvar_95,
-            tail_index=tail_index,
-            position_scaling=position_scaling,
-            risk_gate_action=risk_gate_action,
-            risk_gate_score=risk_gate_score,
-            decision_correct=decision_correct,
-            decision_actual_return_pct=decision_actual_return_pct,
-            error=errors[0] if errors else None,
-            errors=tuple(errors),
-        )
+        return tuple(results)

@@ -1,0 +1,38 @@
+  --- Economic Validation - Baseline (CPI) ---
+  Scored events:      0
+  Correct:            0
+  Incorrect:          0
+
+  Avg return/correct:   N/A
+  Avg return/incorrect: N/A
+  Expectancy:           N/A
+  Profit factor:        N/A
+  Payoff ratio:         N/A
+
+  Max consec. wins:   0
+  Max consec. losses: 0
+
+  Return distribution (N/A / N/A / N/A / N/A)
+    (min / median / mean / max)
+
+  Positive expected value: NO
+
+  --- Economic Validation - Candidate (CPI+US10Y) ---
+  Scored events:      0
+  Correct:            0
+  Incorrect:          0
+
+  Avg return/correct:   N/A
+  Avg return/incorrect: N/A
+  Expectancy:           N/A
+  Profit factor:        N/A
+  Payoff ratio:         N/A
+
+  Max consec. wins:   0
+  Max consec. losses: 0
+
+  Return distribution (N/A / N/A / N/A / N/A)
+    (min / median / mean / max)
+
+  Positive expected value: NO
+

@@ -1292,15 +1292,21 @@ class TestChronologicalOOSEngine:
         result = engine.run()
         assert result.cutoff_date == "2020-03-01"
         assert isinstance(result, ChronologicalOOSResult)
-        # At least CPI should have an evaluation result
+        # At least CPI should have evaluation results (one per release)
         cpi_evals = [r for r in result.evaluation_results if r.event_type == "CPI"]
-        assert len(cpi_evals) == 1
-        cpi = cpi_evals[0]
-        # CPI with releases on/after 2020-03-15 should have data
-        assert cpi.event_count > 0
+        assert len(cpi_evals) >= 2
+        for cpi in cpi_evals:
+            assert cpi.event_count == 1
         # OOS summary should be populated
         assert result.summary is not None
-        assert result.summary.total_events == len(result.evaluation_results)
+        # All 7 event types should produce results (CPI per-release, rest legacy)
+        types_found = {r.event_type for r in result.evaluation_results}
+        assert types_found == {"CPI", "NFP", "PPI", "INTEREST_RATE", "GDP", "PMI", "FOMC"}
+        # total_events accounts for all event_count values (CPI has 1 per release,
+        # legacy events may have 1+ eval rows each)
+        assert result.summary.total_events == sum(
+            r.event_count for r in result.evaluation_results
+        )
 
     def test_knowledge_dir_created(self, sim_data_dir: Path) -> None:
         """Training knowledge is persisted to the knowledge directory."""
@@ -1362,12 +1368,10 @@ class TestChronologicalOOSEngine:
             max_workers=2,
         )
         result = engine.run()
-        cpi = next(
-            (r for r in result.evaluation_results if r.event_type == "CPI"), None
-        )
-        assert cpi is not None
-        # CPI fixture has 4 releases (2020-01-15 through 2020-04-15)
-        assert cpi.event_count >= 4
+        cpi_evals = [r for r in result.evaluation_results if r.event_type == "CPI"]
+        assert len(cpi_evals) >= 4
+        for cpi in cpi_evals:
+            assert cpi.event_count == 1
 
     def test_prebuilt_lessons_injected(self, sim_data_dir: Path) -> None:
         """Verify that prebuilt_lessons_path is threaded through

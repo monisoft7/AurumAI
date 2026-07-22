@@ -16,6 +16,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from simulation.economic import (
+    compute_economic_summary,
+    format_economic_summary,
+)
 from simulation.historical_replay import (
     ChronologicalOOSEngine,
     ChronologicalOOSResult,
@@ -289,51 +293,58 @@ class ExperimentComparator:
         baseline_results: tuple[EventRunResult, ...],
         candidate_results: tuple[EventRunResult, ...],
     ) -> tuple[DecisionComparison, ...]:
-        """Align evaluation results by event type and compare decisions."""
+        """Align evaluation results by event type and compare decisions.
 
-        b_by_type: dict[str, EventRunResult] = {
-            r.event_type: r for r in baseline_results
-        }
-        c_by_type: dict[str, EventRunResult] = {
-            r.event_type: r for r in candidate_results
-        }
+        Handles multiple results per event type (e.g. one per CPI
+        release) by aligning and comparing them in order.
+        """
 
-        types = sorted(set(b_by_type) | set(c_by_type))
+        types = sorted(
+            set(r.event_type for r in baseline_results)
+            | set(r.event_type for r in candidate_results)
+        )
         comparisons: list[DecisionComparison] = []
 
         for event_type in types:
-            b = b_by_type.get(event_type)
-            c = c_by_type.get(event_type)
+            b_list = [r for r in baseline_results if r.event_type == event_type]
+            c_list = [r for r in candidate_results if r.event_type == event_type]
 
-            total = min(
-                (b.event_count if b else 0),
-                (c.event_count if c else 0),
-            )
+            total = min(len(b_list), len(c_list))
             if total == 0:
                 continue
 
-            b_correct = 1 if (b and b.decision_correct is True) else 0
-            c_correct = 1 if (c and c.decision_correct is True) else 0
+            changed = sum(
+                1 for i in range(total)
+                if b_list[i].decision != c_list[i].decision
+            )
+            improved = sum(
+                1 for i in range(total)
+                if (b_list[i].decision_correct is False)
+                and (c_list[i].decision_correct is True)
+            )
+            degraded = sum(
+                1 for i in range(total)
+                if (b_list[i].decision_correct is True)
+                and (c_list[i].decision_correct is False)
+            )
+            b_correct = sum(
+                1 for i in range(total)
+                if b_list[i].decision_correct is True
+            )
+            c_correct = sum(
+                1 for i in range(total)
+                if c_list[i].decision_correct is True
+            )
 
-            b_decision = b.decision if b else None
-            c_decision = c.decision if c else None
-
-            changed = 1 if b_decision != c_decision else 0
-            improved = 1 if b_correct == 0 and c_correct == 1 else 0
-            degraded = 1 if b_correct == 1 and c_correct == 0 else 0
-
-            # Scale to total_events (simplification: assumes uniform
-            # decision alignment — a single release comparison is a
-            # proxy for the whole event type).
             comparisons.append(
                 DecisionComparison(
                     event_type=event_type,
                     total_events=total,
-                    decisions_changed=changed * max(1, total),
-                    decisions_improved=improved * max(1, total),
-                    decisions_degraded=degraded * max(1, total),
-                    baseline_correct=b_correct * max(1, total),
-                    candidate_correct=c_correct * max(1, total),
+                    decisions_changed=changed,
+                    decisions_improved=improved,
+                    decisions_degraded=degraded,
+                    baseline_correct=b_correct,
+                    candidate_correct=c_correct,
                 )
             )
 
@@ -517,6 +528,16 @@ class ExperimentReportBuilder:
                         f" {dc.decisions_degraded:>6} {dc.baseline_correct:>6}"
                         f" {dc.candidate_correct:>6}"
                     )
+
+        # -- Economic Validation --------------------------------------------
+        if b.summary:
+            _w("")
+            eco_b = compute_economic_summary(b.evaluation_results)
+            _w(format_economic_summary(eco_b, title="Economic Validation (Baseline)"))
+        if c.summary:
+            _w("")
+            eco_c = compute_economic_summary(c.evaluation_results)
+            _w(format_economic_summary(eco_c, title="Economic Validation (Candidate)"))
 
         # -- Errors ---------------------------------------------------------
         if b.errors or c.errors:

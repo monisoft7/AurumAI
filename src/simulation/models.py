@@ -5,6 +5,76 @@ from typing import Any
 
 
 @dataclass(frozen=True)
+class EconomicReturnStats:
+    """Economic performance for a subset of decisions (e.g. a single decision type)."""
+    count: int
+    correct_count: int
+    incorrect_count: int
+    total_return_pct: float
+    mean_return_pct: float | None = None
+    min_return_pct: float | None = None
+    max_return_pct: float | None = None
+
+
+@dataclass(frozen=True)
+class EconomicSummary:
+    """Economic value metrics derived from scored EventRunResult objects.
+
+    All metrics assume a normalized position size of 1.
+    No leverage, commissions, slippage, or execution costs.
+    """
+
+    total_scored: int
+    correct_count: int
+    incorrect_count: int
+    avg_return_correct_pct: float | None = None
+    avg_return_incorrect_pct: float | None = None
+    expectancy_pct: float | None = None
+    profit_factor: float | None = None
+    payoff_ratio: float | None = None
+    max_consecutive_wins: int = 0
+    max_consecutive_losses: int = 0
+    return_min_pct: float | None = None
+    return_median_pct: float | None = None
+    return_mean_pct: float | None = None
+    return_max_pct: float | None = None
+    return_by_decision_type: dict[str, EconomicReturnStats] | None = None
+    positive_expected_value: bool | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
+            "total_scored": self.total_scored,
+            "correct_count": self.correct_count,
+            "incorrect_count": self.incorrect_count,
+        }
+        for fld in (
+            "avg_return_correct_pct", "avg_return_incorrect_pct",
+            "expectancy_pct", "profit_factor", "payoff_ratio",
+            "return_min_pct", "return_median_pct", "return_mean_pct",
+            "return_max_pct",
+        ):
+            val = getattr(self, fld, None)
+            if val is not None:
+                d[fld] = round(val, 6) if isinstance(val, float) else val
+        d["max_consecutive_wins"] = self.max_consecutive_wins
+        d["max_consecutive_losses"] = self.max_consecutive_losses
+        if self.return_by_decision_type:
+            d["return_by_decision_type"] = {
+                k: {
+                    "count": v.count,
+                    "correct_count": v.correct_count,
+                    "incorrect_count": v.incorrect_count,
+                    "total_return_pct": round(v.total_return_pct, 6),
+                    "mean_return_pct": round(v.mean_return_pct, 6) if v.mean_return_pct is not None else None,
+                }
+                for k, v in self.return_by_decision_type.items()
+            }
+        if self.positive_expected_value is not None:
+            d["positive_expected_value"] = self.positive_expected_value
+        return d
+
+
+@dataclass(frozen=True)
 class EventRunResult:
     event_type: str
     event_date_min: str

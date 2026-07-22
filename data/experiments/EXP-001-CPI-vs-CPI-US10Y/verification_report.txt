@@ -1,0 +1,35 @@
+=== VERIFICATION REPORT: Economic Format Fix ===
+
+Modified file:
+  src/simulation/economic.py:220
+    - f"{val:+.2%}"  →  f"{val:+.2f}%"
+    (Replaced Python %-format specifier (which multiplies by 100) with
+     literal % character appended to a plain float format)
+
+Impact: Only the _pct() helper in economic.py was changed.
+        compute_economic_summary(), _compute_gold_return(),
+        experiment.py _pct(), validation.py formatters — all untouched.
+
+Results (Baseline & Candidate identical):
+
+  Directional Acc: 75.00%  (UNCHANGED)
+  Scored events:   24      (UNCHANGED)
+  Correct:         18      (UNCHANGED)
+  Incorrect:       6       (UNCHANGED)
+
+  Metric              BEFORE          AFTER      Notes
+  ─────────────────────────────────────────────────────────
+  Avg return/correct  +246.13%      +2.46%      ✓ 2.46% avg 5-day gold win
+  Avg return/incorrect -144.94%     -1.45%      ✓ 1.45% avg 5-day gold loss
+  Return min          -327.02%      -3.27%      ✓
+  Return median       +175.71%      +1.76%      ✓
+  Return mean         +148.36%      +1.48%      ✓
+  Return max          +765.36%      +7.65%      ✓
+  Expectancy          +148.36%      +1.48%      ✓
+  Total return        +3561%        +35.61%     ✓
+  Profit factor       5.0944        5.0944      UNCHANGED (plain float)
+  Payoff ratio        1.6981        1.6981      UNCHANGED (plain float)
+
+All economic metrics are numerically identical — only display formatting changed.
+The double-scaling bug (×100 in gold return × ×100 in %-format = ×10000 display)
+is eliminated.

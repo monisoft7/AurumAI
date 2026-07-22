@@ -1,6 +1,6 @@
 {
     "knowledge_version": "knowledge_summary_v1",
-    "source_lessons": "C:\\AurumAI\\AurumAI\\data\\economic\\output\\lessons.csv",
+    "source_lessons": "C:\\AurumAI\\AurumAI\\data\\history\\economic\\output\\lessons.csv",
     "source_artifact_sha256": "0f4be144c2e4df0cc7698d88b1718489262de7e3172a4241e2dfdcb455700b7f",
     "event_type": "PMI",
     "asset": "XAU/USD",
@@ -19,7 +19,7 @@
                 "PMI_GOLD_2023-06-30",
                 "PMI_GOLD_2023-10-31"
             ],
-            "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\output\\lessons.csv",
+            "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\history\\economic\\output\\lessons.csv",
             "source_artifact_sha256": "0f4be144c2e4df0cc7698d88b1718489262de7e3172a4241e2dfdcb455700b7f",
             "condition": {
                 "pmi_trend": "pmi_contraction"
@@ -54,7 +54,7 @@
                 "PMI_GOLD_2023-06-30",
                 "PMI_GOLD_2023-10-31"
             ],
-            "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\output\\lessons.csv",
+            "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\history\\economic\\output\\lessons.csv",
             "source_artifact_sha256": "0f4be144c2e4df0cc7698d88b1718489262de7e3172a4241e2dfdcb455700b7f",
             "condition": {
                 "pmi_trend": "pmi_contraction"
@@ -89,7 +89,7 @@
                 "PMI_GOLD_2023-06-30",
                 "PMI_GOLD_2023-10-31"
             ],
-            "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\output\\lessons.csv",
+            "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\history\\economic\\output\\lessons.csv",
             "source_artifact_sha256": "0f4be144c2e4df0cc7698d88b1718489262de7e3172a4241e2dfdcb455700b7f",
             "condition": {
                 "pmi_trend": "pmi_contraction"
@@ -133,7 +133,7 @@
                 "PMI_GOLD_2023-11-30",
                 "PMI_GOLD_2023-12-31"
             ],
-            "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\output\\lessons.csv",
+            "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\history\\economic\\output\\lessons.csv",
             "source_artifact_sha256": "0f4be144c2e4df0cc7698d88b1718489262de7e3172a4241e2dfdcb455700b7f",
             "condition": {
                 "pmi_trend": "pmi_expansion"
@@ -177,7 +177,7 @@
                 "PMI_GOLD_2023-11-30",
                 "PMI_GOLD_2023-12-31"
             ],
-            "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\output\\lessons.csv",
+            "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\history\\economic\\output\\lessons.csv",
             "source_artifact_sha256": "0f4be144c2e4df0cc7698d88b1718489262de7e3172a4241e2dfdcb455700b7f",
             "condition": {
                 "pmi_trend": "pmi_expansion"
@@ -221,7 +221,7 @@
                 "PMI_GOLD_2023-11-30",
                 "PMI_GOLD_2023-12-31"
             ],
-            "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\output\\lessons.csv",
+            "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\history\\economic\\output\\lessons.csv",
             "source_artifact_sha256": "0f4be144c2e4df0cc7698d88b1718489262de7e3172a4241e2dfdcb455700b7f",
             "condition": {
                 "pmi_trend": "pmi_expansion"
