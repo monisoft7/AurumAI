@@ -1,0 +1,710 @@
+{
+  "weighted": {
+    "evaluation_events": [
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.1934651762682717
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.2974925626859329
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.29393239554902373
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": false,
+        "actual_return_pct": 0.04136504653567735
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.32666394446712943
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.3423967774420947
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.316080600553141
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.15579357351509251
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.1339200306102927
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": false,
+        "actual_return_pct": 0.0945179584120983
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.39179104477611937
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.18392495861688432
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.2545454545454546
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.10773927096426647
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.12431184514295864
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.2100472606336426
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.13824088474166235
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.29064797401265174
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.20270270270270271
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.13348907058234608
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.1314060446780552
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.14629388816644995
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.2723049815793689
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.11054958938723942
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": false,
+        "actual_return_pct": 0.09376465072667604
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.41756882152799263
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.244237520989162
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.28766086298258897
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.17991004497751123
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.28052561641813084
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": false,
+        "actual_return_pct": 0.08747630849978132
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.24509803921568626
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.22840827980014278
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.14102383302778168
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": false,
+        "actual_return_pct": 0.01392951664577239
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.3325942350332594
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "NFP",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "GDP",
+        "decision_type": "NEUTRAL",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "INTEREST_RATE",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "PMI",
+        "decision_type": null,
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "PPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "FOMC",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      }
+    ],
+    "summary": {
+      "total_events": 301,
+      "scored_events": 36,
+      "directional_accuracy": 0.8611111111111112,
+      "macro_precision": 0.8611111111111112,
+      "macro_recall": 0.5,
+      "coverage": 0.6792452830188679,
+      "ece": 0.16246601424649554,
+      "abstention_rate": 0.32075471698113206
+    },
+    "economic": {
+      "expectancy_pct": 0.18843649457702866,
+      "profit_factor": 21.49129279042788,
+      "payoff_ratio": 3.466337546843207,
+      "win_rate": 0.8611111111111112,
+      "total_scored": 36,
+      "correct_count": 31,
+      "avg_return_correct_pct": 0.22950862211590442,
+      "avg_return_incorrect_pct": -0.06621069616400108,
+      "positive_expected_value": true
+    }
+  },
+  "unweighted": {
+    "evaluation_events": [
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.1934651762682717
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.2974925626859329
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.29393239554902373
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": false,
+        "actual_return_pct": 0.04136504653567735
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.32666394446712943
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.3423967774420947
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.316080600553141
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.15579357351509251
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.1339200306102927
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": false,
+        "actual_return_pct": 0.0945179584120983
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.39179104477611937
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.18392495861688432
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.2545454545454546
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.10773927096426647
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.12431184514295864
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.2100472606336426
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.13824088474166235
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.29064797401265174
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.20270270270270271
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.13348907058234608
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.1314060446780552
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.14629388816644995
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.2723049815793689
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.11054958938723942
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": false,
+        "actual_return_pct": 0.09376465072667604
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.41756882152799263
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.244237520989162
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.28766086298258897
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.17991004497751123
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.28052561641813084
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": false,
+        "actual_return_pct": 0.08747630849978132
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.24509803921568626
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.22840827980014278
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.14102383302778168
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": false,
+        "actual_return_pct": 0.01392951664577239
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": true,
+        "actual_return_pct": 0.3325942350332594
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "CPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "NFP",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "GDP",
+        "decision_type": "NEUTRAL",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "INTEREST_RATE",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "PMI",
+        "decision_type": null,
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "PPI",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      },
+      {
+        "event_type": "FOMC",
+        "decision_type": "POSITIVE",
+        "decision_correct": null,
+        "actual_return_pct": null
+      }
+    ],
+    "summary": {
+      "total_events": 301,
+      "scored_events": 36,
+      "directional_accuracy": 0.8611111111111112,
+      "macro_precision": 0.8611111111111112,
+      "macro_recall": 0.5,
+      "coverage": 0.6792452830188679,
+      "ece": 0.16246601424649554,
+      "abstention_rate": 0.32075471698113206
+    },
+    "economic": {
+      "expectancy_pct": 0.18843649457702866,
+      "profit_factor": 21.49129279042788,
+      "payoff_ratio": 3.466337546843207,
+      "win_rate": 0.8611111111111112,
+      "total_scored": 36,
+      "correct_count": 31,
+      "avg_return_correct_pct": 0.22950862211590442,
+      "avg_return_incorrect_pct": -0.06621069616400108,
+      "positive_expected_value": true
+    }
+  },
+  "comparison": {
+    "directional_accuracy_delta": 0.0,
+    "macro_precision_delta": 0.0,
+    "macro_recall_delta": 0.0,
+    "coverage_delta": 0.0,
+    "ece_delta": 0.0,
+    "total_decisions_changed": 0,
+    "total_decisions_improved": 0,
+    "total_decisions_degraded": 0
+  }
+}

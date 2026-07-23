@@ -19,6 +19,8 @@ class ReasoningChain:
     evidence_count: int
     provenance: Provenance | None = None
     metadata: dict[str, Any] = field(default_factory=lambda: FrozenDict())
+    attribution: dict[str, float] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "metadata", freeze_dict(self.metadata))
+        object.__setattr__(self, "attribution", freeze_dict(self.attribution))

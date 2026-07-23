@@ -42,6 +42,7 @@ class WeightedAggregate:
     total_raw_weight: float
     item_count: int
     weight_factors: tuple[WeightFactors, ...] = field(default_factory=tuple)
+    attribution: dict[str, float] = field(default_factory=dict)
 
 
 class EvidenceWeighter:
@@ -69,6 +70,13 @@ class EvidenceWeighter:
         ]
 
         total_w = sum(f.composite_weight for f in factors)
+
+        attribution: dict[str, float] = {}
+        if total_w > 0.0:
+            for ev, f in zip(items, factors):
+                et = ev.event_type
+                attribution[et] = attribution.get(et, 0.0) + (f.composite_weight / total_w)
+
         if total_w == 0.0:
             return WeightedAggregate(
                 weighted_avg_return=0.0,
@@ -77,6 +85,7 @@ class EvidenceWeighter:
                 total_raw_weight=0.0,
                 item_count=len(items),
                 weight_factors=tuple(factors),
+                attribution=attribution,
             )
 
         w_ret = (
@@ -97,6 +106,7 @@ class EvidenceWeighter:
             total_raw_weight=round(total_w, 6),
             item_count=len(items),
             weight_factors=tuple(factors),
+            attribution=attribution,
         )
 
     def _compute_majority_bias(

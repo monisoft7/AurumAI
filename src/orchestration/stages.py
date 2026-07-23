@@ -54,6 +54,21 @@ def _build_legacy_pipeline(params: dict[str, Any], results: dict[str, Any]) -> A
 
     from pathlib import Path
 
+    reasoning_condition = params.get("reasoning_condition")
+
+    if (
+        reasoning_condition is None
+        and params.get("release_calendar_path") is not None
+    ):
+        try:
+            extracted = event.load_and_extract(Path(params["data_path"]))
+            if len(extracted) > 0:
+                reasoning_condition = event.build_reasoning_condition(
+                    extracted.iloc[-1]
+                )
+        except Exception:
+            reasoning_condition = None
+
     lesson_builder = None
     if params.get("release_calendar_path") is None:
         from knowledge.builders.lesson_builder import (
@@ -83,7 +98,7 @@ def _build_legacy_pipeline(params: dict[str, Any], results: dict[str, Any]) -> A
         lesson_builder=lesson_builder,
         prebuilt_lessons_path=params.get("prebuilt_lessons_path"),
         reasoning_horizon=params.get("reasoning_horizon"),
-        reasoning_condition=params.get("reasoning_condition"),
+        reasoning_condition=reasoning_condition,
         min_evidence_count=params.get("min_evidence_count", 1),
         yield_data_path=Path(params["yield_data_path"]) if params.get("yield_data_path") else None,
         yield_context_lookback_days=params.get("yield_context_lookback_days", 30),

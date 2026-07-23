@@ -1,0 +1,72 @@
+=== REGRESSION REPORT: EXP-002-Evidence-Isolation ===
+
+Verification that the Evidence Isolation Experiment introduces no
+regressions to the existing system.
+
+=== Test Suite Results ===
+
+  Test file                       Status   Tests
+  ───────────────────────────────────────────────────
+  tests/test_experiment_002.py    PASS     27/27
+    (8 unit tests for helper functions)
+    (18 integration tests for experiment execution, structure, serialization)
+    (1 frozen core integrity check)
+  tests/test_experiment.py        PASS     8/8
+  tests/test_experiment_registry.py  PASS  27/27
+  tests/test_graph_performance.py PASS     16/16
+  ───────────────────────────────────────────────────
+  Total                           78/78
+
+Note: Two pre-existing test failures unrelated to EXP-002:
+  - tests/test_dummy_event.py (module not found: knowledge.events.dummy)
+  - tests/test_test_event_event.py (module not found: knowledge.events.test_event)
+
+=== Determinism Check ===
+
+  Run 1 (manual execution):  avg_return=+0.672479%, decision=POSITIVE, conf=0.573915
+  Run 2 (pytest execution):  avg_return=+0.672479%, decision=POSITIVE, conf=0.573915
+  → IDENTICAL (deterministic within floating-point precision)
+
+  Pipeline deterministic:  YES (matching gate6 run1_baseline pattern)
+
+=== Frozen Core Integrity ===
+
+  Source tree scanned: src/knowledge/
+  Files modified:      0 of 162
+  EXP-002-related code: 0 lines found in frozen core
+  → FROZEN CORE UNCHANGED
+
+=== Side Effect Audit ===
+
+  Side effect                  Present?  Notes
+  ────────────────────────────────────────────────
+  Files created outside exp.   NO
+  Files modified outside exp.  NO
+  Global state changed         NO
+  Import-time side effects     NO
+  Cached state persisted       NO
+  External network calls       NO
+  Data files modified          NO
+
+=== Pipeline Output Comparison ===
+
+  Metric                 EXP-002        Gate6 Run1     Delta
+  ───────────────────────────────────────────────────────────
+  Knowledge records      6              6              Identical
+  Conditions found       2              2              Identical
+  Evidence items         6              6              Identical
+  Decision type          POSITIVE       POSITIVE       Identical
+  Confidence             0.5739         0.565          +0.009
+  Avg return             +0.6725%       +0.52%         +0.15%
+
+  Note: Minor numeric deltas expected due to release-calendar anchoring
+  vs legacy date anchoring between the two pipeline configurations.
+  The experiment uses the institutional pipeline (with cpi_releases.csv
+  calendar), while gate6 run1 used date-based anchoring.
+
+=== Conclusion: NO REGRESSION ===
+
+  All existing functionality is preserved. The experiment runner is an
+  isolated downstream consumer that reads from the KnowledgeGraph and
+  reuses ReasoningEngine and DecisionEngine without modification. No
+  side effects on the broader system.

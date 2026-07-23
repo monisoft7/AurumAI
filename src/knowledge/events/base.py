@@ -158,6 +158,24 @@ class MacroEvent(ABC):
         df["release_timezone"] = "US/Eastern"
         return df
 
+    def build_reasoning_condition(
+        self,
+        event_row: pd.Series,
+    ) -> dict[str, str]:
+        """Return the canonical reasoning condition for this event.
+
+        *event_row* is one row of the DataFrame returned by
+        *load_and_extract*.
+
+        The default implementation builds a dictionary from
+        *self.condition_columns*.  Subclasses with non-standard
+        condition logic override this method.
+        """
+        return {
+            column: str(event_row[column])
+            for column in self.condition_columns
+        }
+
     @abstractmethod
     def build_lesson_fields(
         self, event_row: pd.Series, anchor_date: str
@@ -170,6 +188,9 @@ class MacroEvent(ABC):
 
         The returned dict is merged into the lesson alongside generic
         fields (asset returns, directions, etc.).
+
+        Implementations SHOULD call *self.build_reasoning_condition(event_row)*
+        to populate condition columns instead of constructing them directly.
         """
 
     @abstractmethod

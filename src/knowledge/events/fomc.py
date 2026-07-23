@@ -56,7 +56,6 @@ class FOMCEvent(MacroEvent):
     def build_lesson_fields(
         self, event_row: pd.Series, anchor_date: str
     ) -> dict[str, object]:
-        condition_col = self.condition_columns[0]
         return {
             "fomc_rate": round(float(event_row["Value"]), 6),
             "previous_fomc_rate": round(
@@ -65,7 +64,7 @@ class FOMCEvent(MacroEvent):
             "fomc_change": round(
                 float(event_row["fomc_change"]), 6
             ),
-            condition_col: str(event_row[condition_col]),
+            **self.build_reasoning_condition(event_row),
         }
 
     def lesson_text(self, lesson: dict[str, object]) -> str:

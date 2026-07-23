@@ -1,0 +1,42 @@
+==============================================================================
+EXP-003  CONDITION FILTERING VALIDATION
+==============================================================================
+
+CPI data:            [{'Date': '2020-01-01', 'Value': 100.0}, {'Date': '2020-02-01', 'Value': 101.0}, {'Date': '2020-03-01', 'Value': 99.0}, {'Date': '2020-04-01', 'Value': 102.0}]
+Reasoning condition: {'cpi_pressure': 'inflation_pressure_up'}
+
+--- Knowledge Graph (same for both runs) ---
+  Nodes:               6
+  Unique conditions:   [('cpi_pressure', 'inflation_pressure_down'), ('cpi_pressure', 'inflation_pressure_up')]
+
+--- Evidence ---
+Metric                              Run A (condition active)  Run B (condition=None)   
+-------------------------------------------------------------------------------------
+Evidence count                      3                         6                        
+Evidence IDs                        ['CPI_XAU/USD_inflation_pressure_up_1D', 'CPI_XAU/USD_inflation_pressure_up_20D', 'CPI_XAU/USD_inflation_pressure_up_5D'] ['CPI_XAU/USD_inflation_pressure_down_1D', 'CPI_XAU/USD_inflation_pressure_down_20D', 'CPI_XAU/USD_inflation_pressure_down_5D', 'CPI_XAU/USD_inflation_pressure_up_1D', 'CPI_XAU/USD_inflation_pressure_up_20D', 'CPI_XAU/USD_inflation_pressure_up_5D']
+Avg return %                        8.580858                  7.871696                 
+Avg confidence                      0.487541                  0.480995                 
+
+--- Reasoning ---
+Metric                              Run A (condition active)  Run B (condition=None)   
+-------------------------------------------------------------------------------------
+Step count                          6                         9                        
+Overall confidence                  0.487541                  0.480995                 
+
+Conclusion A:
+  For CPI condition cpi_pressure=inflation_pressure_up, the evidence indicates positive directional bias (aggregate confidence: 0.488, based on 3 evidence items).
+
+Conclusion B:
+  For CPI, the evidence indicates positive directional bias (aggregate confidence: 0.481, based on 6 evidence items).
+
+--- Decision ---
+Metric                              Run A (condition active)  Run B (condition=None)   
+-------------------------------------------------------------------------------------
+Decision type                       NEUTRAL                   NEUTRAL                  
+Confidence                          0.487541                  0.480995                 
+Insufficient evidence               0                         0                        
+
+--- Verdict ---
+  EVIDENCE SET CHANGED: condition filtering removed 3 item(s)
+  AVERAGE RETURN CHANGED: filtering shifted aggregate return
+  DECISION UNCHANGED

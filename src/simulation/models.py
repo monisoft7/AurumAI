@@ -98,6 +98,7 @@ class EventRunResult:
     risk_gate_score: float | None = None
     decision_correct: bool | None = None
     decision_actual_return_pct: float | None = None
+    attribution: dict[str, float] = field(default_factory=dict)
     error: str | None = None
     errors: tuple[str, ...] = ()
 
@@ -124,6 +125,8 @@ class EventRunResult:
                 d[fld] = val
         if self.validation_metrics:
             d["validation_metrics"] = dict(self.validation_metrics)
+        if self.attribution:
+            d["attribution"] = dict(self.attribution)
         return d
 
 

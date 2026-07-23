@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any
 
 from knowledge.events.base import MacroEvent
+from knowledge.evidence.query import RetrievalStrategy
 
 
 @dataclass
@@ -30,3 +31,4 @@ class PipelineContext:
     lesson_builder: Any | None = None
     prebuilt_lessons_path: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    retrieval_strategy: RetrievalStrategy = RetrievalStrategy.SINGLE_EVENT

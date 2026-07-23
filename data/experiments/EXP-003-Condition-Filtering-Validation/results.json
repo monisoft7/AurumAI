@@ -1,0 +1,78 @@
+{
+  "reasoning_condition": {
+    "cpi_pressure": "inflation_pressure_up"
+  },
+  "run_a": {
+    "evidence": {
+      "count": 3,
+      "ids": [
+        "CPI_XAU/USD_inflation_pressure_up_1D",
+        "CPI_XAU/USD_inflation_pressure_up_20D",
+        "CPI_XAU/USD_inflation_pressure_up_5D"
+      ],
+      "avg_return_pct": 8.580858,
+      "avg_confidence": 0.487541
+    },
+    "decision": {
+      "decision_type": "NEUTRAL",
+      "confidence": 0.487541,
+      "is_insufficient_evidence": false
+    },
+    "reasoning": {
+      "conclusion": "For CPI condition cpi_pressure=inflation_pressure_up, the evidence indicates positive directional bias (aggregate confidence: 0.488, based on 3 evidence items).",
+      "step_count": 6,
+      "overall_confidence": 0.487541
+    },
+    "graph": {
+      "node_count": 6,
+      "unique_condition_values": [
+        [
+          "cpi_pressure",
+          "inflation_pressure_down"
+        ],
+        [
+          "cpi_pressure",
+          "inflation_pressure_up"
+        ]
+      ]
+    }
+  },
+  "run_b": {
+    "evidence": {
+      "count": 6,
+      "ids": [
+        "CPI_XAU/USD_inflation_pressure_down_1D",
+        "CPI_XAU/USD_inflation_pressure_down_20D",
+        "CPI_XAU/USD_inflation_pressure_down_5D",
+        "CPI_XAU/USD_inflation_pressure_up_1D",
+        "CPI_XAU/USD_inflation_pressure_up_20D",
+        "CPI_XAU/USD_inflation_pressure_up_5D"
+      ],
+      "avg_return_pct": 7.871696,
+      "avg_confidence": 0.480995
+    },
+    "decision": {
+      "decision_type": "NEUTRAL",
+      "confidence": 0.480995,
+      "is_insufficient_evidence": false
+    },
+    "reasoning": {
+      "conclusion": "For CPI, the evidence indicates positive directional bias (aggregate confidence: 0.481, based on 6 evidence items).",
+      "step_count": 9,
+      "overall_confidence": 0.480995
+    },
+    "graph": {
+      "node_count": 6,
+      "unique_condition_values": [
+        [
+          "cpi_pressure",
+          "inflation_pressure_down"
+        ],
+        [
+          "cpi_pressure",
+          "inflation_pressure_up"
+        ]
+      ]
+    }
+  }
+}

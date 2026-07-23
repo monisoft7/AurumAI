@@ -1,0 +1,69 @@
+{
+  "experiment": "EXP-002-Evidence-Isolation",
+  "hypothesis": "EvidenceCollection.aggregate() blends heterogeneous conditions, losing directional signal. Per-condition execution reveals condition-specific signals that cancel in the merged pipeline.",
+  "methodology": {
+    "baseline": "InferencePipeline with reasoning_condition=None (merged/blended)",
+    "isolated": "Per-condition evidence query, reason, decide (no aggregate cross-condition blend)"
+  },
+  "event_type": "CPI",
+  "condition_columns": [
+    "cpi_pressure"
+  ],
+  "total_elapsed_seconds": 0.227,
+  "baseline": {
+    "decision_type": "POSITIVE",
+    "confidence": 0.573915,
+    "evidence_count": 6,
+    "avg_return_pct": 0.672479,
+    "knowledge_record_count": 6
+  },
+  "isolated": {
+    "cpi_pressure=inflation_pressure_down": {
+      "condition": {
+        "cpi_pressure": "inflation_pressure_down"
+      },
+      "decision_type": "POSITIVE",
+      "confidence": 0.598986,
+      "evidence_count": 3,
+      "avg_return_pct": 0.91215,
+      "explanation": "Decision POSITIVE based on reasoning chain 'reason_CPI_inflation_pressure_down': aggregated evidence of 3 items shows average return of +0.912150% with overall confidence of 0.599."
+    },
+    "cpi_pressure=inflation_pressure_up": {
+      "condition": {
+        "cpi_pressure": "inflation_pressure_up"
+      },
+      "decision_type": "POSITIVE",
+      "confidence": 0.548844,
+      "evidence_count": 3,
+      "avg_return_pct": 0.432808,
+      "explanation": "Decision POSITIVE based on reasoning chain 'reason_CPI_inflation_pressure_up': aggregated evidence of 3 items shows average return of +0.432808% with overall confidence of 0.549."
+    }
+  },
+  "comparison": {
+    "merged_decision_type": "POSITIVE",
+    "merged_evidence_count": 6,
+    "per_condition": [
+      {
+        "condition": "cpi_pressure=inflation_pressure_down",
+        "decision_type": "POSITIVE",
+        "confidence": 0.598986,
+        "evidence_count": 3,
+        "avg_return_pct": 0.91215,
+        "matches_baseline": true
+      },
+      {
+        "condition": "cpi_pressure=inflation_pressure_up",
+        "decision_type": "POSITIVE",
+        "confidence": 0.548844,
+        "evidence_count": 3,
+        "avg_return_pct": 0.432808,
+        "matches_baseline": true
+      }
+    ],
+    "conditions_matching_baseline": 2,
+    "total_conditions": 2,
+    "conditions_differing": 0
+  },
+  "knowledge_records": 6,
+  "conditions_found": 2
+}

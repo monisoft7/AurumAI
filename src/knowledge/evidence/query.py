@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+from enum import Enum
 from typing import Any
 
 from knowledge.evidence.evidence import Evidence
 from knowledge.evidence.collection import EvidenceCollection
 from knowledge.graph.graph import KnowledgeGraph
+
+
+class RetrievalStrategy(Enum):
+    SINGLE_EVENT = "single_event"
+    CROSS_EVENT = "cross_event"
 
 
 class EvidenceQuery:
@@ -35,14 +41,19 @@ class EvidenceQuery:
 
     def matching(
         self,
-        event_type: str,
+        event_type: str | None = None,
         condition: dict[str, str] | None = None,
         horizon_days: int | None = None,
+        strategy: RetrievalStrategy = RetrievalStrategy.SINGLE_EVENT,
     ) -> EvidenceCollection:
         """Return evidence satisfying every supplied inference constraint.
 
-        Conditions use subset matching so a query can target one dimension of a
-        multi-factor record without silently dropping event or horizon filters.
+        When *strategy* is SINGLE_EVENT (default) the caller must supply
+        *event_type* and the result is restricted to that type.
+
+        When *strategy* is CROSS_EVENT the event_type filter is lifted so
+        evidence from *any* event type is returned, enabling cross-event
+        reasoning.  condition and horizon_days still apply when set.
         """
         items: list[Evidence] = []
         for node_id in self._graph._graph.nodes:
@@ -50,8 +61,11 @@ class EvidenceQuery:
             if node is None:
                 continue
             evidence = self._node_to_evidence(node)
-            if evidence is None or evidence.event_type != event_type:
+            if evidence is None:
                 continue
+            if strategy is RetrievalStrategy.SINGLE_EVENT:
+                if event_type is not None and evidence.event_type != event_type:
+                    continue
             if horizon_days is not None and evidence.horizon_days != horizon_days:
                 continue
             if condition is not None and not all(

@@ -9,7 +9,7 @@ from knowledge.graph.relation import GraphRelation
 from knowledge.graph.builder import GraphBuilder
 from knowledge.evidence.evidence import Evidence
 from knowledge.evidence.collection import EvidenceCollection
-from knowledge.evidence.query import EvidenceQuery
+from knowledge.evidence.query import EvidenceQuery, RetrievalStrategy
 from knowledge.evidence.ranker import EvidenceRanker
 from knowledge.evidence.repository import EvidenceRepository
 
@@ -397,3 +397,102 @@ def test_repository_file_format(tmp_path: Path) -> None:
     assert len(raw["items"]) == 4
     assert "evidence_id" in raw["items"][0]
     assert "metadata" in raw["items"][0]
+
+
+# ── RetrievalStrategy (CER-001) ─────────────────────────────────────────
+
+
+class TestMatchingStrategy:
+    """matching() with SINGLE_EVENT / CROSS_EVENT strategy."""
+
+    def test_single_event_default_backward_compat(self) -> None:
+        graph = make_graph()
+        q = EvidenceQuery(graph)
+        result = q.matching(event_type="CPI")
+        assert len(result) == 3
+        for ev in result:
+            assert ev.event_type == "CPI"
+
+    def test_single_event_with_horizon(self) -> None:
+        graph = make_graph()
+        q = EvidenceQuery(graph)
+        result = q.matching(event_type="CPI", horizon_days=5)
+        assert len(result) == 2
+        for ev in result:
+            assert ev.event_type == "CPI"
+            assert ev.horizon_days == 5
+
+    def test_single_event_with_condition(self) -> None:
+        graph = make_graph()
+        q = EvidenceQuery(graph)
+        result = q.matching(
+            event_type="CPI",
+            condition={"cpi_pressure": "inflation_pressure_up"},
+        )
+        assert len(result) == 2
+        for ev in result:
+            assert ev.event_type == "CPI"
+
+    def test_single_event_no_match(self) -> None:
+        graph = make_graph()
+        q = EvidenceQuery(graph)
+        result = q.matching(event_type="GDP")
+        assert len(result) == 0
+
+    def test_cross_event_returns_all_types(self) -> None:
+        graph = make_graph()
+        q = EvidenceQuery(graph)
+        result = q.matching(
+            event_type="CPI",
+            strategy=RetrievalStrategy.CROSS_EVENT,
+        )
+        assert len(result) == 4
+        types = {ev.event_type for ev in result}
+        assert "CPI" in types
+        assert "NFP" in types
+
+    def test_cross_event_none_event_type(self) -> None:
+        graph = make_graph()
+        q = EvidenceQuery(graph)
+        result = q.matching(
+            event_type=None,
+            strategy=RetrievalStrategy.CROSS_EVENT,
+        )
+        assert len(result) == 4
+
+    def test_cross_event_with_horizon(self) -> None:
+        graph = make_graph()
+        q = EvidenceQuery(graph)
+        result = q.matching(
+            event_type="CPI",
+            horizon_days=5,
+            strategy=RetrievalStrategy.CROSS_EVENT,
+        )
+        assert len(result) == 3
+        for ev in result:
+            assert ev.horizon_days == 5
+
+    def test_cross_event_with_condition(self) -> None:
+        graph = make_graph()
+        q = EvidenceQuery(graph)
+        result = q.matching(
+            event_type="CPI",
+            condition={"cpi_pressure": "inflation_pressure_up"},
+            strategy=RetrievalStrategy.CROSS_EVENT,
+        )
+        assert len(result) == 2
+        for ev in result:
+            assert ev.condition == {"cpi_pressure": "inflation_pressure_up"}
+
+    def test_cross_event_empty_graph(self) -> None:
+        graph = KnowledgeGraph()
+        q = EvidenceQuery(graph)
+        result = q.matching(
+            event_type="CPI",
+            strategy=RetrievalStrategy.CROSS_EVENT,
+        )
+        assert len(result) == 0
+
+    def test_cross_event_strategy_enum_values(self) -> None:
+        assert RetrievalStrategy.SINGLE_EVENT.value == "single_event"
+        assert RetrievalStrategy.CROSS_EVENT.value == "cross_event"

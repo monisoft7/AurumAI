@@ -1,0 +1,44 @@
+========================================================================
+  Experiment: EXP-002-Evidence-Isolation
+  Hypothesis: EvidenceCollection.aggregate() blends heterogeneous conditions, losing directional signal. Per-condition execution reveals condition-specific signals that cancel in the merged pipeline.
+========================================================================
+
+  --- Baseline: Merged Pipeline ---
+  Decision type:       POSITIVE
+  Confidence:          0.5739
+  Evidence count:      6
+  Avg return (merged): +0.6725%
+  Knowledge records:   6
+
+  --- Isolated: Per-Condition Pipeline ---
+  Conditions found:    2
+
+  Condition: cpi_pressure=inflation_pressure_down
+    Decision type:  POSITIVE
+    Confidence:     0.5990
+    Evidence count: 3
+    Avg return:     +0.9122%
+
+  Condition: cpi_pressure=inflation_pressure_up
+    Decision type:  POSITIVE
+    Confidence:     0.5488
+    Evidence count: 3
+    Avg return:     +0.4328%
+
+  --- Comparison (Isolated vs Baseline) ---
+  Baseline decision type:           POSITIVE
+  Baseline evidence count:          6
+
+  Condition                                     Decision           Matches  Return    
+  --------------------------------------------- ------------------ -------- ----------
+  cpi_pressure=inflation_pressure_down          POSITIVE           True     +0.9122%  
+  cpi_pressure=inflation_pressure_up            POSITIVE           True     +0.4328%  
+
+  Conditions matching baseline:  2 / 2
+  Conditions differing:          0 / 2
+
+  --- Signal Loss Analysis ---
+  No signal loss detected — merged decision matches all per-condition
+  decisions.  Conditions are homogeneous or aggregate preserves signal.
+
+========================================================================

@@ -81,7 +81,7 @@ class CPIEvent(MacroEvent):
             "cpi_value": round(float(event_row["Value"]), 6),
             "previous_cpi_value": round(float(event_row["previous_value"]), 6),
             "cpi_change_pct": round(float(event_row["cpi_change_pct"]), 6),
-            "cpi_pressure": str(event_row["cpi_pressure"]),
+            **self.build_reasoning_condition(event_row),
         }
 
     def lesson_text(self, lesson: dict[str, object]) -> str:

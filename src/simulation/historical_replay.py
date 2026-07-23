@@ -850,6 +850,7 @@ class HistoricalReplayEngine:
         )
 
         date_min, date_max = HistoricalReplayEngine._csv_date_range(csv_path)
+        attribution = HistoricalReplayEngine._extract_attribution(assessment)
 
         return EventRunResult(
             event_type=event_type,
@@ -872,6 +873,7 @@ class HistoricalReplayEngine:
             position_scaling=position_scaling,
             risk_gate_action=risk_gate_action,
             risk_gate_score=risk_gate_score,
+            attribution=attribution,
             error=assessment.errors[0] if assessment.errors else None,
             errors=assessment.errors,
         )
@@ -1029,6 +1031,16 @@ class HistoricalReplayEngine:
         if metrics is not None:
             metrics = {k: float(v) for k, v in metrics.items()}
         return (passed, metrics)
+
+    @staticmethod
+    def _extract_attribution(assessment: Any) -> dict[str, float]:
+        try:
+            chain = assessment.outputs.get("build_legacy_pipeline", {}).get("reasoning_chain")
+            if chain is not None and hasattr(chain, "attribution"):
+                return dict(chain.attribution)
+        except Exception:
+            pass
+        return {}
 
     @staticmethod
     def _extract_risk_metrics(
@@ -1577,6 +1589,7 @@ class _EvalReplayEngine:
                 finalize_out = assessment.outputs.get("finalize", {}) or {}
 
                 # Per-release field extraction
+                attribution = HistoricalReplayEngine._extract_attribution(assessment)
                 decision = HistoricalReplayEngine._extract_decision(finalize_out)
                 risk_decision = HistoricalReplayEngine._extract_risk_decision(finalize_out)
                 forecast_model = HistoricalReplayEngine._extract_forecast_model(finalize_out)
@@ -1619,6 +1632,7 @@ class _EvalReplayEngine:
                     risk_gate_score=risk_gate_score,
                     decision_correct=decision_correct,
                     decision_actual_return_pct=decision_actual_return_pct,
+                    attribution=attribution,
                     error=release_errors[0] if release_errors else None,
                     errors=tuple(release_errors),
                 ))

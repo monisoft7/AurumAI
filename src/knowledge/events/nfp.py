@@ -54,7 +54,7 @@ class NFPEvent(MacroEvent):
             "nfp_value": round(float(event_row["Value"]), 6),
             "previous_nfp_value": round(float(event_row["previous_value"]), 6),
             "nfp_change": round(float(event_row["nfp_change"]), 6),
-            "nfp_trend": str(event_row["nfp_trend"]),
+            **self.build_reasoning_condition(event_row),
         }
 
     def lesson_text(self, lesson: dict[str, object]) -> str:

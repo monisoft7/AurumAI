@@ -1,0 +1,107 @@
+========================================================================
+  Experiment: RI-001-Weighted-vs-Unweighted
+  Description: Weighted (RI-001) vs Unweighted (pre-RI-001) ReasoningEngine
+  Cutoff:      2022-01-01
+========================================================================
+
+  --- Baseline: unweighted ---
+  Horizon:        12 weeks
+  Max workers:    4
+  Total events:   301
+  Scored events:  36
+  Abstained:      17
+  Directional Acc: 86.11%
+  Macro Precision: 86.11%
+  Macro Recall:    50.00%
+  Coverage:        67.92%
+  Abstention Rate: 32.08%
+  Strong Error:    N/A
+  ECE:             16.25%
+
+  --- Candidate: weighted ---
+  Horizon:        12 weeks
+  Max workers:    4
+  Total events:   301
+  Scored events:  36
+  Abstained:      17
+  Directional Acc: 86.11%
+  Macro Precision: 86.11%
+  Macro Recall:    50.00%
+  Coverage:        67.92%
+  Abstention Rate: 32.08%
+  Strong Error:    N/A
+  ECE:             16.25%
+
+  --- Comparison (candidate - baseline) ---
+  Directional Acc Δ: +0.00%
+  Macro Precision Δ: +0.00%
+  Macro Recall Δ:    +0.00%
+  Coverage Δ:        +0.00%
+  Abstention Rate Δ: +0.00%
+  Strong Error Δ:    N/A
+  ECE Δ:             +0.00%
+
+  Decisions changed:  0
+  Decisions improved: 0
+  Decisions degraded: 0
+
+  Per-event-type decision comparison:
+    Type                  Total  Chngd  Imprv  Degrd B_Corr C_Corr
+    --------------------------------------------------------------
+    CPI                      48      0      0      0     31     31
+    FOMC                      1      0      0      0      0      0
+    GDP                       1      0      0      0      0      0
+    INTEREST_RATE             1      0      0      0      0      0
+    NFP                       1      0      0      0      0      0
+    PMI                       1      0      0      0      0      0
+    PPI                       1      0      0      0      0      0
+
+  --- Economic Validation (Baseline) ---
+  Scored events:      36
+  Correct:            31
+  Incorrect:          5
+
+  Avg return/correct:   +0.23%
+  Avg return/incorrect: -0.07%
+  Expectancy:           +0.19%
+  Profit factor:        21.4913
+  Payoff ratio:         3.4663
+
+  Max consec. wins:   14
+  Max consec. losses: 1
+
+  Return distribution (-0.09% / +0.20% / +0.19% / +0.42%)
+    (min / median / mean / max)
+
+  Return by decision type:
+    Decision              Count  Correct  Wrong      Total       Mean
+    ------------------------------------------------------------
+    POSITIVE                 36       31      5     +6.78%     +0.19%
+
+  Positive expected value: YES
+
+  --- Economic Validation (Candidate) ---
+  Scored events:      36
+  Correct:            31
+  Incorrect:          5
+
+  Avg return/correct:   +0.23%
+  Avg return/incorrect: -0.07%
+  Expectancy:           +0.19%
+  Profit factor:        21.4913
+  Payoff ratio:         3.4663
+
+  Max consec. wins:   14
+  Max consec. losses: 1
+
+  Return distribution (-0.09% / +0.20% / +0.19% / +0.42%)
+    (min / median / mean / max)
+
+  Return by decision type:
+    Decision              Count  Correct  Wrong      Total       Mean
+    ------------------------------------------------------------
+    POSITIVE                 36       31      5     +6.78%     +0.19%
+
+  Positive expected value: YES
+
+========================================================================

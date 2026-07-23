@@ -226,6 +226,7 @@ class InferencePipeline:
             event_type=context.event.event_type,
             condition=context.reasoning_condition,
             horizon_days=context.reasoning_horizon,
+            strategy=context.retrieval_strategy,
         )
         elapsed = (time.perf_counter() - t0) * 1000
         result.add_stage(

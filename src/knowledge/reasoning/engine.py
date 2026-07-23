@@ -4,6 +4,7 @@ from typing import Any
 
 from knowledge.evidence.collection import EvidenceCollection
 from knowledge.evidence.evidence import Evidence
+from knowledge.evidence.weighting import EvidenceWeighter, WeightedAggregate
 from knowledge.reasoning.context import ReasoningContext
 from knowledge.reasoning.step import (
     ReasoningStep,
@@ -26,15 +27,18 @@ class ReasoningEngine:
         self._add_comparison_steps(evidence, steps)
 
         if steps:
-            step = self._build_aggregation(evidence, steps, len(steps))
+            wa = self._weigh(evidence)
+            step = self._build_aggregation(evidence, wa, steps, len(steps))
             steps.append(step)
 
-            step = self._build_conclusion(evidence, context, steps, len(steps))
+            step = self._build_conclusion(evidence, wa, context, steps, len(steps))
             steps.append(step)
 
         chain_id = self._build_chain_id(context)
-        overall_confidence = self._compute_overall_confidence(evidence)
+        overall_confidence = wa.weighted_avg_confidence if steps else 0.0
         final_conclusion = steps[-1].conclusion if steps else "No evidence to reason from."
+
+        attribution = wa.attribution if steps else {}
 
         return ReasoningChain(
             chain_id=chain_id,
@@ -43,6 +47,7 @@ class ReasoningEngine:
             final_conclusion=final_conclusion,
             overall_confidence=overall_confidence,
             evidence_count=len(evidence),
+            attribution=attribution,
         )
 
     def _build_evidence_review(self, ev: Evidence, index: int) -> ReasoningStep:
@@ -135,18 +140,22 @@ class ReasoningEngine:
             },
         )
 
-    def _build_aggregation(self, evidence: EvidenceCollection, steps: list[ReasoningStep], index: int) -> ReasoningStep:
+    @staticmethod
+    def _weigh(evidence: EvidenceCollection) -> WeightedAggregate:
+        return EvidenceWeighter().weigh(evidence)
+
+    def _build_aggregation(self, evidence: EvidenceCollection, wa: WeightedAggregate, steps: list[ReasoningStep], index: int) -> ReasoningStep:
         step_id = f"step_{index}"
-        agg = evidence.aggregate()
-        avg_ret = agg["avg_return_pct"]
-        avg_conf = agg["avg_confidence"]
+        avg_ret = wa.weighted_avg_return
+        avg_conf = wa.weighted_avg_confidence
         direction = "positive" if avg_ret > 0 else "negative" if avg_ret < 0 else "flat"
         all_ids = tuple(e.evidence_id for e in evidence)
+        avg_sample = round(sum(e.sample_count for e in evidence) / len(evidence))
 
         conclusion = (
-            f"Across {agg['count']} evidence items, the average return is {avg_ret:+.6f}% "
-            f"({direction}) with mean confidence of {avg_conf:.6f} "
-            f"and average sample count of {agg['avg_sample_count']}."
+            f"Across {wa.item_count} evidence items, the weighted average return is {avg_ret:+.6f}% "
+            f"({direction}) with weighted confidence of {avg_conf:.6f} "
+            f"(effective sample size: {wa.effective_sample_size})."
         )
         return ReasoningStep(
             step_id=step_id,
@@ -154,13 +163,23 @@ class ReasoningEngine:
             conclusion=conclusion,
             confidence=avg_conf,
             supporting_evidence_ids=all_ids,
-            details=dict(agg),
+            details={
+                "count": wa.item_count,
+                "avg_return_pct": avg_ret,
+                "avg_confidence": avg_conf,
+                "avg_sample_count": avg_sample,
+                "weighted_avg_return": avg_ret,
+                "weighted_avg_confidence": avg_conf,
+                "effective_sample_size": wa.effective_sample_size,
+                "total_raw_weight": wa.total_raw_weight,
+                "attribution": wa.attribution,
+            },
         )
 
-    def _build_conclusion(self, evidence: EvidenceCollection, context: ReasoningContext, steps: list[ReasoningStep], index: int) -> ReasoningStep:
+    def _build_conclusion(self, evidence: EvidenceCollection, wa: WeightedAggregate, context: ReasoningContext, steps: list[ReasoningStep], index: int) -> ReasoningStep:
         step_id = f"step_{index}"
-        avg_ret = evidence.aggregate()["avg_return_pct"]
-        avg_conf = evidence.aggregate()["avg_confidence"]
+        avg_ret = wa.weighted_avg_return
+        avg_conf = wa.weighted_avg_confidence
 
         if avg_ret > 0.5:
             direction = "positive directional bias"
@@ -184,9 +203,14 @@ class ReasoningEngine:
 
         conclusion = (
             f"For {context_desc}, the evidence indicates {direction} "
-            f"(aggregate confidence: {avg_conf:.3f}, "
+            f"(weighted confidence: {avg_conf:.3f}, "
             f"based on {len(evidence)} evidence items)."
         )
+        if len(wa.attribution) > 1:
+            contrib_lines = "Cross-event evidence contribution:"
+            for et in sorted(wa.attribution, key=wa.attribution.get, reverse=True):
+                contrib_lines += f"\n- {et} {wa.attribution[et]*100:.0f}%"
+            conclusion += "\n" + contrib_lines
         return ReasoningStep(
             step_id=step_id,
             step_type=STEP_CONCLUSION,

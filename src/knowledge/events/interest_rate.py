@@ -52,7 +52,6 @@ class InterestRateEvent(MacroEvent):
     def build_lesson_fields(
         self, event_row: pd.Series, anchor_date: str
     ) -> dict[str, object]:
-        condition_col = self.condition_columns[0]
         return {
             "interest_rate_value": round(float(event_row["Value"]), 6),
             "previous_interest_rate_value": round(
@@ -61,7 +60,7 @@ class InterestRateEvent(MacroEvent):
             "interest_rate_change": round(
                 float(event_row["interest_rate_change"]), 6
             ),
-            condition_col: str(event_row[condition_col]),
+            **self.build_reasoning_condition(event_row),
         }
 
     def lesson_text(self, lesson: dict[str, object]) -> str:

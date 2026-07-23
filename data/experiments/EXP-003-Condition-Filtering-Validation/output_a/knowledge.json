@@ -1,0 +1,184 @@
+{
+    "knowledge_version": "cpi_gold_summary_v1",
+    "source_lessons": "data\\experiments\\EXP-003-Condition-Filtering-Validation\\output_a\\lessons.csv",
+    "source_artifact_sha256": "b91b44e25ed7c8f356a95811763fd7e3bc01f458585a1eeffec72275598e6681",
+    "event_type": "CPI",
+    "asset": "XAU/USD",
+    "record_count": 6,
+    "records": [
+        {
+            "knowledge_id": "CPI_XAU/USD_inflation_pressure_down_1D",
+            "event_type": "CPI",
+            "asset": "XAU/USD",
+            "source_lesson_ids": [
+                "CPI_GOLD_2020-03-01"
+            ],
+            "source_artifact_path": "data\\experiments\\EXP-003-Condition-Filtering-Validation\\output_a\\lessons.csv",
+            "source_artifact_sha256": "b91b44e25ed7c8f356a95811763fd7e3bc01f458585a1eeffec72275598e6681",
+            "condition": {
+                "cpi_pressure": "inflation_pressure_down"
+            },
+            "horizon_days": 1,
+            "sample_count": 1,
+            "positive_return_rate_pct": 100.0,
+            "negative_return_rate_pct": 0.0,
+            "up_direction_rate_pct": 100.0,
+            "down_direction_rate_pct": 0.0,
+            "flat_direction_rate_pct": 0.0,
+            "average_return_pct": 0.826446,
+            "median_return_pct": 0.826446,
+            "min_return_pct": 0.826446,
+            "max_return_pct": 0.826446,
+            "first_event_date": "2020-03-01",
+            "last_event_date": "2020-03-01",
+            "bias": "gold_positive_bias",
+            "confidence": 0.374725,
+            "explanation": "For CPI condition cpi_pressure=inflation_pressure_down, 1 historical lessons show XAU/USD had a positive 1-day return in 100.0% of cases, with an average return of 0.826446%."
+        },
+        {
+            "knowledge_id": "CPI_XAU/USD_inflation_pressure_down_5D",
+            "event_type": "CPI",
+            "asset": "XAU/USD",
+            "source_lesson_ids": [
+                "CPI_GOLD_2020-03-01"
+            ],
+            "source_artifact_path": "data\\experiments\\EXP-003-Condition-Filtering-Validation\\output_a\\lessons.csv",
+            "source_artifact_sha256": "b91b44e25ed7c8f356a95811763fd7e3bc01f458585a1eeffec72275598e6681",
+            "condition": {
+                "cpi_pressure": "inflation_pressure_down"
+            },
+            "horizon_days": 5,
+            "sample_count": 1,
+            "positive_return_rate_pct": 100.0,
+            "negative_return_rate_pct": 0.0,
+            "up_direction_rate_pct": 100.0,
+            "down_direction_rate_pct": 0.0,
+            "flat_direction_rate_pct": 0.0,
+            "average_return_pct": 4.132231,
+            "median_return_pct": 4.132231,
+            "min_return_pct": 4.132231,
+            "max_return_pct": 4.132231,
+            "first_event_date": "2020-03-01",
+            "last_event_date": "2020-03-01",
+            "bias": "gold_positive_bias",
+            "confidence": 0.506956,
+            "explanation": "For CPI condition cpi_pressure=inflation_pressure_down, 1 historical lessons show XAU/USD had a positive 5-day return in 100.0% of cases, with an average return of 4.132231%."
+        },
+        {
+            "knowledge_id": "CPI_XAU/USD_inflation_pressure_down_20D",
+            "event_type": "CPI",
+            "asset": "XAU/USD",
+            "source_lesson_ids": [
+                "CPI_GOLD_2020-03-01"
+            ],
+            "source_artifact_path": "data\\experiments\\EXP-003-Condition-Filtering-Validation\\output_a\\lessons.csv",
+            "source_artifact_sha256": "b91b44e25ed7c8f356a95811763fd7e3bc01f458585a1eeffec72275598e6681",
+            "condition": {
+                "cpi_pressure": "inflation_pressure_down"
+            },
+            "horizon_days": 20,
+            "sample_count": 1,
+            "positive_return_rate_pct": 100.0,
+            "negative_return_rate_pct": 0.0,
+            "up_direction_rate_pct": 100.0,
+            "down_direction_rate_pct": 0.0,
+            "flat_direction_rate_pct": 0.0,
+            "average_return_pct": 16.528926,
+            "median_return_pct": 16.528926,
+            "min_return_pct": 16.528926,
+            "max_return_pct": 16.528926,
+            "first_event_date": "2020-03-01",
+            "last_event_date": "2020-03-01",
+            "bias": "gold_positive_bias",
+            "confidence": 0.541667,
+            "explanation": "For CPI condition cpi_pressure=inflation_pressure_down, 1 historical lessons show XAU/USD had a positive 20-day return in 100.0% of cases, with an average return of 16.528926%."
+        },
+        {
+            "knowledge_id": "CPI_XAU/USD_inflation_pressure_up_1D",
+            "event_type": "CPI",
+            "asset": "XAU/USD",
+            "source_lesson_ids": [
+                "CPI_GOLD_2020-02-01"
+            ],
+            "source_artifact_path": "data\\experiments\\EXP-003-Condition-Filtering-Validation\\output_a\\lessons.csv",
+            "source_artifact_sha256": "b91b44e25ed7c8f356a95811763fd7e3bc01f458585a1eeffec72275598e6681",
+            "condition": {
+                "cpi_pressure": "inflation_pressure_up"
+            },
+            "horizon_days": 1,
+            "sample_count": 1,
+            "positive_return_rate_pct": 100.0,
+            "negative_return_rate_pct": 0.0,
+            "up_direction_rate_pct": 100.0,
+            "down_direction_rate_pct": 0.0,
+            "flat_direction_rate_pct": 0.0,
+            "average_return_pct": 0.990099,
+            "median_return_pct": 0.990099,
+            "min_return_pct": 0.990099,
+            "max_return_pct": 0.990099,
+            "first_event_date": "2020-02-01",
+            "last_event_date": "2020-02-01",
+            "bias": "gold_positive_bias",
+            "confidence": 0.381271,
+            "explanation": "For CPI condition cpi_pressure=inflation_pressure_up, 1 historical lessons show XAU/USD had a positive 1-day return in 100.0% of cases, with an average return of 0.990099%."
+        },
+        {
+            "knowledge_id": "CPI_XAU/USD_inflation_pressure_up_5D",
+            "event_type": "CPI",
+            "asset": "XAU/USD",
+            "source_lesson_ids": [
+                "CPI_GOLD_2020-02-01"
+            ],
+            "source_artifact_path": "data\\experiments\\EXP-003-Condition-Filtering-Validation\\output_a\\lessons.csv",
+            "source_artifact_sha256": "b91b44e25ed7c8f356a95811763fd7e3bc01f458585a1eeffec72275598e6681",
+            "condition": {
+                "cpi_pressure": "inflation_pressure_up"
+            },
+            "horizon_days": 5,
+            "sample_count": 1,
+            "positive_return_rate_pct": 100.0,
+            "negative_return_rate_pct": 0.0,
+            "up_direction_rate_pct": 100.0,
+            "down_direction_rate_pct": 0.0,
+            "flat_direction_rate_pct": 0.0,
+            "average_return_pct": 4.950495,
+            "median_return_pct": 4.950495,
+            "min_return_pct": 4.950495,
+            "max_return_pct": 4.950495,
+            "first_event_date": "2020-02-01",
+            "last_event_date": "2020-02-01",
+            "bias": "gold_positive_bias",
+            "confidence": 0.539686,
+            "explanation": "For CPI condition cpi_pressure=inflation_pressure_up, 1 historical lessons show XAU/USD had a positive 5-day return in 100.0% of cases, with an average return of 4.950495%."
+        },
+        {
+            "knowledge_id": "CPI_XAU/USD_inflation_pressure_up_20D",
+            "event_type": "CPI",
+            "asset": "XAU/USD",
+            "source_lesson_ids": [
+                "CPI_GOLD_2020-02-01"
+            ],
+            "source_artifact_path": "data\\experiments\\EXP-003-Condition-Filtering-Validation\\output_a\\lessons.csv",
+            "source_artifact_sha256": "b91b44e25ed7c8f356a95811763fd7e3bc01f458585a1eeffec72275598e6681",
+            "condition": {
+                "cpi_pressure": "inflation_pressure_up"
+            },
+            "horizon_days": 20,
+            "sample_count": 1,
+            "positive_return_rate_pct": 100.0,
+            "negative_return_rate_pct": 0.0,
+            "up_direction_rate_pct": 100.0,
+            "down_direction_rate_pct": 0.0,
+            "flat_direction_rate_pct": 0.0,
+            "average_return_pct": 19.80198,
+            "median_return_pct": 19.80198,
+            "min_return_pct": 19.80198,
+            "max_return_pct": 19.80198,
+            "first_event_date": "2020-02-01",
+            "last_event_date": "2020-02-01",
+            "bias": "gold_positive_bias",
+            "confidence": 0.541667,
+            "explanation": "For CPI condition cpi_pressure=inflation_pressure_up, 1 historical lessons show XAU/USD had a positive 20-day return in 100.0% of cases, with an average return of 19.80198%."
+        }
+    ]
+}
