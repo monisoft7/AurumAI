@@ -5,9 +5,9 @@
 
   --- Baseline: Merged Pipeline ---
   Decision type:       POSITIVE
-  Confidence:          0.5739
+  Confidence:          0.5708
   Evidence count:      6
-  Avg return (merged): +0.6725%
+  Avg return (merged): +0.6374%
   Knowledge records:   6
 
   --- Isolated: Per-Condition Pipeline ---
@@ -15,15 +15,15 @@
 
   Condition: cpi_pressure=inflation_pressure_down
     Decision type:  POSITIVE
-    Confidence:     0.5990
+    Confidence:     0.6001
     Evidence count: 3
-    Avg return:     +0.9122%
+    Avg return:     +0.9060%
 
   Condition: cpi_pressure=inflation_pressure_up
     Decision type:  POSITIVE
-    Confidence:     0.5488
+    Confidence:     0.5494
     Evidence count: 3
-    Avg return:     +0.4328%
+    Avg return:     +0.4416%
 
   --- Comparison (Isolated vs Baseline) ---
   Baseline decision type:           POSITIVE
@@ -31,8 +31,8 @@
 
   Condition                                     Decision           Matches  Return    
   --------------------------------------------- ------------------ -------- ----------
-  cpi_pressure=inflation_pressure_down          POSITIVE           True     +0.9122%  
-  cpi_pressure=inflation_pressure_up            POSITIVE           True     +0.4328%  
+  cpi_pressure=inflation_pressure_down          POSITIVE           True     +0.9060%  
+  cpi_pressure=inflation_pressure_up            POSITIVE           True     +0.4416%  
 
   Conditions matching baseline:  2 / 2
   Conditions differing:          0 / 2
