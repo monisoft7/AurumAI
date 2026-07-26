@@ -54,10 +54,13 @@ class ReasoningEngine:
         step_id = f"step_{index}"
         condition_str = self._format_condition(ev.condition)
         detail = round(ev.average_return_pct, 3)
+        inst_ctx = ev.metadata.get("institutional_context", {})
+        inst_str = self._format_institutional_context(inst_ctx)
+        ctx_suffix = f" under {inst_str}" if inst_str else ""
         conclusion = (
             f"{ev.event_type} with condition {condition_str} "
             f"shows {detail:+.3f}% average return over {ev.horizon_days} days "
-            f"(confidence: {ev.confidence:.3f}, samples: {ev.sample_count})."
+            f"(confidence: {ev.confidence:.3f}, samples: {ev.sample_count}){ctx_suffix}."
         )
         return ReasoningStep(
             step_id=step_id,
@@ -98,7 +101,10 @@ class ReasoningEngine:
         for cond_str, group in by_condition.items():
             avg_ret = sum(e.average_return_pct for e in group) / len(group)
             avg_conf = sum(e.confidence for e in group) / len(group)
-            lines.append(f"  {cond_str}: {avg_ret:+.3f}% avg return (confidence: {avg_conf:.3f})")
+            inst_ctx = group[0].metadata.get("institutional_context", {})
+            inst_str = self._format_institutional_context(inst_ctx)
+            ctx_suffix = f" under {inst_str}" if inst_str else ""
+            lines.append(f"  {cond_str}: {avg_ret:+.3f}% avg return (confidence: {avg_conf:.3f}){ctx_suffix}")
 
         condition_labels = list(by_condition.keys())
         if len(condition_labels) >= 2:
@@ -197,6 +203,9 @@ class ReasoningEngine:
             context_desc += f" condition {self._format_condition(context.condition)}"
         if context.horizon_days is not None:
             context_desc += f" over {context.horizon_days} days"
+        inst_str = self._format_institutional_context(context.institutional_context)
+        if inst_str:
+            context_desc += f" under {inst_str}"
 
         step_ids = tuple(s.step_id for s in steps)
         all_evidence_ids = tuple(e.evidence_id for e in evidence)
@@ -232,6 +241,12 @@ class ReasoningEngine:
         return round(
             sum(e.confidence for e in evidence) / len(evidence), 6
         )
+
+    @staticmethod
+    def _format_institutional_context(institutional_context: dict[str, str]) -> str:
+        if not institutional_context:
+            return ""
+        return "; ".join(f"{k}={v}" for k, v in institutional_context.items())
 
     def _format_condition(self, condition: dict[str, str]) -> str:
         if not condition:
