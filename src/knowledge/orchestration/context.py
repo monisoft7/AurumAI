@@ -6,6 +6,12 @@ from typing import Any, TYPE_CHECKING
 from knowledge.economics.classifier import EconomicClassifier
 from knowledge.economics.state import EconomicState
 from knowledge.economics.adapter import EconomicEvidenceAdapter
+from knowledge.cbi.contracts import (
+    PolicyBiasScore,
+    ForwardGuidanceRecord,
+    RatePathProjection,
+)
+from knowledge.cbi.adapter import CbiEvidenceAdapter
 from knowledge.temporal.indexer import TemporalIndexer
 from knowledge.temporal.adapter import TemporalEvidenceAdapter
 from knowledge.causal.graph import CausalGraph
@@ -31,6 +37,11 @@ class OrchestrationContext:
     economic_classifier: EconomicClassifier | None = None
     economic_states: list[EconomicState] | None = None
     economic_adapter: EconomicEvidenceAdapter | None = None
+
+    cbi_bias_scores: list[PolicyBiasScore] | None = None
+    cbi_guidance_records: list[ForwardGuidanceRecord] | None = None
+    cbi_rate_paths: list[RatePathProjection] | None = None
+    cbi_adapter: CbiEvidenceAdapter | None = None
 
     temporal_indexer: TemporalIndexer | None = None
     temporal_adapter: TemporalEvidenceAdapter | None = None

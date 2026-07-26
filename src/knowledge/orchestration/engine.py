@@ -8,6 +8,7 @@ from knowledge.evidence.collection import EvidenceCollection
 from knowledge.evidence.weighting import EvidenceWeighter, WeightedAggregate
 from knowledge.causal.relation import CausalRelation
 from knowledge.integrity.lineage import LineageRelationType
+from knowledge.cbi.adapter import CbiEvidenceAdapter
 from knowledge.orchestration.context import OrchestrationContext
 from knowledge.orchestration.aggregator import EvidenceAggregator
 from knowledge.orchestration.policy import LayerPolicy, evaluate_policies
@@ -21,6 +22,7 @@ class OrchestrationReport:
     temporal_evidence: EvidenceCollection = field(default_factory=EvidenceCollection)
     causal_evidence: EvidenceCollection = field(default_factory=EvidenceCollection)
     core_evidence: EvidenceCollection = field(default_factory=EvidenceCollection)
+    cbi_evidence: EvidenceCollection = field(default_factory=EvidenceCollection)
     aggregation: Any = None
     weighted_aggregate: WeightedAggregate | None = None
     chain: Any = None
@@ -76,6 +78,7 @@ class OrchestrationEngine:
             report.temporal_evidence = self._run_temporal(ctx)
             report.causal_evidence = self._run_causal(ctx)
             report.core_evidence = self._run_core(ctx)
+            report.cbi_evidence = self._run_cbi(ctx)
 
             collections = {}
             if report.economic_evidence:
@@ -86,6 +89,8 @@ class OrchestrationEngine:
                 collections["causal"] = report.causal_evidence
             if report.core_evidence:
                 collections["core"] = report.core_evidence
+            if report.cbi_evidence:
+                collections["cbi"] = report.cbi_evidence
 
         report.aggregation = self._aggregator.merge(collections)
 
@@ -183,6 +188,33 @@ class OrchestrationEngine:
                 object.__setattr__(ev, "metadata", new_meta)
             all_items.extend(coll)
         return EvidenceCollection(all_items)
+
+    def _run_cbi(self, ctx: OrchestrationContext) -> EvidenceCollection:
+        if ctx.cbi_adapter is None:
+            return EvidenceCollection()
+        items: list[Evidence] = []
+        if ctx.cbi_bias_scores is not None:
+            for pbs in ctx.cbi_bias_scores:
+                ev = ctx.cbi_adapter.policy_bias_to_evidence(pbs)
+                new_meta = dict(ev.metadata)
+                new_meta["_source_layer"] = "cbi"
+                object.__setattr__(ev, "metadata", new_meta)
+                items.append(ev)
+        if ctx.cbi_guidance_records is not None:
+            for fgr in ctx.cbi_guidance_records:
+                ev = ctx.cbi_adapter.forward_guidance_to_evidence(fgr)
+                new_meta = dict(ev.metadata)
+                new_meta["_source_layer"] = "cbi"
+                object.__setattr__(ev, "metadata", new_meta)
+                items.append(ev)
+        if ctx.cbi_rate_paths is not None:
+            for rpp in ctx.cbi_rate_paths:
+                ev = ctx.cbi_adapter.rate_path_to_evidence(rpp)
+                new_meta = dict(ev.metadata)
+                new_meta["_source_layer"] = "cbi"
+                object.__setattr__(ev, "metadata", new_meta)
+                items.append(ev)
+        return EvidenceCollection(items)
 
     def _record_lineage(
         self,
