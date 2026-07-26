@@ -130,6 +130,7 @@ class InferencePipeline:
                 asset=context.asset,
                 horizons=context.horizons,
                 min_samples_for_confidence=context.min_samples_for_confidence,
+                institutional_context=context.institutional_context_columns,
             )
             aggregator = LessonSummaryAggregator(config)
             summary = aggregator.build_and_save()
@@ -255,6 +256,7 @@ class InferencePipeline:
             event_type=context.event.event_type,
             condition=context.reasoning_condition,
             horizon_days=context.reasoning_horizon,
+            institutional_context=context.institutional_context,
         )
         chain = engine.reason(evidence, rctx)
         elapsed = (time.perf_counter() - t0) * 1000
@@ -291,6 +293,7 @@ class InferencePipeline:
         dctx = DecisionContext(
             event_type=context.event.event_type,
             query=context.query,
+            institutional_context=context.institutional_context,
         ) if context.query else None
         decision = engine.decide(
             chain,

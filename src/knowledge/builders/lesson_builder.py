@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import pandas as pd
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,6 +21,7 @@ class LessonBuilderConfig:
     horizons: tuple[int, ...] = DEFAULT_HORIZONS
     min_abs_move_pct: float = 0.10
     release_calendar_path: str | None = None
+    institutional_context: tuple[str, ...] = ("macro_regime",)
 
 
 class LessonBuilder:
@@ -93,6 +95,9 @@ class LessonBuilder:
         lessons: list[dict[str, object]] = []
         gold_dates = gold["Date"]
         first_gold_date = gold_dates.iloc[0]
+        source_sha256 = hashlib.sha256(
+            self.config.event_data_path.read_bytes()
+        ).hexdigest()
 
         for _, row in event_data.iterrows():
             release_ts = row["release_timestamp"]
@@ -123,8 +128,11 @@ class LessonBuilder:
                 "alignment_method": "first_gold_session_on_or_after_release_timestamp",
                 "gold_close_at_event": round(float(anchor["Close"]), 6),
                 "release_timestamp": str(release_ts),
+                "source_artifact_path": str(self.config.event_data_path),
+                "source_artifact_sha256": source_sha256,
             }
             lesson.update(self.event.build_lesson_fields(row, anchor_date))
+            self._add_institutional_context(lesson, row)
 
             for horizon in horizons:
                 future = gold.iloc[anchor_index + horizon]
@@ -138,6 +146,13 @@ class LessonBuilder:
             lessons.append(lesson)
 
         return lessons
+
+    def _add_institutional_context(
+        self, lesson: dict[str, Any], row: pd.Series
+    ) -> None:
+        for ctx_col in self.config.institutional_context:
+            if ctx_col in row.index:
+                lesson[ctx_col] = str(row[ctx_col])
 
     def _first_gold_index_on_or_after(
         self,
@@ -251,6 +266,7 @@ class LegacyLessonBuilder(LessonBuilder):
                 "gold_close_at_event": round(float(anchor["Close"]), 6),
             }
             lesson.update(self.event.build_lesson_fields(row, anchor_date))
+            self._add_institutional_context(lesson, row)
 
             for horizon in horizons:
                 future = gold.iloc[anchor_index + horizon]

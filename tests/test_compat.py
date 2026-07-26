@@ -746,6 +746,7 @@ class TestRegressionRepositoryRoundTrip:
             output_path=output,
             condition_columns=("cpi_pressure",),
             horizons=(1,),
+            institutional_context=(),
         )
         agg = LessonSummaryAggregator(config)
         summary = agg.build_and_save()

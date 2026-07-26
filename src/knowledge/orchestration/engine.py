@@ -102,6 +102,7 @@ class OrchestrationEngine:
                 condition=ctx.condition,
                 horizon_days=ctx.horizon_days,
                 date=ctx.date,
+                institutional_context=ctx.institutional_context,
             )
             report.historical_matches = ctx.retriever.retrieve(
                 query=query,

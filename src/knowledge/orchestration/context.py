@@ -45,3 +45,4 @@ class OrchestrationContext:
 
     lineage_registry: LineageRegistry | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    institutional_context: dict[str, str] = field(default_factory=dict)

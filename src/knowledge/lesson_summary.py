@@ -23,6 +23,7 @@ class LessonSummaryConfig:
     asset: str = "GOLD"
     horizons: tuple[int, ...] = DEFAULT_HORIZONS
     min_samples_for_confidence: int = 12
+    institutional_context: tuple[str, ...] = ("macro_regime",)
 
 
 class LessonSummaryAggregator:
@@ -73,6 +74,8 @@ class LessonSummaryAggregator:
         }
         for col in self.config.condition_columns:
             required.add(col)
+        for col in self.config.institutional_context:
+            required.add(col)
         for horizon in self.config.horizons:
             required.add(f"gold_return_{horizon}d_pct")
             required.add(f"gold_direction_{horizon}d")
@@ -116,6 +119,12 @@ class LessonSummaryAggregator:
 
         condition_suffix = "_".join(str(v) for v in condition.values())
 
+        majority_context: dict[str, str] = {}
+        for ctx_col in self.config.institutional_context:
+            if ctx_col in group.columns:
+                modes = group[ctx_col].mode()
+                majority_context[ctx_col] = str(modes.iloc[0]) if not modes.empty else ""
+
         return {
             "knowledge_id": f"{self.config.event_type}_{self.config.asset}_{condition_suffix}_{horizon}D",
             "event_type": self.config.event_type,
@@ -139,6 +148,7 @@ class LessonSummaryAggregator:
             "last_event_date": str(group["event_date"].max()),
             "bias": self._bias(positive_rate),
             "confidence": self._confidence(sample_count, positive_rate, returns.mean()),
+            "institutional_context": majority_context,
             "explanation": self._explanation(
                 condition,
                 horizon,

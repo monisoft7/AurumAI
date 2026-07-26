@@ -2,9 +2,33 @@ from __future__ import annotations
 
 from typing import Any
 
+_regime_initialized: bool = False
+
+
+def _ensure_macro_regime_initialized(params: dict[str, Any]) -> None:
+    global _regime_initialized
+    if _regime_initialized:
+        return
+
+    from knowledge.regime.composite_score import CompositeScoreBuilder
+    from knowledge.regime.macro_regime_detector import MacroRegimeDetector
+    from knowledge.features.extractors.macro_regime import (
+        MacroRegimeFeatureExtractor,
+    )
+    from knowledge.features.engine import FeatureExtractionEngine
+
+    composite_data = CompositeScoreBuilder().build()
+    detector = MacroRegimeDetector(random_state=42).fit(composite_data)
+    extractor = MacroRegimeFeatureExtractor(detector)
+    FeatureExtractionEngine.register_global(extractor)
+    params["_regime_detector"] = detector
+    _regime_initialized = True
+
 
 def _ingest_event(params: dict[str, Any], results: dict[str, Any]) -> Any:
     from knowledge.events.registry import EventRegistry
+
+    _ensure_macro_regime_initialized(params)
 
     event_type = params.get("event_type", "CPIEvent")
     data_path = params.get("data_path")
@@ -158,7 +182,9 @@ def _forecast_confidence(params: dict[str, Any], results: dict[str, Any]) -> Any
         raise ValueError("'forecast' stage must complete first")
 
     gold_df = pd.read_csv(params["gold_path"])
-    ctx_builder = ForecastContextBuilder()
+    ctx_builder = ForecastContextBuilder(
+        regime_detector=params.get("_regime_detector"),
+    )
     context = ctx_builder.build(
         forecast_result.model_name if hasattr(forecast_result, "model_name") else str(forecast_result),
         gold_df,
@@ -218,7 +244,9 @@ def _build_context(params: dict[str, Any], results: dict[str, Any]) -> Any:
         raise ValueError("'forecast' stage must complete first")
 
     gold_df = pd.read_csv(params["gold_path"])
-    ctx_builder = ForecastContextBuilder()
+    ctx_builder = ForecastContextBuilder(
+        regime_detector=params.get("_regime_detector"),
+    )
     context = ctx_builder.build(
         forecast_result.model_name if hasattr(forecast_result, "model_name") else str(forecast_result),
         gold_df,

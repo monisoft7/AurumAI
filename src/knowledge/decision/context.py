@@ -9,6 +9,8 @@ class DecisionContext:
     event_type: str
     query: str = ""
     metadata: dict[str, Any] = field(default_factory=lambda: FrozenDict())
+    institutional_context: dict[str, str] = field(default_factory=lambda: FrozenDict())
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "metadata", freeze_dict(self.metadata))
+        object.__setattr__(self, "institutional_context", freeze_dict(self.institutional_context))

@@ -354,6 +354,7 @@ class TestNFPPipelineEndToEnd:
                 knowledge_prefix="nfp_gold_summary_v1",
                 event_type="NFP",
                 asset="GOLD",
+                institutional_context=(),
             )
         )
         summary = aggregator.build()
@@ -403,6 +404,7 @@ class TestNFPPipelineEndToEnd:
                 knowledge_prefix="nfp_gold_summary_v1",
                 event_type="NFP",
                 asset="GOLD",
+                institutional_context=(),
             )
         )
         summary = aggregator.build_and_save()

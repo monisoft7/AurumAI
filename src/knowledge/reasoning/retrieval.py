@@ -18,6 +18,7 @@ class SituationQuery:
     horizon_days: int | None = None
     date: str | None = None
     sample_count: int = 0
+    institutional_context: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -29,6 +30,7 @@ class SituationMatch:
     horizon_similarity: float
     maturity_similarity: float
     temporal_similarity: float
+    institutional_context_similarity: float = 0.5
     retrieval_method: str = "exact"
 
 
@@ -39,10 +41,11 @@ class RetrievalConfig:
     broaden_on_empty: bool = True
     broaden_min_results: int = 3
     event_type_weight: float = 0.35
-    condition_weight: float = 0.30
-    horizon_weight: float = 0.15
+    condition_weight: float = 0.25
+    horizon_weight: float = 0.10
     maturity_weight: float = 0.10
     temporal_weight: float = 0.10
+    institutional_context_weight: float = 0.10
 
     def __post_init__(self) -> None:
         total = (
@@ -51,6 +54,7 @@ class RetrievalConfig:
             + self.horizon_weight
             + self.maturity_weight
             + self.temporal_weight
+            + self.institutional_context_weight
         )
         if abs(total - 1.0) > 1e-6:
             raise ValueError(
@@ -105,6 +109,7 @@ class HistoricalSituationRetriever:
                     cfg.horizon_weight,
                     cfg.maturity_weight,
                     cfg.temporal_weight,
+                    cfg.institutional_context_weight,
                 ),
             )
             if overall >= cfg.min_similarity:
@@ -117,6 +122,7 @@ class HistoricalSituationRetriever:
                         horizon_similarity=scores[2],
                         maturity_similarity=scores[3],
                         temporal_similarity=scores[4],
+                        institutional_context_similarity=scores[5],
                         retrieval_method=retrieval_method,
                     )
                 )
@@ -129,7 +135,7 @@ class HistoricalSituationRetriever:
         query: SituationQuery,
         evidence: Evidence,
         temporal_indexer: TemporalIndexer | None,
-    ) -> tuple[float, float, float, float, float]:
+    ) -> tuple[float, float, float, float, float, float]:
         et_sim = 1.0 if query.event_type == evidence.event_type else 0.0
 
         cond_sim = self._jaccard_similarity(
@@ -148,7 +154,12 @@ class HistoricalSituationRetriever:
             query, evidence, temporal_indexer
         )
 
-        return et_sim, cond_sim, horizon_sim, maturity_sim, temporal_sim
+        context_sim = self._institutional_context_similarity(
+            query.institutional_context,
+            evidence.metadata.get("institutional_context", {}),
+        )
+
+        return et_sim, cond_sim, horizon_sim, maturity_sim, temporal_sim, context_sim
 
     @staticmethod
     def _jaccard_similarity(
@@ -156,8 +167,8 @@ class HistoricalSituationRetriever:
     ) -> float:
         if not a or not b:
             return 0.5
-        keys_a = set(a.keys())
-        keys_b = set(b.keys())
+        keys_a = set(a.items())
+        keys_b = set(b.items())
         intersection = keys_a & keys_b
         union = keys_a | keys_b
         return len(intersection) / len(union)
@@ -203,9 +214,21 @@ class HistoricalSituationRetriever:
         return 1.0 / (1.0 + years_diff)
 
     @staticmethod
+    def _institutional_context_similarity(
+        a: dict[str, str], b: dict[str, str]
+    ) -> float:
+        if not a or not b:
+            return 0.5
+        keys_a = set(a.items())
+        keys_b = set(b.items())
+        intersection = keys_a & keys_b
+        union = keys_a | keys_b
+        return len(intersection) / len(union)
+
+    @staticmethod
     def _geometric_mean(
-        scores: tuple[float, float, float, float, float],
-        weights: tuple[float, float, float, float, float],
+        scores: tuple[float, float, float, float, float, float],
+        weights: tuple[float, float, float, float, float, float],
     ) -> float:
         total_weight = sum(w for w in weights if w > 0)
         if total_weight == 0:

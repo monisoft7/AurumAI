@@ -95,14 +95,47 @@ Institutional Readiness (Experiment Framework Complete)
 - Applies slippage + commission on execute
 - Deterministic, no broker/MT5/forecasting/reasoning
 
-| Sprint | Tests |
-|--------|-------|
+### Sprint-002: MacroRegimeDetector Activation (C-03)
+- Created `CompositeScoreBuilder` — reads 5 monthly economic CSVs, computes z-scores, averages into monthly composite_score (6 tests)
+- Modified `FeatureExtractionEngine` — added class-level global extractors, `register_global()`, `clear_global()`, multi-extractor chaining in `process()` (5 new tests)
+- Wired regime initialization in `_ingest_event` — computes composite_score, fits `MacroRegimeDetector`, registers `MacroRegimeFeatureExtractor` globally
+- Wired `ForecastContextBuilder` with fitted detector in `_forecast_confidence` and `_build_context` stages
+- All 7 event classes (CPI, NFP, GDP, PPI, PMI, InterestRate, FOMC) unchanged — regime enrichment is transparent
+- ADR-002 approved FeatureExtractionEngine as the correct ownership point
+- Sprint-002-Ownership-Verification.md rejected 5 alternative extension points
+
+### Sprint-003: Institutional Context Propagation (C-04)
+- **Problem**: Consumption verification showed `macro_regime` is correctly added to FeatureSet.data by FeatureExtractionEngine but is **lost at the lesson construction boundary** — `build_lesson_fields()` does not forward it into lesson dicts
+- **Architectural insight**: Macro Regime is **Institutional Context**, NOT an Event attribute. Events must NOT be modified to forward it.
+- **ADR-003** approved LessonBuilder as the correct owner for institutional context propagation
+- **Solution**: Added `institutional_context: tuple[str, ...] = ("macro_regime",)` to `LessonBuilderConfig`; both `_build_lessons()` and `_build_lessons_legacy()` forward configured context columns from event_data rows into lesson dicts via `_add_institutional_context()`
+- **No event classes modified**: CPIEvent, NFPEvent, GDPEvent, PPIEvent, PMIEvent, FOMCEvent, InterestRateEvent remain unchanged
+- **Backward compatible**: Empty tuple `institutional_context=()` disables forwarding; missing columns are silently skipped
+- **Extensible**: Future context types (volatility_regime, liquidity_regime, etc.) require only adding the column name to config
+- **5 new tests**: legacy forwarding, institutional forwarding, disabled with empty tuple, missing column skipped gracefully, custom context column
+- All 27 affected tests pass (lesson_builder + macro_event_standard + lesson_summary)
+
+### FC-001: Semantic Condition Matching Fix (Foundation Correction)
+- **Root cause**: `HistoricalSituationRetriever._jaccard_similarity()` computed Jaccard on condition **key sets** instead of **key-value pair sets**, causing semantically opposite conditions (e.g., `cpi_pressure=high` vs `cpi_pressure=low`) to receive perfect similarity
+- **Fix**: `set(a.keys())` → `set(a.items())` — one line in `src/knowledge/reasoning/retrieval.py`
+- **Impact**: Corrects the broadened retrieval path only; exact-match path unaffected
+- **Prerequisite**: Required before Institutional Context can influence similarity-based retrieval
+- **2 new regression tests**: opposite values → 0.0, opposite < identical
+- All 197 affected tests pass across retrieval, reasoning, weighting, lesson builder, and macro event suites
+
+| Sprint / FC | Tests |
+|-------------|-------|
 | AUR-FINAL Fixes | 5 |
 | LINEAGE-PROD Activation | 2 |
 | 20.1–20.5 Hardening | 253 |
 | 21.1–21.3 Paper Trading | 167 |
+| Sprint-002 (C-03) | 11 |
+| Sprint-003 (C-04) | 5 |
+| FC-001 | 2 |
+| Sprint-004 (C-05) | 5 |
+| Sprint-005 (C-06) | 5 |
 
-| Total Tests | 1611 |
+| Total Tests | 1639 |
 
 ---
 
@@ -137,10 +170,54 @@ Institutional Readiness (Experiment Framework Complete)
 - Registry ID: exp_c3b433e5606b0d15
 - Tag: `cpi/us10y/context-enrichment/experiment-001`
 
-#### ⬜ Immutable Persistence (Gate 5)
-- Atomic writes, content-addressed versions
+#### ✅ Sprint-002: MacroRegimeDetector Activation (C-03) (Complete)
+- CompositeScoreBuilder produces monthly composite_score from 5 indicators
+- FeatureExtractionEngine chains global extractors after primary extractors
+- MacroRegimeFeatureExtractor registered at pipeline startup
+- ForecastContextBuilder receives fitted detector
+- 11 new tests, all existing tests pass
 
-#### ⬜ CI Pipeline (Gate 7)
-- Clean CI from fresh clone
+#### ✅ Sprint-003: Institutional Context Propagation (C-04) (Complete)
+- ADR-003 approved LessonBuilder as institutional context owner
+- LessonBuilderConfig.institutional_context enables config-driven forwarding
+- macro_regime now reaches lesson dicts in both canonical and legacy paths
+- 5 new tests, 27 affected tests pass
+- No event classes modified
 
-No new intelligence capability will be added before OOS validation demonstrates measurable predictive value.
+#### ✅ FC-001: Semantic Condition Matching Fix (Complete)
+- `HistoricalSituationRetriever._jaccard_similarity()` now compares key-value pairs, not keys only
+- Opposite conditions (e.g., `cpi_pressure=high` vs `cpi_pressure=low`) produce lower similarity than identical conditions
+- 2 new tests, 197 affected tests pass
+- Prerequisite for Institutional Context in retrieval
+
+#### ✅ Sprint-004: Institutional Context Visibility (C-05) (Complete)
+- ADR-003 verified as sound architecture (LessonBuilder ownership)
+- Added `institutional_context: dict[str, str]` to `KnowledgeRecord` — frozen, serialized
+- Added `institutional_context` to `LessonSummaryConfig` — majority-vote in `_summarize_group()`
+- Added `institutional_context` to `ReasoningContext`, `DecisionContext`, `PipelineContext`
+- Wired through `_stage_build_knowledge`, `_stage_reason`, `_stage_decide`
+- 5 new tests, backward compatible
+- Visibility achieved in all downstream components
+
+#### ✅ Sprint-005: Context-Aware Evidence Retrieval (C-06) (Complete)
+- Added 6th similarity dimension (`institutional_context`) to `HistoricalSituationRetriever`
+- `SituationQuery`: new `institutional_context` field for query-level context
+- `SituationMatch`: new `institutional_context_similarity` for score transparency
+- `RetrievalConfig`: `institutional_context_weight=0.10`, rebalanced (cond 0.30→0.25, horiz 0.15→0.10)
+- `_institutional_context_similarity()`: generic Jaccard on `dict.items()` — no `macro_regime` reference
+- `OrchestrationContext` + `OrchestrationEngine`: wired context to `SituationQuery`
+- **Influence: evidence selection ONLY** — no change to weighting, reasoning, confidence, decision
+- **Backward compatible**: empty context → neutral score 0.5, existing weights adjusted
+- 5 new tests, 518 affected pass
+- IRL 3→4: retriever now context-aware
+
+---
+
+## Next
+
+### Institutional Readiness (Phase 23 — Active)
+
+#### ⬜ Sprint-006: Context-Aware Evidence Weighting
+- Use institutional_context in EvidenceWeighter (adjust weights based on context match)
+- Consume institutional_context from Evidence.metadata
+- Do NOT change reasoning, confidence, decision, or explanation

@@ -1,3 +1,4 @@
+import hashlib
 from pathlib import Path
 import shutil
 
@@ -127,6 +128,101 @@ def test_build_and_save_writes_deterministic_lessons() -> None:
     pd.testing.assert_frame_equal(first, saved)
 
 
+def test_institutional_lesson_has_source_artifact_path() -> None:
+    base = runtime_dir("source_artifact_path")
+    cpi_path = base / "economic" / "CPIAUCSL.csv"
+    gold_path = base / "history" / "gold.csv"
+    cal_path = base / "calendar" / "cpi_releases.csv"
+    output_path = base / "lessons" / "cpi_gold_lessons.csv"
+
+    write_csv(
+        cpi_path,
+        [
+            {"Date": "2020-01-01", "Value": 100.0},
+            {"Date": "2020-02-01", "Value": 101.0},
+            {"Date": "2020-03-01", "Value": 99.0},
+        ],
+    )
+    write_csv(
+        gold_path,
+        [
+            {"Date": "2020-01-31", "Close": 1000.0},
+            {"Date": "2020-02-03", "Close": 1010.0},
+            {"Date": "2020-02-04", "Close": 1020.0},
+            {"Date": "2020-02-05", "Close": 1030.0},
+            {"Date": "2020-02-06", "Close": 1040.0},
+            {"Date": "2020-02-07", "Close": 1050.0},
+            {"Date": "2020-02-10", "Close": 1060.0},
+            {"Date": "2020-02-11", "Close": 1070.0},
+            {"Date": "2020-02-12", "Close": 1080.0},
+            {"Date": "2020-02-13", "Close": 1090.0},
+            {"Date": "2020-02-14", "Close": 1100.0},
+            {"Date": "2020-02-17", "Close": 1110.0},
+            {"Date": "2020-02-18", "Close": 1120.0},
+            {"Date": "2020-02-19", "Close": 1130.0},
+            {"Date": "2020-02-20", "Close": 1140.0},
+            {"Date": "2020-02-21", "Close": 1150.0},
+            {"Date": "2020-02-24", "Close": 1160.0},
+            {"Date": "2020-02-25", "Close": 1170.0},
+            {"Date": "2020-02-26", "Close": 1180.0},
+            {"Date": "2020-02-27", "Close": 1190.0},
+            {"Date": "2020-02-28", "Close": 1200.0},
+            {"Date": "2020-03-02", "Close": 900.0},
+            {"Date": "2020-03-03", "Close": 890.0},
+            {"Date": "2020-03-04", "Close": 880.0},
+            {"Date": "2020-03-05", "Close": 870.0},
+            {"Date": "2020-03-06", "Close": 860.0},
+            {"Date": "2020-03-09", "Close": 850.0},
+            {"Date": "2020-03-10", "Close": 840.0},
+            {"Date": "2020-03-11", "Close": 830.0},
+            {"Date": "2020-03-12", "Close": 820.0},
+            {"Date": "2020-03-13", "Close": 810.0},
+            {"Date": "2020-03-16", "Close": 800.0},
+            {"Date": "2020-03-17", "Close": 790.0},
+            {"Date": "2020-03-18", "Close": 780.0},
+            {"Date": "2020-03-19", "Close": 770.0},
+            {"Date": "2020-03-20", "Close": 760.0},
+            {"Date": "2020-03-23", "Close": 750.0},
+            {"Date": "2020-03-24", "Close": 740.0},
+            {"Date": "2020-03-25", "Close": 730.0},
+            {"Date": "2020-03-26", "Close": 720.0},
+            {"Date": "2020-03-27", "Close": 710.0},
+            {"Date": "2020-03-30", "Close": 700.0},
+        ],
+    )
+    write_csv(
+        cal_path,
+        [
+            {"reference_period": "2020-01-01", "release_date": "2020-01-15", "release_time": "08:30"},
+            {"reference_period": "2020-02-01", "release_date": "2020-02-13", "release_time": "08:30"},
+            {"reference_period": "2020-03-01", "release_date": "2020-03-11", "release_time": "08:30"},
+        ],
+    )
+
+    builder = LessonBuilder(
+        LessonBuilderConfig(
+            event_data_path=cpi_path,
+            gold_path=gold_path,
+            output_path=output_path,
+            release_calendar_path=str(cal_path),
+        )
+    )
+    df = builder.build()
+
+    assert "source_artifact_path" in df.columns
+    assert "source_artifact_sha256" in df.columns
+    assert (df["source_artifact_path"] == str(cpi_path)).all()
+    expected_sha = hashlib.sha256(cpi_path.read_bytes()).hexdigest()
+    assert (df["source_artifact_sha256"] == expected_sha).all()
+
+
+def test_legacy_lesson_builder_no_source_artifact_fields() -> None:
+    builder = build_fixture(runtime_dir("legacy_no_source"))
+    df = builder.build()
+    assert "source_artifact_path" not in df.columns
+    assert "source_artifact_sha256" not in df.columns
+
+
 def test_missing_required_columns_fail_fast() -> None:
     base_path = runtime_dir("missing_columns")
     cpi_path = base_path / "economic" / "CPIAUCSL.csv"
@@ -144,3 +240,392 @@ def test_missing_required_columns_fail_fast() -> None:
         assert "missing required columns: Close" in str(exc)
     else:
         raise AssertionError("Expected a missing-column ValueError.")
+
+
+def test_legacy_lesson_forwards_institutional_context() -> None:
+    base = runtime_dir("legacy_context")
+    cpi_path = base / "economic" / "CPIAUCSL.csv"
+    gold_path = base / "history" / "gold.csv"
+    output_path = base / "lessons" / "cpi_gold_lessons.csv"
+
+    write_csv(
+        cpi_path,
+        [
+            {"Date": "2020-01-01", "Value": 100.0},
+            {"Date": "2020-02-01", "Value": 101.0, "macro_regime": "EXPANSION"},
+            {"Date": "2020-03-01", "Value": 99.0, "macro_regime": "CONTRACTION"},
+        ],
+    )
+    write_csv(
+        gold_path,
+        [
+            {"Date": "2020-01-31", "Close": 1000.0},
+            {"Date": "2020-02-03", "Close": 1010.0},
+            {"Date": "2020-02-04", "Close": 1020.0},
+            {"Date": "2020-02-05", "Close": 1030.0},
+            {"Date": "2020-02-06", "Close": 1040.0},
+            {"Date": "2020-02-07", "Close": 1050.0},
+            {"Date": "2020-02-10", "Close": 1060.0},
+            {"Date": "2020-02-11", "Close": 1070.0},
+            {"Date": "2020-02-12", "Close": 1080.0},
+            {"Date": "2020-02-13", "Close": 1090.0},
+            {"Date": "2020-02-14", "Close": 1100.0},
+            {"Date": "2020-02-17", "Close": 1110.0},
+            {"Date": "2020-02-18", "Close": 1120.0},
+            {"Date": "2020-02-19", "Close": 1130.0},
+            {"Date": "2020-02-20", "Close": 1140.0},
+            {"Date": "2020-02-21", "Close": 1150.0},
+            {"Date": "2020-02-24", "Close": 1160.0},
+            {"Date": "2020-02-25", "Close": 1170.0},
+            {"Date": "2020-02-26", "Close": 1180.0},
+            {"Date": "2020-02-27", "Close": 1190.0},
+            {"Date": "2020-02-28", "Close": 1200.0},
+            {"Date": "2020-03-02", "Close": 900.0},
+            {"Date": "2020-03-03", "Close": 890.0},
+            {"Date": "2020-03-04", "Close": 880.0},
+            {"Date": "2020-03-05", "Close": 870.0},
+            {"Date": "2020-03-06", "Close": 860.0},
+            {"Date": "2020-03-09", "Close": 850.0},
+            {"Date": "2020-03-10", "Close": 840.0},
+            {"Date": "2020-03-11", "Close": 830.0},
+            {"Date": "2020-03-12", "Close": 820.0},
+            {"Date": "2020-03-13", "Close": 810.0},
+            {"Date": "2020-03-16", "Close": 800.0},
+            {"Date": "2020-03-17", "Close": 790.0},
+            {"Date": "2020-03-18", "Close": 780.0},
+            {"Date": "2020-03-19", "Close": 770.0},
+            {"Date": "2020-03-20", "Close": 760.0},
+            {"Date": "2020-03-23", "Close": 750.0},
+            {"Date": "2020-03-24", "Close": 740.0},
+            {"Date": "2020-03-25", "Close": 730.0},
+            {"Date": "2020-03-26", "Close": 720.0},
+            {"Date": "2020-03-27", "Close": 710.0},
+            {"Date": "2020-03-30", "Close": 700.0},
+        ],
+    )
+
+    config = LessonBuilderConfig(
+        event_data_path=cpi_path,
+        gold_path=gold_path,
+        output_path=output_path,
+    )
+    builder = LegacyLessonBuilder(config)
+    df = builder.build()
+
+    assert "macro_regime" in df.columns
+    row1 = df[df["event_date"] == "2020-02-01"].iloc[0]
+    assert row1["macro_regime"] == "EXPANSION"
+    row2 = df[df["event_date"] == "2020-03-01"].iloc[0]
+    assert row2["macro_regime"] == "CONTRACTION"
+
+
+def test_institutional_lesson_forwards_institutional_context() -> None:
+    base = runtime_dir("institutional_context")
+    cpi_path = base / "economic" / "CPIAUCSL.csv"
+    gold_path = base / "history" / "gold.csv"
+    cal_path = base / "calendar" / "cpi_releases.csv"
+    output_path = base / "lessons" / "cpi_gold_lessons.csv"
+
+    write_csv(
+        cpi_path,
+        [
+            {"Date": "2020-01-01", "Value": 100.0},
+            {"Date": "2020-02-01", "Value": 101.0, "macro_regime": "EXPANSION"},
+            {"Date": "2020-03-01", "Value": 99.0, "macro_regime": "CONTRACTION"},
+        ],
+    )
+    write_csv(
+        gold_path,
+        [
+            {"Date": "2020-01-31", "Close": 1000.0},
+            {"Date": "2020-02-03", "Close": 1010.0},
+            {"Date": "2020-02-04", "Close": 1020.0},
+            {"Date": "2020-02-05", "Close": 1030.0},
+            {"Date": "2020-02-06", "Close": 1040.0},
+            {"Date": "2020-02-07", "Close": 1050.0},
+            {"Date": "2020-02-10", "Close": 1060.0},
+            {"Date": "2020-02-11", "Close": 1070.0},
+            {"Date": "2020-02-12", "Close": 1080.0},
+            {"Date": "2020-02-13", "Close": 1090.0},
+            {"Date": "2020-02-14", "Close": 1100.0},
+            {"Date": "2020-02-17", "Close": 1110.0},
+            {"Date": "2020-02-18", "Close": 1120.0},
+            {"Date": "2020-02-19", "Close": 1130.0},
+            {"Date": "2020-02-20", "Close": 1140.0},
+            {"Date": "2020-02-21", "Close": 1150.0},
+            {"Date": "2020-02-24", "Close": 1160.0},
+            {"Date": "2020-02-25", "Close": 1170.0},
+            {"Date": "2020-02-26", "Close": 1180.0},
+            {"Date": "2020-02-27", "Close": 1190.0},
+            {"Date": "2020-02-28", "Close": 1200.0},
+            {"Date": "2020-03-02", "Close": 900.0},
+            {"Date": "2020-03-03", "Close": 890.0},
+            {"Date": "2020-03-04", "Close": 880.0},
+            {"Date": "2020-03-05", "Close": 870.0},
+            {"Date": "2020-03-06", "Close": 860.0},
+            {"Date": "2020-03-09", "Close": 850.0},
+            {"Date": "2020-03-10", "Close": 840.0},
+            {"Date": "2020-03-11", "Close": 830.0},
+            {"Date": "2020-03-12", "Close": 820.0},
+            {"Date": "2020-03-13", "Close": 810.0},
+            {"Date": "2020-03-16", "Close": 800.0},
+            {"Date": "2020-03-17", "Close": 790.0},
+            {"Date": "2020-03-18", "Close": 780.0},
+            {"Date": "2020-03-19", "Close": 770.0},
+            {"Date": "2020-03-20", "Close": 760.0},
+            {"Date": "2020-03-23", "Close": 750.0},
+            {"Date": "2020-03-24", "Close": 740.0},
+            {"Date": "2020-03-25", "Close": 730.0},
+            {"Date": "2020-03-26", "Close": 720.0},
+            {"Date": "2020-03-27", "Close": 710.0},
+            {"Date": "2020-03-30", "Close": 700.0},
+        ],
+    )
+    write_csv(
+        cal_path,
+        [
+            {"reference_period": "2020-01-01", "release_date": "2020-01-15", "release_time": "08:30"},
+            {"reference_period": "2020-02-01", "release_date": "2020-02-13", "release_time": "08:30"},
+            {"reference_period": "2020-03-01", "release_date": "2020-03-11", "release_time": "08:30"},
+        ],
+    )
+
+    builder = LessonBuilder(
+        LessonBuilderConfig(
+            event_data_path=cpi_path,
+            gold_path=gold_path,
+            output_path=output_path,
+            release_calendar_path=str(cal_path),
+        )
+    )
+    df = builder.build()
+
+    assert "macro_regime" in df.columns
+    row1 = df[df["event_date"] == "2020-02-01"].iloc[0]
+    assert row1["macro_regime"] == "EXPANSION"
+
+
+def test_institutional_context_disabled_with_empty_tuple() -> None:
+    base = runtime_dir("context_disabled")
+    cpi_path = base / "economic" / "CPIAUCSL.csv"
+    gold_path = base / "history" / "gold.csv"
+    output_path = base / "lessons" / "cpi_gold_lessons.csv"
+
+    write_csv(
+        cpi_path,
+        [
+            {"Date": "2020-01-01", "Value": 100.0},
+            {"Date": "2020-02-01", "Value": 101.0, "macro_regime": "EXPANSION"},
+            {"Date": "2020-03-01", "Value": 99.0, "macro_regime": "CONTRACTION"},
+        ],
+    )
+    write_csv(
+        gold_path,
+        [
+            {"Date": "2020-01-31", "Close": 1000.0},
+            {"Date": "2020-02-03", "Close": 1010.0},
+            {"Date": "2020-02-04", "Close": 1020.0},
+            {"Date": "2020-02-05", "Close": 1030.0},
+            {"Date": "2020-02-06", "Close": 1040.0},
+            {"Date": "2020-02-07", "Close": 1050.0},
+            {"Date": "2020-02-10", "Close": 1060.0},
+            {"Date": "2020-02-11", "Close": 1070.0},
+            {"Date": "2020-02-12", "Close": 1080.0},
+            {"Date": "2020-02-13", "Close": 1090.0},
+            {"Date": "2020-02-14", "Close": 1100.0},
+            {"Date": "2020-02-17", "Close": 1110.0},
+            {"Date": "2020-02-18", "Close": 1120.0},
+            {"Date": "2020-02-19", "Close": 1130.0},
+            {"Date": "2020-02-20", "Close": 1140.0},
+            {"Date": "2020-02-21", "Close": 1150.0},
+            {"Date": "2020-02-24", "Close": 1160.0},
+            {"Date": "2020-02-25", "Close": 1170.0},
+            {"Date": "2020-02-26", "Close": 1180.0},
+            {"Date": "2020-02-27", "Close": 1190.0},
+            {"Date": "2020-02-28", "Close": 1200.0},
+            {"Date": "2020-03-02", "Close": 900.0},
+            {"Date": "2020-03-03", "Close": 890.0},
+            {"Date": "2020-03-04", "Close": 880.0},
+            {"Date": "2020-03-05", "Close": 870.0},
+            {"Date": "2020-03-06", "Close": 860.0},
+            {"Date": "2020-03-09", "Close": 850.0},
+            {"Date": "2020-03-10", "Close": 840.0},
+            {"Date": "2020-03-11", "Close": 830.0},
+            {"Date": "2020-03-12", "Close": 820.0},
+            {"Date": "2020-03-13", "Close": 810.0},
+            {"Date": "2020-03-16", "Close": 800.0},
+            {"Date": "2020-03-17", "Close": 790.0},
+            {"Date": "2020-03-18", "Close": 780.0},
+            {"Date": "2020-03-19", "Close": 770.0},
+            {"Date": "2020-03-20", "Close": 760.0},
+            {"Date": "2020-03-23", "Close": 750.0},
+            {"Date": "2020-03-24", "Close": 740.0},
+            {"Date": "2020-03-25", "Close": 730.0},
+            {"Date": "2020-03-26", "Close": 720.0},
+            {"Date": "2020-03-27", "Close": 710.0},
+            {"Date": "2020-03-30", "Close": 700.0},
+        ],
+    )
+
+    config = LessonBuilderConfig(
+        event_data_path=cpi_path,
+        gold_path=gold_path,
+        output_path=output_path,
+        institutional_context=(),
+    )
+    builder = LegacyLessonBuilder(config)
+    df = builder.build()
+
+    assert "macro_regime" not in df.columns
+
+
+def test_institutional_context_skips_missing_column_gracefully() -> None:
+    base = runtime_dir("context_missing")
+    cpi_path = base / "economic" / "CPIAUCSL.csv"
+    gold_path = base / "history" / "gold.csv"
+    output_path = base / "lessons" / "cpi_gold_lessons.csv"
+
+    write_csv(
+        cpi_path,
+        [
+            {"Date": "2020-01-01", "Value": 100.0},
+            {"Date": "2020-02-01", "Value": 101.0},
+            {"Date": "2020-03-01", "Value": 99.0},
+        ],
+    )
+    write_csv(
+        gold_path,
+        [
+            {"Date": "2020-01-31", "Close": 1000.0},
+            {"Date": "2020-02-03", "Close": 1010.0},
+            {"Date": "2020-02-04", "Close": 1020.0},
+            {"Date": "2020-02-05", "Close": 1030.0},
+            {"Date": "2020-02-06", "Close": 1040.0},
+            {"Date": "2020-02-07", "Close": 1050.0},
+            {"Date": "2020-02-10", "Close": 1060.0},
+            {"Date": "2020-02-11", "Close": 1070.0},
+            {"Date": "2020-02-12", "Close": 1080.0},
+            {"Date": "2020-02-13", "Close": 1090.0},
+            {"Date": "2020-02-14", "Close": 1100.0},
+            {"Date": "2020-02-17", "Close": 1110.0},
+            {"Date": "2020-02-18", "Close": 1120.0},
+            {"Date": "2020-02-19", "Close": 1130.0},
+            {"Date": "2020-02-20", "Close": 1140.0},
+            {"Date": "2020-02-21", "Close": 1150.0},
+            {"Date": "2020-02-24", "Close": 1160.0},
+            {"Date": "2020-02-25", "Close": 1170.0},
+            {"Date": "2020-02-26", "Close": 1180.0},
+            {"Date": "2020-02-27", "Close": 1190.0},
+            {"Date": "2020-02-28", "Close": 1200.0},
+            {"Date": "2020-03-02", "Close": 900.0},
+            {"Date": "2020-03-03", "Close": 890.0},
+            {"Date": "2020-03-04", "Close": 880.0},
+            {"Date": "2020-03-05", "Close": 870.0},
+            {"Date": "2020-03-06", "Close": 860.0},
+            {"Date": "2020-03-09", "Close": 850.0},
+            {"Date": "2020-03-10", "Close": 840.0},
+            {"Date": "2020-03-11", "Close": 830.0},
+            {"Date": "2020-03-12", "Close": 820.0},
+            {"Date": "2020-03-13", "Close": 810.0},
+            {"Date": "2020-03-16", "Close": 800.0},
+            {"Date": "2020-03-17", "Close": 790.0},
+            {"Date": "2020-03-18", "Close": 780.0},
+            {"Date": "2020-03-19", "Close": 770.0},
+            {"Date": "2020-03-20", "Close": 760.0},
+            {"Date": "2020-03-23", "Close": 750.0},
+            {"Date": "2020-03-24", "Close": 740.0},
+            {"Date": "2020-03-25", "Close": 730.0},
+            {"Date": "2020-03-26", "Close": 720.0},
+            {"Date": "2020-03-27", "Close": 710.0},
+            {"Date": "2020-03-30", "Close": 700.0},
+        ],
+    )
+
+    config = LessonBuilderConfig(
+        event_data_path=cpi_path,
+        gold_path=gold_path,
+        output_path=output_path,
+    )
+    builder = LegacyLessonBuilder(config)
+    df = builder.build()
+
+    assert "macro_regime" not in df.columns
+
+
+def test_custom_institutional_context_column() -> None:
+    base = runtime_dir("custom_context")
+    cpi_path = base / "economic" / "CPIAUCSL.csv"
+    gold_path = base / "history" / "gold.csv"
+    output_path = base / "lessons" / "cpi_gold_lessons.csv"
+
+    write_csv(
+        cpi_path,
+        [
+            {"Date": "2020-01-01", "Value": 100.0},
+            {"Date": "2020-02-01", "Value": 101.0, "volatility_regime": "LOW"},
+            {"Date": "2020-03-01", "Value": 99.0, "volatility_regime": "HIGH"},
+        ],
+    )
+    write_csv(
+        gold_path,
+        [
+            {"Date": "2020-01-31", "Close": 1000.0},
+            {"Date": "2020-02-03", "Close": 1010.0},
+            {"Date": "2020-02-04", "Close": 1020.0},
+            {"Date": "2020-02-05", "Close": 1030.0},
+            {"Date": "2020-02-06", "Close": 1040.0},
+            {"Date": "2020-02-07", "Close": 1050.0},
+            {"Date": "2020-02-10", "Close": 1060.0},
+            {"Date": "2020-02-11", "Close": 1070.0},
+            {"Date": "2020-02-12", "Close": 1080.0},
+            {"Date": "2020-02-13", "Close": 1090.0},
+            {"Date": "2020-02-14", "Close": 1100.0},
+            {"Date": "2020-02-17", "Close": 1110.0},
+            {"Date": "2020-02-18", "Close": 1120.0},
+            {"Date": "2020-02-19", "Close": 1130.0},
+            {"Date": "2020-02-20", "Close": 1140.0},
+            {"Date": "2020-02-21", "Close": 1150.0},
+            {"Date": "2020-02-24", "Close": 1160.0},
+            {"Date": "2020-02-25", "Close": 1170.0},
+            {"Date": "2020-02-26", "Close": 1180.0},
+            {"Date": "2020-02-27", "Close": 1190.0},
+            {"Date": "2020-02-28", "Close": 1200.0},
+            {"Date": "2020-03-02", "Close": 900.0},
+            {"Date": "2020-03-03", "Close": 890.0},
+            {"Date": "2020-03-04", "Close": 880.0},
+            {"Date": "2020-03-05", "Close": 870.0},
+            {"Date": "2020-03-06", "Close": 860.0},
+            {"Date": "2020-03-09", "Close": 850.0},
+            {"Date": "2020-03-10", "Close": 840.0},
+            {"Date": "2020-03-11", "Close": 830.0},
+            {"Date": "2020-03-12", "Close": 820.0},
+            {"Date": "2020-03-13", "Close": 810.0},
+            {"Date": "2020-03-16", "Close": 800.0},
+            {"Date": "2020-03-17", "Close": 790.0},
+            {"Date": "2020-03-18", "Close": 780.0},
+            {"Date": "2020-03-19", "Close": 770.0},
+            {"Date": "2020-03-20", "Close": 760.0},
+            {"Date": "2020-03-23", "Close": 750.0},
+            {"Date": "2020-03-24", "Close": 740.0},
+            {"Date": "2020-03-25", "Close": 730.0},
+            {"Date": "2020-03-26", "Close": 720.0},
+            {"Date": "2020-03-27", "Close": 710.0},
+            {"Date": "2020-03-30", "Close": 700.0},
+        ],
+    )
+
+    config = LessonBuilderConfig(
+        event_data_path=cpi_path,
+        gold_path=gold_path,
+        output_path=output_path,
+        institutional_context=("volatility_regime",),
+    )
+    builder = LegacyLessonBuilder(config)
+    df = builder.build()
+
+    assert "macro_regime" not in df.columns
+    assert "volatility_regime" in df.columns
+    row1 = df[df["event_date"] == "2020-02-01"].iloc[0]
+    assert row1["volatility_regime"] == "LOW"
+    row2 = df[df["event_date"] == "2020-03-01"].iloc[0]
+    assert row2["volatility_regime"] == "HIGH"

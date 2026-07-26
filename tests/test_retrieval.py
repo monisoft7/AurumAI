@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date as date_type
 
 from math import sqrt
+from pathlib import Path
 
 import pytest
 
@@ -35,6 +36,7 @@ def _add_test_node(
     bias: str = "gold_positive_bias",
     explanation: str = "test record",
     last_event_date: str = "",
+    institutional_context: dict[str, str] | None = None,
 ) -> None:
     props: dict = {
         "event_type": event_type,
@@ -49,6 +51,8 @@ def _add_test_node(
     }
     if last_event_date:
         props["last_event_date"] = last_event_date
+    if institutional_context:
+        props["institutional_context"] = institutional_context
     graph.add_node(GraphNode(node_id=node_id, node_type="knowledge", properties=props))
 
 
@@ -75,6 +79,7 @@ class TestSituationQuery:
         assert q.horizon_days is None
         assert q.date is None
         assert q.sample_count == 0
+        assert q.institutional_context == {}
 
     def test_all_fields(self) -> None:
         q = SituationQuery(
@@ -83,12 +88,14 @@ class TestSituationQuery:
             horizon_days=30,
             date="2026-07-01",
             sample_count=100,
+            institutional_context={"regime": "EXPANSION"},
         )
         assert q.event_type == "CPI"
         assert q.condition == {"cpi": "high"}
         assert q.horizon_days == 30
         assert q.date == "2026-07-01"
         assert q.sample_count == 100
+        assert q.institutional_context == {"regime": "EXPANSION"}
 
 
 # --------------------------------------------------------------------------
@@ -155,16 +162,18 @@ class TestRetrievalConfig:
         assert cfg.broaden_on_empty is True
         assert cfg.broaden_min_results == 3
         assert abs(cfg.event_type_weight - 0.35) < EPSILON
-        assert abs(cfg.condition_weight - 0.30) < EPSILON
-        assert abs(cfg.horizon_weight - 0.15) < EPSILON
+        assert abs(cfg.condition_weight - 0.25) < EPSILON
+        assert abs(cfg.horizon_weight - 0.10) < EPSILON
         assert abs(cfg.maturity_weight - 0.10) < EPSILON
         assert abs(cfg.temporal_weight - 0.10) < EPSILON
+        assert abs(cfg.institutional_context_weight - 0.10) < EPSILON
 
     def test_custom_values(self) -> None:
         cfg = RetrievalConfig(
             top_k=10, min_similarity=0.5, broaden_on_empty=False,
             event_type_weight=0.5, condition_weight=0.3,
             horizon_weight=0.1, maturity_weight=0.05, temporal_weight=0.05,
+            institutional_context_weight=0.0,
         )
         assert cfg.top_k == 10
         assert cfg.broaden_on_empty is False
@@ -180,6 +189,7 @@ class TestRetrievalConfig:
         cfg = RetrievalConfig(
             event_type_weight=0.5, condition_weight=0.5,
             horizon_weight=0.0, maturity_weight=0.0, temporal_weight=0.0,
+            institutional_context_weight=0.0,
         )
         assert abs(cfg.horizon_weight) < EPSILON
 
@@ -219,6 +229,21 @@ class TestJaccardSimilarity:
     def test_candidate_empty_query_has_keys(self) -> None:
         sim = HistoricalSituationRetriever._jaccard_similarity({"a": "1"}, {})
         assert abs(sim - 0.5) < EPSILON
+
+    def test_same_keys_opposite_values(self) -> None:
+        sim = HistoricalSituationRetriever._jaccard_similarity(
+            {"cpi_pressure": "high"}, {"cpi_pressure": "low"}
+        )
+        assert abs(sim) < EPSILON
+
+    def test_same_keys_opposite_values_lower_than_identical(self) -> None:
+        identical = HistoricalSituationRetriever._jaccard_similarity(
+            {"cpi_pressure": "high"}, {"cpi_pressure": "high"}
+        )
+        opposite = HistoricalSituationRetriever._jaccard_similarity(
+            {"cpi_pressure": "high"}, {"cpi_pressure": "low"}
+        )
+        assert opposite < identical
 
 
 class TestHorizonSimilarity:
@@ -611,3 +636,100 @@ class TestOrchestrationEngineRetriever:
         engine = OrchestrationEngine()
         report = engine.analyze(ctx)
         assert report.historical_matches == []
+
+
+# ── Institutional Context Tests ─────────────────────────────────────────────
+
+class TestInstitutionalContextRetrieval:
+    def test_institutional_context_similarity(self) -> None:
+        retriever = HistoricalSituationRetriever()
+        assert retriever._institutional_context_similarity(
+            {"regime": "EXPANSION"}, {"regime": "EXPANSION"}
+        ) == pytest.approx(1.0)
+        assert retriever._institutional_context_similarity(
+            {"regime": "EXPANSION"}, {"regime": "RECESSION"}
+        ) == pytest.approx(0.0)
+        assert retriever._institutional_context_similarity(
+            {"regime": "EXPANSION", "volatility": "LOW"},
+            {"regime": "EXPANSION"},
+        ) == pytest.approx(0.5)
+        assert retriever._institutional_context_similarity(
+            {}, {}
+        ) == pytest.approx(0.5)
+        assert retriever._institutional_context_similarity(
+            {"regime": "EXPANSION"}, {}
+        ) == pytest.approx(0.5)
+
+    def test_retrieval_with_institutional_context(self) -> None:
+        graph = KnowledgeGraph()
+        _add_test_node(
+            graph, "kr_1", event_type="FOMC", condition={"rate": "hike"},
+            institutional_context={"regime": "EXPANSION"},
+            last_event_date="2025-01-01",
+        )
+        _add_test_node(
+            graph, "kr_2", event_type="FOMC", condition={"rate": "hike"},
+            institutional_context={"regime": "RECESSION"},
+            last_event_date="2025-01-01",
+        )
+        eq = EvidenceQuery(graph)
+        retriever = HistoricalSituationRetriever()
+        query = SituationQuery(
+            event_type="FOMC",
+            condition={"rate": "hike"},
+            horizon_days=30,
+            date="2026-01-01",
+            institutional_context={"regime": "EXPANSION"},
+        )
+        matches = retriever.retrieve(
+            query=query,
+            evidence_query=eq,
+        )
+        assert len(matches) >= 1
+        expansion_match = [m for m in matches if m.evidence.evidence_id == "kr_1"]
+        recession_match = [m for m in matches if m.evidence.evidence_id == "kr_2"]
+        assert len(expansion_match) == 1
+        assert expansion_match[0].institutional_context_similarity == pytest.approx(1.0)
+        # kr_2 has context_sim=0.0 → geometric mean zeroes out → excluded by min_similarity
+        if recession_match:
+            assert recession_match[0].institutional_context_similarity == pytest.approx(0.0)
+            assert expansion_match[0].overall_similarity > recession_match[0].overall_similarity
+
+    def test_retrieval_with_empty_context(self) -> None:
+        graph = KnowledgeGraph()
+        _add_test_node(
+            graph, "kr_1", event_type="FOMC", condition={"rate": "hike"},
+            last_event_date="2025-01-01",
+        )
+        eq = EvidenceQuery(graph)
+        retriever = HistoricalSituationRetriever()
+        query = SituationQuery(
+            event_type="FOMC",
+            condition={"rate": "hike"},
+            horizon_days=30,
+            date="2026-01-01",
+        )
+        matches = retriever.retrieve(query=query, evidence_query=eq)
+        assert len(matches) >= 1
+        assert matches[0].institutional_context_similarity == pytest.approx(0.5)
+
+    def test_institutional_context_in_evidence_metadata(self) -> None:
+        graph = KnowledgeGraph()
+        _add_test_node(
+            graph, "kr_1", event_type="FOMC",
+            institutional_context={"regime": "EXPANSION", "volatility": "LOW"},
+        )
+        eq = EvidenceQuery(graph)
+        evidence = eq.by_event_type("FOMC")
+        assert len(evidence) == 1
+        ctx = evidence[0].metadata.get("institutional_context", {})
+        assert isinstance(ctx, dict)
+        assert ctx.get("regime") == "EXPANSION"
+        assert ctx.get("volatility") == "LOW"
+
+    def test_institutional_context_generic_no_regime_reference(self) -> None:
+        source = Path(HistoricalSituationRetriever._institutional_context_similarity.__code__.co_filename)
+        code = source.read_text()
+        assert "macro_regime" not in code
+        assert "EXPANSION" not in code
+        assert "RECESSION" not in code

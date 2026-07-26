@@ -34,10 +34,12 @@ class KnowledgeRecord:
     source_artifact_sha256: str = ""
     provenance: Provenance | None = None
     metadata: dict[str, Any] = field(default_factory=lambda: FrozenDict())
+    institutional_context: dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "condition", freeze_dict(self.condition))
         object.__setattr__(self, "metadata", freeze_dict(self.metadata))
+        object.__setattr__(self, "institutional_context", freeze_dict(self.institutional_context))
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> KnowledgeRecord:
@@ -67,6 +69,7 @@ class KnowledgeRecord:
             explanation=data.get("explanation", ""),
             provenance=deserialize_provenance(data.get("provenance")),
             metadata=dict(data.get("metadata", {})),
+            institutional_context=dict(data.get("institutional_context", {})),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -96,4 +99,5 @@ class KnowledgeRecord:
             "explanation": self.explanation,
             "provenance": serialize_provenance(self.provenance),
             "metadata": dict(self.metadata),
+            "institutional_context": dict(self.institutional_context),
         }

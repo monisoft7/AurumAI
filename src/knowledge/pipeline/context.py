@@ -32,3 +32,5 @@ class PipelineContext:
     prebuilt_lessons_path: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     retrieval_strategy: RetrievalStrategy = RetrievalStrategy.SINGLE_EVENT
+    institutional_context_columns: tuple[str, ...] = ()
+    institutional_context: dict[str, str] = field(default_factory=dict)

@@ -141,6 +141,38 @@ def test_event_load_raw_raises_on_missing_columns() -> None:
         raise AssertionError("Expected ValueError for missing columns")
 
 
+def test_event_load_and_extract_with_global_extractor(tmp_path: Path) -> None:
+    from knowledge.features.extractors.macro_regime import (
+        MacroRegimeFeatureExtractor,
+    )
+    from knowledge.regime.macro_regime_detector import (
+        REGIMES,
+        MacroRegimeDetector,
+    )
+
+    # Use the same synthetic data pattern as test_macro_regime.py:_make_synthetic_data
+    rng = __import__("numpy").random.default_rng(42)
+    dates = pd.date_range("2000-01-01", periods=48, freq="ME")
+    scores = list(rng.normal(2.0, 0.3, 12)) + list(rng.normal(0.5, 0.3, 12)) + \
+             list(rng.normal(-2.0, 0.4, 12)) + list(rng.normal(-0.5, 0.3, 12))
+    synthetic = pd.DataFrame({"Date": dates, "composite_score": scores})
+    detector = MacroRegimeDetector(random_state=42).fit(synthetic)
+    regime_extractor = MacroRegimeFeatureExtractor(detector)
+    FeatureExtractionEngine.register_global(regime_extractor)
+
+    event = CPIEvent()
+    csv_path = tmp_path / "test.csv"
+    pd.DataFrame({
+        "Date": ["2020-01-01", "2020-02-01", "2020-03-01"],
+        "Value": [100.0, 101.0, 99.0],
+    }).to_csv(csv_path, index=False)
+
+    df = event.load_and_extract(csv_path)
+    assert "macro_regime" in df.columns
+    assert df["macro_regime"].iloc[0] in [*REGIMES, "UNKNOWN"]
+    assert not df["macro_regime"].isna().any()
+
+
 def test_event_load_and_extract_includes_all_columns() -> None:
     event = CPIEvent()
     path = _write_csv([
@@ -162,6 +194,160 @@ def test_event_load_and_extract_empty_on_single_row() -> None:
     path = _write_csv([{"Date": "2020-01-01", "Value": 100.0}])
     df = event.load_and_extract(path)
     assert len(df) == 0
+
+
+def test_global_extractor_adds_column() -> None:
+    class TagExtractor(FeatureExtractor):
+        @property
+        def feature_definitions(self):
+            return {
+                "tag": Feature(
+                    name="tag", dtype="object", description="Test tag",
+                    source_columns=("Date",),
+                ),
+            }
+
+        def extract(self, raw: pd.DataFrame) -> FeatureSet:
+            df = raw.copy()
+            df["tag"] = "global"
+            return FeatureSet(data=df, features=self.feature_definitions)
+
+    FeatureExtractionEngine.register_global(TagExtractor())
+    engine = FeatureExtractionEngine()
+    raw = pd.DataFrame({"Date": pd.to_datetime(["2020-01-01"]), "Value": [1.0]})
+
+    class PassThroughExtractor(FeatureExtractor):
+        @property
+        def feature_definitions(self):
+            return {
+                "Value": Feature(
+                    name="Value", dtype="float64", description="Test",
+                    source_columns=("Value",),
+                ),
+            }
+
+        def extract(self, raw: pd.DataFrame) -> FeatureSet:
+            return FeatureSet(data=raw.copy(), features=self.feature_definitions)
+
+    fs = engine.process(raw, PassThroughExtractor())
+    assert "tag" in fs.data.columns
+    assert fs.data["tag"].iloc[0] == "global"
+
+
+def test_global_extractors_chain_in_order() -> None:
+    class FirstExtractor(FeatureExtractor):
+        @property
+        def feature_definitions(self):
+            return {
+                "first": Feature(
+                    name="first", dtype="int64", description="First",
+                    source_columns=("Value",),
+                ),
+            }
+
+        def extract(self, raw: pd.DataFrame) -> FeatureSet:
+            df = raw.copy()
+            df["first"] = 1
+            return FeatureSet(data=df, features=self.feature_definitions)
+
+    class SecondExtractor(FeatureExtractor):
+        @property
+        def feature_definitions(self):
+            return {
+                "second": Feature(
+                    name="second", dtype="int64", description="Second",
+                    source_columns=("first",),
+                ),
+            }
+
+        def extract(self, raw: pd.DataFrame) -> FeatureSet:
+            df = raw.copy()
+            df["second"] = df["first"] + 1
+            return FeatureSet(data=df, features=self.feature_definitions)
+
+    FeatureExtractionEngine.register_global(FirstExtractor())
+    FeatureExtractionEngine.register_global(SecondExtractor())
+    engine = FeatureExtractionEngine()
+    raw = pd.DataFrame({"Date": pd.to_datetime(["2020-01-01"]), "Value": [0.0]})
+
+    class BaseExtractor(FeatureExtractor):
+        @property
+        def feature_definitions(self):
+            return {
+                "Value": Feature(
+                    name="Value", dtype="float64", description="Base",
+                    source_columns=("Value",),
+                ),
+            }
+
+        def extract(self, raw: pd.DataFrame) -> FeatureSet:
+            return FeatureSet(data=raw.copy(), features=self.feature_definitions)
+
+    fs = engine.process(raw, BaseExtractor())
+    assert fs.data["first"].iloc[0] == 1
+    assert fs.data["second"].iloc[0] == 2
+
+
+def test_global_extractors_backward_compatible() -> None:
+    engine = FeatureExtractionEngine()
+    raw = pd.DataFrame({"Date": pd.to_datetime(["2020-01-01"]), "Value": [5.0]})
+
+    class DoublerExtractor(FeatureExtractor):
+        @property
+        def feature_definitions(self):
+            return {
+                "doubled": Feature(
+                    name="doubled", dtype="float64", description="Value * 2",
+                    source_columns=("Value",),
+                ),
+            }
+
+        def extract(self, raw: pd.DataFrame) -> FeatureSet:
+            df = raw.copy()
+            df["doubled"] = df["Value"] * 2.0
+            return FeatureSet(data=df, features=self.feature_definitions)
+
+    fs = engine.process(raw, DoublerExtractor())
+    assert fs.data["doubled"].iloc[0] == 10.0
+
+
+def test_global_extractors_cleared_by_clear_global() -> None:
+    class TagExtractor(FeatureExtractor):
+        @property
+        def feature_definitions(self):
+            return {
+                "tag": Feature(
+                    name="tag", dtype="object", description="Test",
+                    source_columns=("Date",),
+                ),
+            }
+
+        def extract(self, raw: pd.DataFrame) -> FeatureSet:
+            df = raw.copy()
+            df["tag"] = "present"
+            return FeatureSet(data=df, features=self.feature_definitions)
+
+    FeatureExtractionEngine.register_global(TagExtractor())
+    FeatureExtractionEngine.clear_global()
+
+    engine = FeatureExtractionEngine()
+    raw = pd.DataFrame({"Date": pd.to_datetime(["2020-01-01"]), "Value": [1.0]})
+
+    class PassThroughExtractor(FeatureExtractor):
+        @property
+        def feature_definitions(self):
+            return {
+                "Value": Feature(
+                    name="Value", dtype="float64", description="Test",
+                    source_columns=("Value",),
+                ),
+            }
+
+        def extract(self, raw: pd.DataFrame) -> FeatureSet:
+            return FeatureSet(data=raw.copy(), features=self.feature_definitions)
+
+    fs = engine.process(raw, PassThroughExtractor())
+    assert "tag" not in fs.data.columns
 
 
 def test_engine_with_custom_extractor() -> None:

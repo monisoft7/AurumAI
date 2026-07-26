@@ -731,3 +731,94 @@ def test_min_evidence_count_high_threshold() -> None:
         f"(evidence_count={len(result.evidence)}), "
         f"got {result.decision.decision_type}"
     )
+
+
+def test_institutional_context_reasoning_context_visibility() -> None:
+    base = runtime_dir("inst_reasoning")
+    event_path = base / "cpi.csv"
+    gold_path = base / "gold.csv"
+    write_csv(event_path, [
+        {"Date": "2020-01-01", "Value": 100.0},
+        {"Date": "2020-02-01", "Value": 101.0},
+        {"Date": "2020-03-01", "Value": 99.0},
+        {"Date": "2020-04-01", "Value": 102.0},
+    ])
+    write_csv(gold_path, gold_rows())
+    cal_path = write_calendar(base)
+
+    ctx = PipelineContext(
+        event=CPIEvent(),
+        event_data_path=event_path,
+        gold_path=gold_path,
+        output_dir=base / "output",
+        knowledge_prefix="cpi_gold_summary_v1",
+        condition_columns=("cpi_pressure",),
+        asset="GOLD",
+        query="gold outlook after CPI",
+        release_calendar_path=cal_path,
+        institutional_context={"macro_regime": "EXPANSION", "rate_regime": "RISING"},
+    )
+    result = InferencePipeline().run(ctx)
+    assert result.reasoning_chain is not None
+    assert result.reasoning_chain.context is not None
+    ic = result.reasoning_chain.context.institutional_context
+    assert ic == {"macro_regime": "EXPANSION", "rate_regime": "RISING"}
+
+
+def test_institutional_context_decision_context_visibility() -> None:
+    base = runtime_dir("inst_decision")
+    event_path = base / "cpi.csv"
+    gold_path = base / "gold.csv"
+    write_csv(event_path, [
+        {"Date": "2020-01-01", "Value": 100.0},
+        {"Date": "2020-02-01", "Value": 101.0},
+        {"Date": "2020-03-01", "Value": 99.0},
+        {"Date": "2020-04-01", "Value": 102.0},
+    ])
+    write_csv(gold_path, gold_rows())
+    cal_path = write_calendar(base)
+
+    ctx = PipelineContext(
+        event=CPIEvent(),
+        event_data_path=event_path,
+        gold_path=gold_path,
+        output_dir=base / "output",
+        knowledge_prefix="cpi_gold_summary_v1",
+        condition_columns=("cpi_pressure",),
+        asset="GOLD",
+        query="gold outlook after CPI",
+        release_calendar_path=cal_path,
+        institutional_context={"macro_regime": "RECESSION"},
+    )
+    result = InferencePipeline().run(ctx)
+    assert result.decision is not None
+    assert result.decision.context is not None
+    assert result.decision.context.institutional_context == {"macro_regime": "RECESSION"}
+
+
+def test_institutional_context_defaults_to_empty_dict() -> None:
+    base = runtime_dir("inst_default")
+    event_path = base / "cpi.csv"
+    gold_path = base / "gold.csv"
+    write_csv(event_path, [
+        {"Date": "2020-01-01", "Value": 100.0},
+    ])
+    write_csv(gold_path, gold_rows())
+    cal_path = write_calendar(base)
+
+    ctx = PipelineContext(
+        event=CPIEvent(),
+        event_data_path=event_path,
+        gold_path=gold_path,
+        output_dir=base / "output",
+        knowledge_prefix="cpi_gold_summary_v1",
+        condition_columns=("cpi_pressure",),
+        asset="GOLD",
+        query="gold outlook after CPI",
+        release_calendar_path=cal_path,
+    )
+    result = InferencePipeline().run(ctx)
+    if result.reasoning_chain is not None and result.reasoning_chain.context is not None:
+        assert result.reasoning_chain.context.institutional_context == {}
+    if result.decision is not None and result.decision.context is not None:
+        assert result.decision.context.institutional_context == {}
