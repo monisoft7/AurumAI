@@ -1,7 +1,7 @@
 {
     "knowledge_version": "exp002_cpi_gold_v1",
     "source_lessons": "data\\experiments\\EXP-002-Evidence-Isolation\\artifacts\\lessons.csv",
-    "source_artifact_sha256": "f9ae6bed89296d3ce795cf3841be4db5360c751436d86b2d342bf7e97a9b3e6a",
+    "source_artifact_sha256": "b63ee2b214177ad86545d2c3426156f2a6f714b48c1d2908d263d7c46e939809",
     "event_type": "CPI",
     "asset": "GOLD",
     "record_count": 6,
@@ -29,7 +29,7 @@
                 "CPI_GOLD_2024-06-01"
             ],
             "source_artifact_path": "data\\experiments\\EXP-002-Evidence-Isolation\\artifacts\\lessons.csv",
-            "source_artifact_sha256": "f9ae6bed89296d3ce795cf3841be4db5360c751436d86b2d342bf7e97a9b3e6a",
+            "source_artifact_sha256": "b63ee2b214177ad86545d2c3426156f2a6f714b48c1d2908d263d7c46e939809",
             "condition": {
                 "cpi_pressure": "inflation_pressure_down"
             },
@@ -48,6 +48,7 @@
             "last_event_date": "2024-06-01",
             "bias": "mixed_or_context_dependent",
             "confidence": 0.56859,
+            "institutional_context": {},
             "explanation": "For CPI condition cpi_pressure=inflation_pressure_down, 16 historical lessons show GOLD had a positive 1-day return in 56.25% of cases, with an average return of 0.777258%."
         },
         {
@@ -73,7 +74,7 @@
                 "CPI_GOLD_2024-06-01"
             ],
             "source_artifact_path": "data\\experiments\\EXP-002-Evidence-Isolation\\artifacts\\lessons.csv",
-            "source_artifact_sha256": "f9ae6bed89296d3ce795cf3841be4db5360c751436d86b2d342bf7e97a9b3e6a",
+            "source_artifact_sha256": "b63ee2b214177ad86545d2c3426156f2a6f714b48c1d2908d263d7c46e939809",
             "condition": {
                 "cpi_pressure": "inflation_pressure_down"
             },
@@ -92,6 +93,7 @@
             "last_event_date": "2024-06-01",
             "bias": "gold_positive_bias",
             "confidence": 0.63841,
+            "institutional_context": {},
             "explanation": "For CPI condition cpi_pressure=inflation_pressure_down, 16 historical lessons show GOLD had a positive 5-day return in 68.75% of cases, with an average return of 0.647752%."
         },
         {
@@ -117,7 +119,7 @@
                 "CPI_GOLD_2024-06-01"
             ],
             "source_artifact_path": "data\\experiments\\EXP-002-Evidence-Isolation\\artifacts\\lessons.csv",
-            "source_artifact_sha256": "f9ae6bed89296d3ce795cf3841be4db5360c751436d86b2d342bf7e97a9b3e6a",
+            "source_artifact_sha256": "b63ee2b214177ad86545d2c3426156f2a6f714b48c1d2908d263d7c46e939809",
             "condition": {
                 "cpi_pressure": "inflation_pressure_down"
             },
@@ -136,6 +138,7 @@
             "last_event_date": "2024-06-01",
             "bias": "mixed_or_context_dependent",
             "confidence": 0.589958,
+            "institutional_context": {},
             "explanation": "For CPI condition cpi_pressure=inflation_pressure_down, 16 historical lessons show GOLD had a positive 20-day return in 56.25% of cases, with an average return of 1.31144%."
         },
         {
@@ -256,7 +259,7 @@
                 "CPI_GOLD_2025-09-01"
             ],
             "source_artifact_path": "data\\experiments\\EXP-002-Evidence-Isolation\\artifacts\\lessons.csv",
-            "source_artifact_sha256": "f9ae6bed89296d3ce795cf3841be4db5360c751436d86b2d342bf7e97a9b3e6a",
+            "source_artifact_sha256": "b63ee2b214177ad86545d2c3426156f2a6f714b48c1d2908d263d7c46e939809",
             "condition": {
                 "cpi_pressure": "inflation_pressure_up"
             },
@@ -275,6 +278,7 @@
             "last_event_date": "2025-09-01",
             "bias": "mixed_or_context_dependent",
             "confidence": 0.520758,
+            "institutional_context": {},
             "explanation": "For CPI condition cpi_pressure=inflation_pressure_up, 111 historical lessons show GOLD had a positive 1-day return in 53.153153% of cases, with an average return of 0.045976%."
         },
         {
@@ -395,7 +399,7 @@
                 "CPI_GOLD_2025-09-01"
             ],
             "source_artifact_path": "data\\experiments\\EXP-002-Evidence-Isolation\\artifacts\\lessons.csv",
-            "source_artifact_sha256": "f9ae6bed89296d3ce795cf3841be4db5360c751436d86b2d342bf7e97a9b3e6a",
+            "source_artifact_sha256": "b63ee2b214177ad86545d2c3426156f2a6f714b48c1d2908d263d7c46e939809",
             "condition": {
                 "cpi_pressure": "inflation_pressure_up"
             },
@@ -414,6 +418,7 @@
             "last_event_date": "2025-09-01",
             "bias": "mixed_or_context_dependent",
             "confidence": 0.538437,
+            "institutional_context": {},
             "explanation": "For CPI condition cpi_pressure=inflation_pressure_up, 111 historical lessons show GOLD had a positive 5-day return in 54.954955% of cases, with an average return of 0.217692%."
         },
         {
@@ -534,7 +539,7 @@
                 "CPI_GOLD_2025-09-01"
             ],
             "source_artifact_path": "data\\experiments\\EXP-002-Evidence-Isolation\\artifacts\\lessons.csv",
-            "source_artifact_sha256": "f9ae6bed89296d3ce795cf3841be4db5360c751436d86b2d342bf7e97a9b3e6a",
+            "source_artifact_sha256": "b63ee2b214177ad86545d2c3426156f2a6f714b48c1d2908d263d7c46e939809",
             "condition": {
                 "cpi_pressure": "inflation_pressure_up"
             },
@@ -553,6 +558,7 @@
             "last_event_date": "2025-09-01",
             "bias": "mixed_or_context_dependent",
             "confidence": 0.587336,
+            "institutional_context": {},
             "explanation": "For CPI condition cpi_pressure=inflation_pressure_up, 111 historical lessons show GOLD had a positive 20-day return in 57.657658% of cases, with an average return of 1.034756%."
         }
     ]

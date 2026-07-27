@@ -9,7 +9,7 @@
   "condition_columns": [
     "cpi_pressure"
   ],
-  "total_elapsed_seconds": 0.565,
+  "total_elapsed_seconds": 0.32,
   "baseline": {
     "decision_type": "POSITIVE",
     "confidence": 0.570809,

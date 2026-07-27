@@ -9,6 +9,7 @@ from knowledge.evidence.weighting import EvidenceWeighter, WeightedAggregate
 from knowledge.causal.relation import CausalRelation
 from knowledge.integrity.lineage import LineageRelationType
 from knowledge.cbi.adapter import CbiEvidenceAdapter
+from knowledge.cai.adapter import CaiEvidenceAdapter
 from knowledge.orchestration.context import OrchestrationContext
 from knowledge.orchestration.aggregator import EvidenceAggregator
 from knowledge.orchestration.policy import LayerPolicy, evaluate_policies
@@ -23,6 +24,7 @@ class OrchestrationReport:
     causal_evidence: EvidenceCollection = field(default_factory=EvidenceCollection)
     core_evidence: EvidenceCollection = field(default_factory=EvidenceCollection)
     cbi_evidence: EvidenceCollection = field(default_factory=EvidenceCollection)
+    cai_evidence: EvidenceCollection = field(default_factory=EvidenceCollection)
     aggregation: Any = None
     weighted_aggregate: WeightedAggregate | None = None
     chain: Any = None
@@ -79,6 +81,7 @@ class OrchestrationEngine:
             report.causal_evidence = self._run_causal(ctx)
             report.core_evidence = self._run_core(ctx)
             report.cbi_evidence = self._run_cbi(ctx)
+            report.cai_evidence = self._run_cai(ctx)
 
             collections = {}
             if report.economic_evidence:
@@ -91,6 +94,8 @@ class OrchestrationEngine:
                 collections["core"] = report.core_evidence
             if report.cbi_evidence:
                 collections["cbi"] = report.cbi_evidence
+            if report.cai_evidence:
+                collections["cai"] = report.cai_evidence
 
         report.aggregation = self._aggregator.merge(collections)
 
@@ -212,6 +217,33 @@ class OrchestrationEngine:
                 ev = ctx.cbi_adapter.rate_path_to_evidence(rpp)
                 new_meta = dict(ev.metadata)
                 new_meta["_source_layer"] = "cbi"
+                object.__setattr__(ev, "metadata", new_meta)
+                items.append(ev)
+        return EvidenceCollection(items)
+
+    def _run_cai(self, ctx: OrchestrationContext) -> EvidenceCollection:
+        if ctx.cai_adapter is None:
+            return EvidenceCollection()
+        items: list[Evidence] = []
+        if ctx.cai_correlations is not None:
+            for corr in ctx.cai_correlations:
+                ev = ctx.cai_adapter.cross_asset_correlation_to_evidence(corr)
+                new_meta = dict(ev.metadata)
+                new_meta["_source_layer"] = "cai"
+                object.__setattr__(ev, "metadata", new_meta)
+                items.append(ev)
+        if ctx.cai_spreads is not None:
+            for spread in ctx.cai_spreads:
+                ev = ctx.cai_adapter.spread_analysis_to_evidence(spread)
+                new_meta = dict(ev.metadata)
+                new_meta["_source_layer"] = "cai"
+                object.__setattr__(ev, "metadata", new_meta)
+                items.append(ev)
+        if ctx.cai_volatilities is not None:
+            for vol in ctx.cai_volatilities:
+                ev = ctx.cai_adapter.volatility_regime_to_evidence(vol)
+                new_meta = dict(ev.metadata)
+                new_meta["_source_layer"] = "cai"
                 object.__setattr__(ev, "metadata", new_meta)
                 items.append(ev)
         return EvidenceCollection(items)

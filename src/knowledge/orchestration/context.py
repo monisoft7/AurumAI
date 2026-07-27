@@ -12,6 +12,12 @@ from knowledge.cbi.contracts import (
     RatePathProjection,
 )
 from knowledge.cbi.adapter import CbiEvidenceAdapter
+from knowledge.cai.contracts import (
+    CrossAssetCorrelation,
+    SpreadAnalysis,
+    VolatilityRegime,
+)
+from knowledge.cai.adapter import CaiEvidenceAdapter
 from knowledge.temporal.indexer import TemporalIndexer
 from knowledge.temporal.adapter import TemporalEvidenceAdapter
 from knowledge.causal.graph import CausalGraph
@@ -42,6 +48,11 @@ class OrchestrationContext:
     cbi_guidance_records: list[ForwardGuidanceRecord] | None = None
     cbi_rate_paths: list[RatePathProjection] | None = None
     cbi_adapter: CbiEvidenceAdapter | None = None
+
+    cai_correlations: list[CrossAssetCorrelation] | None = None
+    cai_spreads: list[SpreadAnalysis] | None = None
+    cai_volatilities: list[VolatilityRegime] | None = None
+    cai_adapter: CaiEvidenceAdapter | None = None
 
     temporal_indexer: TemporalIndexer | None = None
     temporal_adapter: TemporalEvidenceAdapter | None = None
