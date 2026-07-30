@@ -354,6 +354,106 @@ def _risk_gate(params: dict[str, Any], results: dict[str, Any]) -> Any:
     return gate_result
 
 
+def _signal_assessment(params: dict[str, Any], results: dict[str, Any]) -> Any:
+    from signal_assessment.assembler import SignalAssessmentAssembler
+    from pre_market.contracts import PreMarketBriefing
+
+    briefing_data = results.get("pre_market_scan")
+    if briefing_data is None:
+        briefing_data = params.get("briefing_data")
+    if briefing_data is None:
+        return {"error": "no briefing data available", "observations": []}
+
+    if isinstance(briefing_data, dict):
+        briefing = PreMarketBriefing.from_dict(briefing_data)
+    else:
+        briefing = briefing_data
+
+    assembler = SignalAssessmentAssembler(
+        regime=briefing.regime,
+    )
+    assessment = assembler.assemble(briefing)
+    return assessment
+
+
+def _evidence_collection(params: dict[str, Any], results: dict[str, Any]) -> Any:
+    from signal_assessment.contracts import SignalAssessment
+    from evidence_collection.collector import EvidenceCollector
+    from evidence_collection.contracts import EvidenceCollection
+
+    assessment_data = results.get("signal_assessment")
+    if assessment_data is None:
+        assessment_data = params.get("assessment_data")
+    if assessment_data is None:
+        return {"error": "no assessment data available", "items": []}
+
+    if isinstance(assessment_data, dict):
+        assessment = SignalAssessment.from_dict(assessment_data)
+    else:
+        assessment = assessment_data
+
+    kg = params.get("knowledge_graph")
+    collector = EvidenceCollector(knowledge_graph=kg)
+    collection = collector.collect(assessment, regime_weight=params.get("regime_weight", 0.8))
+    return collection
+
+
+def _pre_market_scan(params: dict[str, Any], results: dict[str, Any]) -> Any:
+    from pre_market.briefing_assembler import PreMarketBriefingAssembler
+
+    assembler = PreMarketBriefingAssembler(
+        regime=params.get("regime", ""),
+        regime_confidence=params.get("regime_confidence", 0.0),
+    )
+    briefing = assembler.assemble(
+        session=params.get("pre_market_session", "APAC"),
+        portfolio_returns=None,
+        portfolio_equity=params.get("portfolio_equity", 0.0),
+        daily_pnl=params.get("daily_pnl", 0.0),
+        unrealized_pnl=params.get("unrealized_pnl", 0.0),
+        exposure=params.get("exposure", 0.0),
+        var_utilization_pct=params.get("var_utilization_pct", 0.0),
+        briefing_id=params.get("briefing_id"),
+    )
+    return briefing
+
+
+def _evidence_reasoning(params: dict[str, Any], results: dict[str, Any]) -> Any:
+    from evidence_collection.contracts import EvidenceCollection
+    from evidence_reasoning.reasoner import EvidenceReasoner
+
+    collection_data = results.get("evidence_collection")
+    if collection_data is None:
+        return {"error": "no evidence collection data available", "evidence_sets": []}
+
+    if isinstance(collection_data, dict):
+        collection = EvidenceCollection.from_dict(collection_data)
+    else:
+        collection = collection_data
+
+    reasoner = EvidenceReasoner()
+    reasoning = reasoner.reason(collection, regime=params.get("regime"))
+    return reasoning
+
+
+def _counter_evidence(params: dict[str, Any], results: dict[str, Any]) -> Any:
+    from evidence_reasoning.contracts import EvidenceReasoning
+    from counter_evidence.assessor import CounterEvidenceAssessor
+
+    reasoning_data = results.get("evidence_reasoning")
+    if reasoning_data is None:
+        return {"error": "no evidence reasoning data available"}
+
+    if isinstance(reasoning_data, dict):
+        reasoning = EvidenceReasoning.from_dict(reasoning_data)
+    else:
+        reasoning = reasoning_data
+
+    assessor = CounterEvidenceAssessor()
+    assessment = assessor.assess(reasoning)
+    return assessment
+
+
 def _finalize(params: dict[str, Any], results: dict[str, Any]) -> Any:
     return {
         "decision": results.get("build_legacy_pipeline", {}).get("decision"),

@@ -507,16 +507,17 @@ class TestOrchestratorOutput:
 
 
 class TestOrchestratorLevels:
-    def test_13_job_dag_structure(self) -> None:
-        """Verify the 13-job default pipeline DAG has correct levels."""
+    def test_14_job_dag_structure(self) -> None:
+        """Verify the 14-job default pipeline DAG has correct levels."""
         orch = InstitutionalOrchestrator.with_default_pipeline()
         levels = _topological_levels(orch._jobs)
 
-        # Level 0: independent jobs
+        # Level 0: independent jobs (pre_market_scan, ingest_event, ingest_news)
         level0 = set(levels[0])
+        assert "pre_market_scan" in level0
         assert "ingest_event" in level0
         assert "ingest_news" in level0
-        assert len(level0) == 2
+        assert len(level0) == 3
 
         # Level 1: depends on ingest_event (forecast, build_legacy_pipeline)
         level1 = set(levels[1])
@@ -533,7 +534,8 @@ class TestOrchestratorLevels:
     def test_finalize_is_last(self) -> None:
         orch = InstitutionalOrchestrator.with_default_pipeline()
         levels = _topological_levels(orch._jobs)
-        assert levels[-1] == ["finalize"]
+        assert "finalize" in levels[-1]
+        assert "counter_evidence" in levels[-1]
 
 
 # ===========================================================================
@@ -647,10 +649,10 @@ class TestDefaultPipeline:
         completed = {s.stage_id for s in assessment.stages if s.status == "ok"}
         failed = {s.stage_id for s in assessment.stages if s.status == "failed"}
 
-        # DAG execution should have visited all 13 jobs
+        # DAG execution should have visited all 14 jobs
         all_stage_ids = {s.stage_id for s in assessment.stages}
         expected = {
-            "ingest_event", "ingest_news", "build_legacy_pipeline",
+            "pre_market_scan", "ingest_event", "ingest_news", "build_legacy_pipeline",
             "forecast", "forecast_confidence", "forecast_validation",
             "build_context", "risk_measures", "position_sizing",
             "risk_gate", "finalize",
@@ -981,6 +983,8 @@ class TestDefaultPipelineIntegration:
     def test_default_pipeline_dag_structure(self) -> None:
         orch = InstitutionalOrchestrator.with_default_pipeline()
         expected_jobs = {
+            "pre_market_scan", "signal_assessment", "evidence_collection",
+            "evidence_reasoning", "counter_evidence",
             "ingest_event", "ingest_news", "build_legacy_pipeline",
             "forecast", "forecast_confidence", "forecast_validation",
             "build_context", "risk_measures", "position_sizing",

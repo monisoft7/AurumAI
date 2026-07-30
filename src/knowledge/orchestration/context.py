@@ -18,11 +18,20 @@ from knowledge.cai.contracts import (
     VolatilityRegime,
 )
 from knowledge.cai.adapter import CaiEvidenceAdapter
+from knowledge.cfi.contracts import (
+    CentralBankReserveFlowReport,
+    ETFFlowMonitor,
+    GoldPositioningDashboard,
+)
+from knowledge.cfi.adapter import CfiEvidenceAdapter
+from knowledge.regime.macro_regime_detector import MacroRegimeDetector
+from knowledge.regime.composite_score import CompositeScoreBuilder
 from knowledge.temporal.indexer import TemporalIndexer
 from knowledge.temporal.adapter import TemporalEvidenceAdapter
 from knowledge.causal.graph import CausalGraph
 from knowledge.causal.analyzer import CausalAnalyzer
 from knowledge.evidence.query import EvidenceQuery
+from knowledge.evidence.evidence import Evidence
 from knowledge.reasoning.engine import ReasoningEngine
 from knowledge.decision.engine import DecisionEngine
 from knowledge.integrity.lineage import LineageRegistry
@@ -53,6 +62,15 @@ class OrchestrationContext:
     cai_spreads: list[SpreadAnalysis] | None = None
     cai_volatilities: list[VolatilityRegime] | None = None
     cai_adapter: CaiEvidenceAdapter | None = None
+
+    cfi_etf_flows: list[ETFFlowMonitor] | None = None
+    cfi_cb_reserve_reports: list[CentralBankReserveFlowReport] | None = None
+    cfi_positioning_dashboards: list[GoldPositioningDashboard] | None = None
+    cfi_adapter: CfiEvidenceAdapter | None = None
+
+    composite_score_builder: CompositeScoreBuilder | None = None
+    regime_detector: MacroRegimeDetector | None = None
+    regime_evidence: list[Evidence] | None = None
 
     temporal_indexer: TemporalIndexer | None = None
     temporal_adapter: TemporalEvidenceAdapter | None = None

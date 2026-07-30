@@ -25,6 +25,8 @@ class OrchestrationReport:
     core_evidence: EvidenceCollection = field(default_factory=EvidenceCollection)
     cbi_evidence: EvidenceCollection = field(default_factory=EvidenceCollection)
     cai_evidence: EvidenceCollection = field(default_factory=EvidenceCollection)
+    cfi_evidence: EvidenceCollection = field(default_factory=EvidenceCollection)
+    regime_evidence: EvidenceCollection = field(default_factory=EvidenceCollection)
     aggregation: Any = None
     weighted_aggregate: WeightedAggregate | None = None
     chain: Any = None
@@ -82,6 +84,8 @@ class OrchestrationEngine:
             report.core_evidence = self._run_core(ctx)
             report.cbi_evidence = self._run_cbi(ctx)
             report.cai_evidence = self._run_cai(ctx)
+            report.cfi_evidence = self._run_cfi(ctx)
+            report.regime_evidence = self._run_regime(ctx)
 
             collections = {}
             if report.economic_evidence:
@@ -96,6 +100,10 @@ class OrchestrationEngine:
                 collections["cbi"] = report.cbi_evidence
             if report.cai_evidence:
                 collections["cai"] = report.cai_evidence
+            if report.cfi_evidence:
+                collections["cfi"] = report.cfi_evidence
+            if report.regime_evidence:
+                collections["regime"] = report.regime_evidence
 
         report.aggregation = self._aggregator.merge(collections)
 
@@ -247,6 +255,85 @@ class OrchestrationEngine:
                 object.__setattr__(ev, "metadata", new_meta)
                 items.append(ev)
         return EvidenceCollection(items)
+
+    def _run_cfi(self, ctx: OrchestrationContext) -> EvidenceCollection:
+        if ctx.cfi_adapter is None:
+            return EvidenceCollection()
+        items: list[Evidence] = []
+        if ctx.cfi_etf_flows is not None:
+            for flow in ctx.cfi_etf_flows:
+                ev = ctx.cfi_adapter.etf_flow_to_evidence(flow)
+                new_meta = dict(ev.metadata)
+                new_meta["_source_layer"] = "cfi"
+                object.__setattr__(ev, "metadata", new_meta)
+                items.append(ev)
+        if ctx.cfi_cb_reserve_reports is not None:
+            for report in ctx.cfi_cb_reserve_reports:
+                ev = ctx.cfi_adapter.cb_reserve_flow_to_evidence(report)
+                new_meta = dict(ev.metadata)
+                new_meta["_source_layer"] = "cfi"
+                object.__setattr__(ev, "metadata", new_meta)
+                items.append(ev)
+        if ctx.cfi_positioning_dashboards is not None:
+            for dash in ctx.cfi_positioning_dashboards:
+                ev = ctx.cfi_adapter.positioning_to_evidence(dash)
+                new_meta = dict(ev.metadata)
+                new_meta["_source_layer"] = "cfi"
+                object.__setattr__(ev, "metadata", new_meta)
+                items.append(ev)
+        return EvidenceCollection(items)
+
+    def _run_regime(self, ctx: OrchestrationContext) -> EvidenceCollection:
+        if ctx.regime_evidence is not None:
+            items = list(ctx.regime_evidence)
+            for ev in items:
+                new_meta = dict(ev.metadata)
+                new_meta["_source_layer"] = "regime"
+                object.__setattr__(ev, "metadata", new_meta)
+            return EvidenceCollection(items)
+        if ctx.composite_score_builder is None or ctx.regime_detector is None:
+            return EvidenceCollection()
+        try:
+            scores = ctx.composite_score_builder.build()
+            if scores.empty:
+                return EvidenceCollection()
+            detector = ctx.regime_detector.fit(scores)
+            regime_data = detector.get_regime_data()
+            regimes = regime_data["macro_regime"].unique()
+            items = [
+                Evidence(
+                    evidence_id=f"regime_{r}",
+                    source_node_id=f"macro_regime_{r}",
+                    event_type="REGIME",
+                    condition={"macro_regime": r},
+                    horizon_days=90,
+                    sample_count=int((regime_data["macro_regime"] == r).sum()),
+                    average_return_pct=0.0,
+                    confidence=0.7,
+                    bias=self._regime_to_bias(r),
+                    explanation=f"Macro regime detected: {r}",
+                    metadata={
+                        "macro_regime": r,
+                        "regime_count": int((regime_data["macro_regime"] == r).sum()),
+                    },
+                )
+                for r in regimes
+            ]
+            for ev in items:
+                new_meta = dict(ev.metadata)
+                new_meta["_source_layer"] = "regime"
+                object.__setattr__(ev, "metadata", new_meta)
+            return EvidenceCollection(items)
+        except Exception:
+            return EvidenceCollection()
+
+    @staticmethod
+    def _regime_to_bias(regime: str) -> str:
+        if regime in ("CONTRACTION",):
+            return "bearish"
+        if regime in ("EXPANSION", "RECOVERY"):
+            return "bullish"
+        return "neutral"
 
     def _record_lineage(
         self,

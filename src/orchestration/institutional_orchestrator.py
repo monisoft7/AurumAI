@@ -8,6 +8,9 @@ from orchestration.orchestrator import InstitutionalOrchestrator, StageFn
 from orchestration.stages import (
     _build_context,
     _build_legacy_pipeline,
+    _counter_evidence,
+    _evidence_collection,
+    _evidence_reasoning,
     _finalize,
     _forecast,
     _forecast_confidence,
@@ -15,8 +18,10 @@ from orchestration.stages import (
     _ingest_event,
     _ingest_news,
     _position_sizing,
+    _pre_market_scan,
     _risk_gate,
     _risk_measures,
+    _signal_assessment,
 )
 
 __all__ = [
@@ -37,5 +42,10 @@ __all__ = [
     "_risk_measures",
     "_position_sizing",
     "_risk_gate",
+    "_pre_market_scan",
+    "_signal_assessment",
+    "_evidence_collection",
+    "_evidence_reasoning",
+    "_counter_evidence",
     "_finalize",
 ]

@@ -35,6 +35,15 @@ class KnowledgeRecord:
     provenance: Provenance | None = None
     metadata: dict[str, Any] = field(default_factory=lambda: FrozenDict())
     institutional_context: dict[str, str] = field(default_factory=dict)
+    mechanism: str = ""
+    preconditions: str = ""
+    trigger: str = ""
+    expected_impact: str = ""
+    failure_conditions: str = ""
+    counter_examples: str = ""
+    regime_dependence: str = ""
+    references: str = ""
+    methodology_version: str = ""
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "condition", freeze_dict(self.condition))
@@ -70,6 +79,15 @@ class KnowledgeRecord:
             provenance=deserialize_provenance(data.get("provenance")),
             metadata=dict(data.get("metadata", {})),
             institutional_context=dict(data.get("institutional_context", {})),
+            mechanism=str(data.get("mechanism", "")),
+            preconditions=str(data.get("preconditions", "")),
+            trigger=str(data.get("trigger", "")),
+            expected_impact=str(data.get("expected_impact", "")),
+            failure_conditions=str(data.get("failure_conditions", "")),
+            counter_examples=str(data.get("counter_examples", "")),
+            regime_dependence=str(data.get("regime_dependence", "")),
+            references=str(data.get("references", "")),
+            methodology_version=str(data.get("methodology_version", "")),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -100,4 +118,13 @@ class KnowledgeRecord:
             "provenance": serialize_provenance(self.provenance),
             "metadata": dict(self.metadata),
             "institutional_context": dict(self.institutional_context),
+            "mechanism": self.mechanism,
+            "preconditions": self.preconditions,
+            "trigger": self.trigger,
+            "expected_impact": self.expected_impact,
+            "failure_conditions": self.failure_conditions,
+            "counter_examples": self.counter_examples,
+            "regime_dependence": self.regime_dependence,
+            "references": self.references,
+            "methodology_version": self.methodology_version,
         }

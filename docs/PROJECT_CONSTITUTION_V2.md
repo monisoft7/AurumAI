@@ -193,9 +193,9 @@ Every knowledge object exported by any Tier-1 department conforms to the common 
 
 The following 40 knowledge objects are the permanent institutional inventory. No name may be changed, deprecated, or reassigned.
 
-**CBI (10 objects)**: PolicyBiasScore, RatePathProjection, ForwardGuidanceRecord, LiquidityOutlook, BalanceSheetOutlook, PolicyDivergenceMatrix, HawkDoveScore, GlobalMonetaryRegime, CentralBankSurpriseIndex, PolicyPathAssessment
+**CBI (5 objects, 5 expansion pending)**: PolicyBiasScore, RatePathProjection, ForwardGuidanceRecord, LiquidityOutlook, GlobalMonetaryRegime
 
-**CAI (8 objects)**: CrossAssetStrengthMatrix, CorrelationStabilityIndex, DivergenceAlert, LiquidityRotationMap, SafeHavenRotationIndex, DollarPressureIndex, CrossAssetRegimeAssessment, InstitutionalConfirmationMatrix
+**CAI (5 objects, 2 expansion pending)**: CrossAssetCorrelation, SpreadAnalysis, RelativeValueAssessment, FlowPressure, VolatilityRegime
 
 **CFI (10 objects)**: GoldPositioningDashboard, COTPositioningReport, ETFFlowMonitor, CentralBankReserveFlowReport, MarketStructureGammaProfile, SafeHavenFlowIndex, DeDollarizationFlowIndex, SpeculativeFlowAsymmetryAssessment, InstitutionalAccumulationSignal, LiquidityMigrationMap
 
@@ -708,6 +708,7 @@ This rule is permanent and applies to every present and future institutional dep
 ## 16. Amendment Log
 
 - 2026-07-26: Constitution v2 ratified. Established as supreme governing document. Consolidated all governance from PROJECT_NORTH_STAR.md (v1.1), PROJECT_CONSTITUTION.md (v1), CURRENT_STATE.md governance sections, CER-010 freeze decisions, and Institutional Knowledge Contracts. Defined 15 permanent sections governing mission, engineering principles, architecture, departments, knowledge objects, adapters, evidence, validation, GitHub operations, benchmarks, expansion, inviolable rules, decision hierarchy, change management, and definition of done.
+- 2026-07-27: Amendment 1 — CAI knowledge object inventory in Section 5.2 updated from aspirational 8-object design to 5-object implementation as resolved by CAI-Naming-Resolution.md. Aspirational names (CrossAssetStrengthMatrix, CorrelationStabilityIndex, DivergenceAlert, LiquidityRotationMap, SafeHavenRotationIndex, DollarPressureIndex, CrossAssetRegimeAssessment, InstitutionalConfirmationMatrix) replaced with implemented names (CrossAssetCorrelation, SpreadAnalysis, RelativeValueAssessment, FlowPressure, VolatilityRegime). CBI inventory also corrected from 10 aspirational to 5 implemented (BalanceSheetOutlook, PolicyDivergenceMatrix, HawkDoveScore, CentralBankSurpriseIndex, PolicyPathAssessment moved to expansion pending). Two objects pending as Institutional Expansion (RelativeValueAssessment, FlowPressure require adapter methods and test coverage). No implementation changes required.
 
 ---
 

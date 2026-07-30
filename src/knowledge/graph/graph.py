@@ -1,3 +1,5 @@
+from typing import Any
+
 import networkx as nx
 
 from knowledge.graph.node import GraphNode
@@ -66,7 +68,36 @@ class KnowledgeGraph:
             data.get("relation_type") == relation_type
             for data in edge_data.values()
         )
-        return neighbors
+
+    def get_all_nodes(self) -> list[GraphNode]:
+        nodes: list[GraphNode] = []
+        for node_id in self._graph.nodes:
+            data = self._graph.nodes[node_id]
+            nodes.append(GraphNode(
+                node_id=node_id,
+                node_type=data.get("node_type", ""),
+                properties=data.get("properties", {}),
+            ))
+        return nodes
+
+    def filter_nodes(self, **filters: Any) -> list[GraphNode]:
+        results: list[GraphNode] = []
+        for node in self.get_all_nodes():
+            match = True
+            for key, value in filters.items():
+                prop_val = node.properties.get(key)
+                if isinstance(value, (list, tuple, set)):
+                    if prop_val not in value and (prop_val is None or not any(
+                        v in (prop_val or "") for v in value
+                    )):
+                        match = False
+                        break
+                elif prop_val != value:
+                    match = False
+                    break
+            if match:
+                results.append(node)
+        return results
 
     def get_relations(
         self,

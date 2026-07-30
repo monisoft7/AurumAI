@@ -18,6 +18,9 @@ from orchestration.models import CheckpointResult, InstitutionalAssessment, Stag
 from orchestration.stages import (
     _build_context,
     _build_legacy_pipeline,
+    _counter_evidence,
+    _evidence_collection,
+    _evidence_reasoning,
     _finalize,
     _forecast,
     _forecast_confidence,
@@ -25,8 +28,10 @@ from orchestration.stages import (
     _ingest_event,
     _ingest_news,
     _position_sizing,
+    _pre_market_scan,
     _risk_gate,
     _risk_measures,
+    _signal_assessment,
 )
 
 StageFn = Callable[..., Any]
@@ -216,6 +221,46 @@ class InstitutionalOrchestrator:
         max_workers: int = 4,
     ) -> InstitutionalOrchestrator:
         orch = cls(checkpoint_dir=checkpoint_dir, max_workers=max_workers)
+
+        orch.register(PipelineJob(
+            job_id="pre_market_scan",
+            dependencies=(),
+            fn=orch._bind(_pre_market_scan),
+            cache_ttl=1800,
+            checkpoint=True,
+        ))
+
+        orch.register(PipelineJob(
+            job_id="signal_assessment",
+            dependencies=("pre_market_scan",),
+            fn=orch._bind(_signal_assessment),
+            cache_ttl=600,
+            checkpoint=True,
+        ))
+
+        orch.register(PipelineJob(
+            job_id="evidence_collection",
+            dependencies=("signal_assessment",),
+            fn=orch._bind(_evidence_collection),
+            cache_ttl=600,
+            checkpoint=True,
+        ))
+
+        orch.register(PipelineJob(
+            job_id="evidence_reasoning",
+            dependencies=("evidence_collection",),
+            fn=orch._bind(_evidence_reasoning),
+            cache_ttl=600,
+            checkpoint=True,
+        ))
+
+        orch.register(PipelineJob(
+            job_id="counter_evidence",
+            dependencies=("evidence_reasoning",),
+            fn=orch._bind(_counter_evidence),
+            cache_ttl=600,
+            checkpoint=True,
+        ))
 
         orch.register(PipelineJob(
             job_id="ingest_event",

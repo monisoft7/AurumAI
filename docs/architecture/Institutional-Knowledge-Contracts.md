@@ -354,215 +354,172 @@ Every knowledge object specifies its analytical time horizon:
 
 ## 2. Cross-Asset Intelligence — Knowledge Contracts
 
-### 2.1 CrossAssetStrengthMatrix
+The following contracts are implemented in `knowledge/cai/contracts.py`. Two additional contracts (RelativeValueAssessment, FlowPressure) are defined as frozen dataclasses with repository methods but have not yet completed evidence adapter or lifecycle testing — they are classified as Institutional Expansion.
 
-**Object name**: `CrossAssetStrengthMatrix`  
+### 2.1 CrossAssetCorrelation
+
+**Object name**: `CrossAssetCorrelation`  
 **Department code**: `CAI`  
-**Update cadence**: Daily  
-**Time horizon**: T1 (5-day), T2 (21-day), T3 (63-day)
+**Event type**: `CAI_CORRELATION`  
+**Evidence ID pattern**: `cai_corr_{asset_a}_{asset_b}`  
 
 **Mandatory fields**:
 
 | Field | Type | Definition |
 |-------|------|------------|
-| `assets` | List of identifiers | All covered assets in the matrix |
-| `matrix_5d` | NxN matrix of decimals | Relative strength returns, 5-day window. Row asset vs column asset. |
-| `matrix_21d` | NxN matrix of decimals | Same, 21-day window |
-| `matrix_63d` | NxN matrix of decimals | Same, 63-day window |
-| `asset_rankings` | {5d: list, 21d: list, 63d: list} | Ranked list of assets by aggregate relative strength for each window |
-| `gold_rank` | {rank_5d: int, rank_21d: int, rank_63d: int} | Gold's specific rank in each window |
-| `confidence` | Decimal | 0.00 – 1.00. Based on data completeness and price feed quality. |
-| `valid_from` | Timestamp | Publication timestamp |
-| `valid_until` | Timestamp | Next daily refresh |
+| `asset_class_a` | Identifier | First asset class (one of `VALID_ASSET_CLASSES`) |
+| `asset_class_b` | Identifier | Second asset class |
+| `correlation_coefficient` | Decimal | -1.0 to 1.0 correlation measurement |
+| `lookback_periods` | Integer | Number of trading periods in the calculation window |
+| `trend_direction` | Enum | positive, negative, diverging, converging, decoupling |
+| `rolling_window` | Enum | short, medium, long |
+| `regime_stability` | Decimal | 0.0–1.0 stability of the correlation regime |
+| `confidence` | Decimal | 0.00–1.00 institutional scale |
+| `valid_from` | Timestamp | Observation timestamp |
+| `valid_until` | Timestamp | Next scheduled refresh |
 
-**Optional fields**: none
+**Base contract fields**: `provenance`, `evidence_references`, `cross_references`, `methodology_version`, `scenario_analysis`
+
+**Adapter bias mapping**:
+| Trend Direction | Evidence Bias |
+|----------------|---------------|
+| positive | neutral |
+| negative | bearish |
+| diverging | neutral |
+| converging | neutral |
+| decoupling | bearish |
 
 **Consumers**: Knowledge Department (Evidence Repository, Regime Detection), Forecasting & Risk
 
 ---
 
-### 2.2 CorrelationStabilityIndex
+### 2.2 SpreadAnalysis
 
-**Object name**: `CorrelationStabilityIndex`  
+**Object name**: `SpreadAnalysis`  
 **Department code**: `CAI`  
-**Update cadence**: Daily calculation; weekly deep review  
-**Time horizon**: T0 (current stability), T2 (rate of change)
+**Event type**: `CAI_SPREAD`  
+**Evidence ID pattern**: `cai_spread_{instrument_a}_{instrument_b}`  
 
 **Mandatory fields**:
 
 | Field | Type | Definition |
 |-------|------|------------|
-| `index_value` | Integer | 0 (maximum instability) to 100 (maximum stability) |
-| `index_trend` | Enum | improving, stable, deteriorating |
-| `pair_decomposition` | List of {pair, current_correlation, baseline_correlation, z_score, weight} | Decomposition showing each pair's contribution to the index |
-| `unstable_pairs` | List of {pair, z_score, duration_days, direction} | Pairs where |z_score| > 2.0 |
-| `confidence` | Decimal | 0.00 – 1.00 |
-| `valid_from` | Timestamp | Publication timestamp |
-| `valid_until` | Timestamp | Next daily refresh |
+| `instrument_a` | String | First instrument identifier |
+| `instrument_b` | String | Second instrument identifier |
+| `current_spread` | Decimal | Current spread value in basis points or percentage |
+| `historical_mean` | Decimal | Historical mean spread over the reference window |
+| `standard_deviation` | Decimal | Standard deviation of spread over the reference window |
+| `z_score` | Decimal | Current z-score deviation from historical mean |
+| `trend` | Enum | narrowing, widening, stable, inversion |
+| `mean_reversion_signal` | Decimal | -1.0 to 1.0 strength of mean reversion signal |
+| `confidence` | Decimal | 0.00–1.00 institutional scale |
+| `valid_from` | Timestamp | Observation timestamp |
+| `valid_until` | Timestamp | Next scheduled refresh |
 
-**Optional fields**: none
+**Base contract fields**: `provenance`, `evidence_references`, `cross_references`, `methodology_version`, `scenario_analysis`
 
-**Consumers**: Knowledge Department (Regime Detection — regime transition early warning), Forecasting & Risk (model confidence calibration)
+**Adapter bias mapping**:
+| Spread Trend | Evidence Bias |
+|-------------|---------------|
+| narrowing | bullish |
+| widening | bearish |
+| stable | neutral |
+| inversion | bearish |
+
+**Consumers**: Knowledge Department (Evidence Repository), Forecasting & Risk
 
 ---
 
-### 2.3 DivergenceAlert
+### 2.3 RelativeValueAssessment
 
-**Object name**: `DivergenceAlert`  
+**Object name**: `RelativeValueAssessment`  
 **Department code**: `CAI`  
-**Update cadence**: Event-driven; daily updates while divergence is active  
-**Time horizon**: T1-T2 (1-20 trading days from onset)
+**Status**: Institutional Expansion (contract defined, no adapter or lifecycle tests)  
+**Event type**: `CAI_RELATIVE_VALUE` (planned)  
 
 **Mandatory fields**:
 
 | Field | Type | Definition |
 |-------|------|------------|
-| `pair` | String | The diverging asset pair, e.g., "XAU_USD-DXY" |
-| `divergence_type` | Enum | Tier1_break, Tier2_break, Tier3_break |
-| `correlation_prior` | Decimal | Rolling 90-day correlation before divergence onset |
-| `correlation_current` | Decimal | Current rolling 90-day correlation |
-| `z_score` | Decimal | Current z-score deviation from 5-year mean |
-| `duration` | Integer | Trading days since divergence threshold was first breached |
-| `probable_driver` | String | Department's assessment of what caused the divergence |
-| `historical_precedent` | String | Prior instances of similar divergence, if any, and their resolution |
-| `gold_implication` | String | What this divergence implies for gold direction |
-| `confidence` | Decimal | 0.00 – 1.00 |
-| `alert_status` | Enum | active, updated, resolved, reclassified |
-| `valid_from` | Timestamp | Alert issuance timestamp |
-| `valid_until` | Timestamp | Resolution timestamp or reclassification |
+| `asset_class_a` | Identifier | First asset class |
+| `asset_class_b` | Identifier | Second asset class |
+| `relative_z_score` | Decimal | Z-score of relative performance between the two classes |
+| `percentile_rank` | Decimal | 0.0–1.0 percentile rank of current relative value |
+| `valuation_bias` | String | Directional bias from relative value perspective |
+| `regime_consistency` | Decimal | 0.0–1.0 consistency of this valuation signal across regimes |
+| `factor_exposures` | Map of string→decimal | FrozenDict of factor exposures (e.g., duration, credit) |
+| `confidence` | Decimal | 0.00–1.00 institutional scale |
+| `valid_from` | Timestamp | Observation timestamp |
+| `valid_until` | Timestamp | Next scheduled refresh |
 
-**Optional fields**: `cross_references`
+**Base contract fields**: `provenance`, `evidence_references`, `cross_references`, `methodology_version`, `scenario_analysis`
 
-**Consumers**: Knowledge Department (Evidence Repository — high-priority evidence), Forecasting & Risk
+**Notes**: Adapter method and lifecycle tests pending. `factor_exposures` is auto-frozen to `FrozenDict` on construction.
 
 ---
 
-### 2.4 LiquidityRotationMap
+### 2.4 FlowPressure
 
-**Object name**: `LiquidityRotationMap`  
+**Object name**: `FlowPressure`  
 **Department code**: `CAI`  
-**Update cadence**: Daily map; weekly synthesis  
-**Time horizon**: T0-T2 (current rotation, 1-4 week outlook)
+**Status**: Institutional Expansion (contract defined, no adapter or lifecycle tests)  
+**Event type**: `CAI_FLOW` (planned)  
 
 **Mandatory fields**:
 
 | Field | Type | Definition |
 |-------|------|------------|
-| `flow_map` | List of {asset_cluster, flow_direction, flow_intensity} | Clusters: risk_assets, safe_haven, cash_equivalents, commodities. Direction: inflow, outflow, neutral. Intensity: strong, moderate, marginal. |
-| `cycle_phase` | Enum | Early_Expansion, Late_Expansion, Early_Contraction, Late_Contraction |
-| `gold_position` | Enum | receiving_inflows, steady_allocation, early_outflows, liquidity_source |
-| `phase_confidence` | Decimal | 0.00 – 1.00 |
-| `valid_from` | Timestamp | Publication timestamp |
-| `valid_until` | Timestamp | Next daily refresh |
+| `asset_class` | Identifier | Target asset class |
+| `direction` | Enum | inflow, outflow, rotation, stable |
+| `intensity` | Decimal | 0.0–1.0 intensity of the flow signal |
+| `volume_z_score` | Decimal | Z-score of current volume relative to normal |
+| `momentum` | Enum | inflow, outflow, rotation, stable |
+| `concentration` | Decimal | 0.0–1.0 concentration of flows across participants |
+| `counterparty_risk` | List of string | Identified counterparty risks (optional) |
+| `confidence` | Decimal | 0.00–1.00 institutional scale |
+| `valid_from` | Timestamp | Observation timestamp |
+| `valid_until` | Timestamp | Next scheduled refresh |
 
-**Optional fields**: `cross_references` (to CBI LiquidityOutlook, CFI LiquidityMigrationMap)
+**Base contract fields**: `provenance`, `evidence_references`, `cross_references`, `methodology_version`, `scenario_analysis`
 
-**Consumers**: Knowledge Department, Forecasting & Risk, CFI (market-derived rotation context)
+**Notes**: Adapter method and lifecycle tests pending.
 
 ---
 
-### 2.5 SafeHavenRotationIndex
+### 2.5 VolatilityRegime
 
-**Object name**: `SafeHavenRotationIndex`  
+**Object name**: `VolatilityRegime`  
 **Department code**: `CAI`  
-**Update cadence**: Event-driven during stress; monthly composite  
-**Time horizon**: T0-T2 (stress episode duration)
+**Event type**: `CAI_VOLATILITY`  
+**Evidence ID pattern**: `cai_vol_{asset_class}`  
 
 **Mandatory fields**:
 
 | Field | Type | Definition |
 |-------|------|------------|
-| `episode_active` | Boolean | Whether a stress episode is currently active |
-| `asset_ranking` | List of {asset, rank, performance_pct, trailing_period} | Ranked list of safe-haven assets by performance during the current or most recent stress episode |
-| `composite_ranking_30d` | List of {asset, rank} | 30-day composite ranking across all stress episodes in the trailing 30 days |
-| `composite_ranking_90d` | List of {asset, rank} | Same, 90-day composite |
-| `composite_ranking_12m` | List of {asset, rank} | Same, 12-month composite |
-| `episode_definition` | String | Criteria that triggered the stress episode classification |
-| `confidence` | Decimal | 0.00 – 1.00 |
-| `valid_from` | Timestamp | Publication timestamp |
-| `valid_until` | Timestamp | Next stress episode or monthly refresh |
+| `asset_class` | Identifier | Target asset class |
+| `current_state` | Enum | low, moderate, elevated, high, extreme |
+| `previous_state` | Enum | Same enum as current_state |
+| `regime_persistence` | Decimal | 0.0–1.0 likelihood the current regime persists |
+| `mean_reversion_half_life_days` | Decimal | Estimated half-life of volatility mean reversion in days |
+| `tail_risk_index` | Decimal | 0.0–1.0 tail risk measurement |
+| `regime_drivers` | List of string | Identified drivers of the current regime (optional) |
+| `confidence` | Decimal | 0.00–1.00 institutional scale |
+| `valid_from` | Timestamp | Observation timestamp |
+| `valid_until` | Timestamp | Next scheduled refresh |
 
-**Optional fields**: `cross_references` (to CFI SafeHavenFlowIndex for flow confirmation)
+**Base contract fields**: `provenance`, `evidence_references`, `cross_references`, `methodology_version`, `scenario_analysis`
 
-**Consumers**: Knowledge Department, Forecasting & Risk, CFI (safe-haven price context)
+**Adapter bias mapping**:
+| Volatility State | Evidence Bias |
+|-----------------|---------------|
+| low | bullish |
+| moderate | neutral |
+| elevated | bearish |
+| high | bearish |
+| extreme | bearish |
 
----
-
-### 2.6 DollarPressureIndex
-
-**Object name**: `DollarPressureIndex`  
-**Department code**: `CAI`  
-**Update cadence**: Weekly  
-**Time horizon**: T2-T3 (1-4 week forward pressure)
-
-**Mandatory fields**:
-
-| Field | Type | Definition |
-|-------|------|------------|
-| `index_value` | Integer | -100 (maximum bearish pressure) to +100 (maximum bullish pressure). 0 = balanced. |
-| `index_trend` | Enum | building_bullish, building_bearish, stable |
-| `components` | Map of {component_name, weight_pct, component_score} | Fed-ECB_diff (30%), Fed-BOJ_diff (20%), fiscal_deficit (15%), capital_account (15%), dxy_momentum (10%), speculative_positioning (10%) |
-| `current_dxy_level` | Decimal | Current DXY index value for reference |
-| `forward_assessment` | String | Qualitative assessment of where the index is pointing |
-| `confidence` | Decimal | 0.00 – 1.00 |
-| `valid_from` | Timestamp | Publication timestamp |
-| `valid_until` | Timestamp | Next weekly refresh |
-
-**Optional fields**: `cross_references` (to CBI rate path projections)
-
-**Consumers**: Knowledge Department, Forecasting & Risk, CFI (dollar flow context)
-
----
-
-### 2.7 CrossAssetRegimeAssessment
-
-**Object name**: `CrossAssetRegimeAssessment`  
-**Department code**: `CAI`  
-**Update cadence**: Monthly; interim regime change alerts  
-**Time horizon**: T2-T3 (1-4 week prevailing regime, 1-3 month outlook)
-
-**Mandatory fields**:
-
-| Field | Type | Definition |
-|-------|------|------------|
-| `regime` | Enum | Risk_On, Risk_Off, Reflation, Deflation, Stagflation, Transition |
-| `regime_evidence` | Map of {asset_pair, behavior, consistent_with_regime} | Evidence from key cross-asset patterns supporting the classification |
-| `correlation_stability_context` | Integer | Current CorrelationStabilityIndex value for cross-reference |
-| `transition_probability` | Decimal | 0.00 – 1.00 probability of regime change within next 4 weeks |
-| `transition_scenarios` | List of {target_regime, probability, trigger} | Most likely regime transitions and their catalysts |
-| `confidence` | Decimal | 0.00 – 1.00 |
-| `valid_from` | Timestamp | Publication timestamp |
-| `valid_until` | Timestamp | Next monthly refresh; interim alerts supersede |
-
-**Optional fields**: `cross_references` (to CBI GlobalMonetaryRegime for fundamental overlay, CFI LiquidityMigrationMap for flow confirmation)
-
-**Consumers**: Knowledge Department (Regime Detection — market-derived overlay), Forecasting & Risk, CFI (regime context), NI (market-derived narrative validation)
-
----
-
-### 2.8 InstitutionalConfirmationMatrix
-
-**Object name**: `InstitutionalConfirmationMatrix`  
-**Department code**: `CAI`  
-**Update cadence**: Daily  
-**Time horizon**: T0 (current thesis confirmation)
-
-**Mandatory fields**:
-
-| Field | Type | Definition |
-|-------|------|------------|
-| `theses` | List of thesis identifiers | Active theses from the Knowledge Department that are being tracked |
-| `confirmation_matrix` | Map of {thesis_id, {relationship, status}} | Each thesis has a list of relationships, each with status: confirming, contradicting, neutral |
-| `aggregate_confirmation_scores` | Map of {thesis_id, confirmation_pct} | Percentage of relationships confirming each thesis |
-| `theses_flagged_for_review` | List of {thesis_id, confirmation_pct} | Theses with confirmation below 40% |
-| `theses_with_elevated_confidence` | List of {thesis_id, confirmation_pct} | Theses with confirmation above 70% |
-| `confidence` | Decimal | 0.00 – 1.00 |
-| `valid_from` | Timestamp | Publication timestamp |
-| `valid_until` | Timestamp | Next daily refresh |
-
-**Optional fields**: none
-
-**Consumers**: Knowledge Department (Reasoning Engine — conviction calibration input)
+**Consumers**: Knowledge Department (Regime Detection — market-derived overlay), Forecasting & Risk, CFI (volatility context for flow positioning)
 
 ---
 
