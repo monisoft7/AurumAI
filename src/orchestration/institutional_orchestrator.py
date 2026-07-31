@@ -22,6 +22,7 @@ from orchestration.stages import (
     _risk_gate,
     _risk_measures,
     _signal_assessment,
+    _thesis_construction,
 )
 
 __all__ = [
@@ -47,5 +48,6 @@ __all__ = [
     "_evidence_collection",
     "_evidence_reasoning",
     "_counter_evidence",
+    "_thesis_construction",
     "_finalize",
 ]

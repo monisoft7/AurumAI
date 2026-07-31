@@ -32,6 +32,7 @@ from orchestration.stages import (
     _risk_gate,
     _risk_measures,
     _signal_assessment,
+    _thesis_construction,
 )
 
 StageFn = Callable[..., Any]
@@ -258,6 +259,14 @@ class InstitutionalOrchestrator:
             job_id="counter_evidence",
             dependencies=("evidence_reasoning",),
             fn=orch._bind(_counter_evidence),
+            cache_ttl=600,
+            checkpoint=True,
+        ))
+
+        orch.register(PipelineJob(
+            job_id="thesis_construction",
+            dependencies=("evidence_reasoning", "counter_evidence"),
+            fn=orch._bind(_thesis_construction),
             cache_ttl=600,
             checkpoint=True,
         ))

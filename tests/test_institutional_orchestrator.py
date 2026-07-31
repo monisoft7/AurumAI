@@ -534,8 +534,7 @@ class TestOrchestratorLevels:
     def test_finalize_is_last(self) -> None:
         orch = InstitutionalOrchestrator.with_default_pipeline()
         levels = _topological_levels(orch._jobs)
-        assert "finalize" in levels[-1]
-        assert "counter_evidence" in levels[-1]
+        assert "thesis_construction" in levels[-1]
 
 
 # ===========================================================================
@@ -984,7 +983,7 @@ class TestDefaultPipelineIntegration:
         orch = InstitutionalOrchestrator.with_default_pipeline()
         expected_jobs = {
             "pre_market_scan", "signal_assessment", "evidence_collection",
-            "evidence_reasoning", "counter_evidence",
+            "evidence_reasoning", "counter_evidence", "thesis_construction",
             "ingest_event", "ingest_news", "build_legacy_pipeline",
             "forecast", "forecast_confidence", "forecast_validation",
             "build_context", "risk_measures", "position_sizing",

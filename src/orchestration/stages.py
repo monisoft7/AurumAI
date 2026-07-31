@@ -454,6 +454,30 @@ def _counter_evidence(params: dict[str, Any], results: dict[str, Any]) -> Any:
     return assessment
 
 
+def _thesis_construction(params: dict[str, Any], results: dict[str, Any]) -> Any:
+    from evidence_reasoning.contracts import EvidenceReasoning
+    from counter_evidence.contracts import CounterEvidenceAssessment
+    from thesis_construction.constructor import ThesisConstructor
+
+    reasoning_data = results.get("evidence_reasoning")
+    assessment_data = results.get("counter_evidence")
+    if reasoning_data is None or assessment_data is None:
+        return {"error": "missing evidence_reasoning or counter_evidence data"}
+
+    if isinstance(reasoning_data, dict):
+        reasoning = EvidenceReasoning.from_dict(reasoning_data)
+    else:
+        reasoning = reasoning_data
+    if isinstance(assessment_data, dict):
+        assessment = CounterEvidenceAssessment.from_dict(assessment_data)
+    else:
+        assessment = assessment_data
+
+    constructor = ThesisConstructor()
+    construction = constructor.construct(reasoning, assessment)
+    return construction
+
+
 def _finalize(params: dict[str, Any], results: dict[str, Any]) -> Any:
     return {
         "decision": results.get("build_legacy_pipeline", {}).get("decision"),
