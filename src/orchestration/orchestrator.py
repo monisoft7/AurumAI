@@ -20,6 +20,7 @@ from orchestration.stages import (
     _build_legacy_pipeline,
     _confidence_engine,
     _counter_evidence,
+    _decision_engine,
     _evidence_collection,
     _evidence_reasoning,
     _finalize,
@@ -32,8 +33,11 @@ from orchestration.stages import (
     _pre_market_scan,
     _risk_gate,
     _risk_measures,
+    _risk_reward_validation,
+    _scenario_generation,
     _signal_assessment,
     _thesis_construction,
+    _trade_recommendation,
 )
 
 StageFn = Callable[..., Any]
@@ -276,6 +280,43 @@ class InstitutionalOrchestrator:
             job_id="confidence_engine",
             dependencies=("thesis_construction",),
             fn=orch._bind(_confidence_engine),
+            cache_ttl=600,
+            checkpoint=True,
+        ))
+
+        orch.register(PipelineJob(
+            job_id="scenario_generation",
+            dependencies=("thesis_construction", "confidence_engine"),
+            fn=orch._bind(_scenario_generation),
+            cache_ttl=600,
+            checkpoint=True,
+        ))
+
+        orch.register(PipelineJob(
+            job_id="risk_reward_validation",
+            dependencies=("scenario_generation",),
+            fn=orch._bind(_risk_reward_validation),
+            cache_ttl=600,
+            checkpoint=True,
+        ))
+
+        orch.register(PipelineJob(
+            job_id="decision_engine",
+            dependencies=(
+                "thesis_construction",
+                "confidence_engine",
+                "scenario_generation",
+                "risk_reward_validation",
+            ),
+            fn=orch._bind(_decision_engine),
+            cache_ttl=600,
+            checkpoint=True,
+        ))
+
+        orch.register(PipelineJob(
+            job_id="trade_recommendation",
+            dependencies=("decision_engine",),
+            fn=orch._bind(_trade_recommendation),
             cache_ttl=600,
             checkpoint=True,
         ))

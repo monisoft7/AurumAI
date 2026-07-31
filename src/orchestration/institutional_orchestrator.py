@@ -10,6 +10,7 @@ from orchestration.stages import (
     _build_legacy_pipeline,
     _confidence_engine,
     _counter_evidence,
+    _decision_engine,
     _evidence_collection,
     _evidence_reasoning,
     _finalize,
@@ -22,8 +23,11 @@ from orchestration.stages import (
     _pre_market_scan,
     _risk_gate,
     _risk_measures,
+    _risk_reward_validation,
+    _scenario_generation,
     _signal_assessment,
     _thesis_construction,
+    _trade_recommendation,
 )
 
 __all__ = [
@@ -51,5 +55,9 @@ __all__ = [
     "_counter_evidence",
     "_thesis_construction",
     "_confidence_engine",
+    "_scenario_generation",
+    "_risk_reward_validation",
+    "_decision_engine",
+    "_trade_recommendation",
     "_finalize",
 ]

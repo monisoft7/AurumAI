@@ -496,6 +496,132 @@ def _confidence_engine(params: dict[str, Any], results: dict[str, Any]) -> Any:
     return confidence
 
 
+def _scenario_generation(params: dict[str, Any], results: dict[str, Any]) -> Any:
+    from thesis_construction.contracts import ThesisConstruction
+    from confidence_engine.contracts import InstitutionalConfidence
+    from scenario_generation.generator import ScenarioGenerator
+
+    construction_data = results.get("thesis_construction")
+    confidence_data = results.get("confidence_engine")
+    if construction_data is None or confidence_data is None:
+        return {"error": "missing thesis_construction or confidence_engine data"}
+
+    if isinstance(construction_data, dict) and "error" in construction_data:
+        return {"error": "thesis_construction stage failed"}
+    if isinstance(confidence_data, dict) and "error" in confidence_data:
+        return {"error": "confidence_engine stage failed"}
+
+    if isinstance(construction_data, dict):
+        construction = ThesisConstruction.from_dict(construction_data)
+    else:
+        construction = construction_data
+    if isinstance(confidence_data, dict):
+        confidence = InstitutionalConfidence.from_dict(confidence_data)
+    else:
+        confidence = confidence_data
+
+    generator = ScenarioGenerator()
+    generation = generator.generate(construction, confidence)
+    return generation
+
+
+def _risk_reward_validation(params: dict[str, Any], results: dict[str, Any]) -> Any:
+    from scenario_generation.contracts import ScenarioGeneration
+    from risk_reward_validation.validator import RiskRewardValidator
+
+    generation_data = results.get("scenario_generation")
+    if generation_data is None:
+        return {"error": "no scenario generation data available"}
+
+    if isinstance(generation_data, dict) and "error" in generation_data:
+        return {"error": "scenario_generation stage failed"}
+
+    if isinstance(generation_data, dict):
+        generation = ScenarioGeneration.from_dict(generation_data)
+    else:
+        generation = generation_data
+
+    validator = RiskRewardValidator()
+    validation = validator.validate(generation)
+    return validation
+
+
+def _decision_engine(params: dict[str, Any], results: dict[str, Any]) -> Any:
+    from thesis_construction.contracts import ThesisConstruction
+    from confidence_engine.contracts import InstitutionalConfidence
+    from scenario_generation.contracts import ScenarioGeneration
+    from risk_reward_validation.contracts import RiskRewardValidation
+    from decision_engine.engine import DecisionEngine
+
+    construction_data = results.get("thesis_construction")
+    confidence_data = results.get("confidence_engine")
+    generation_data = results.get("scenario_generation")
+    validation_data = results.get("risk_reward_validation")
+    if (
+        construction_data is None
+        or confidence_data is None
+        or generation_data is None
+        or validation_data is None
+    ):
+        return {"error": "missing upstream institutional data for decision engine"}
+
+    upstream = {
+        "thesis_construction": construction_data,
+        "confidence_engine": confidence_data,
+        "scenario_generation": generation_data,
+        "risk_reward_validation": validation_data,
+    }
+    for name, data in upstream.items():
+        if isinstance(data, dict) and "error" in data:
+            return {"error": f"{name} stage failed"}
+
+    if isinstance(construction_data, dict):
+        construction = ThesisConstruction.from_dict(construction_data)
+    else:
+        construction = construction_data
+    if isinstance(confidence_data, dict):
+        confidence = InstitutionalConfidence.from_dict(confidence_data)
+    else:
+        confidence = confidence_data
+    if isinstance(generation_data, dict):
+        generation = ScenarioGeneration.from_dict(generation_data)
+    else:
+        generation = generation_data
+    if isinstance(validation_data, dict):
+        validation = RiskRewardValidation.from_dict(validation_data)
+    else:
+        validation = validation_data
+
+    engine = DecisionEngine()
+    decision = engine.decide(construction, confidence, generation, validation)
+    return decision
+
+
+def _trade_recommendation(params: dict[str, Any], results: dict[str, Any]) -> Any:
+    from decision_engine.contracts import InstitutionalDecision
+    from trade_recommendation.recommender import RecommendationEngine
+
+    decision_data = results.get("decision_engine")
+    if decision_data is None:
+        return {"error": "no institutional decision data available"}
+
+    if isinstance(decision_data, dict) and "error" in decision_data:
+        return {"error": "decision_engine stage failed"}
+
+    if isinstance(decision_data, dict):
+        decision = InstitutionalDecision.from_dict(decision_data)
+    else:
+        decision = decision_data
+
+    engine = RecommendationEngine()
+    recommendation = engine.recommend(
+        decision,
+        instrument=params.get("asset", "XAU/USD"),
+        reference_price=params.get("reference_price"),
+    )
+    return recommendation
+
+
 def _finalize(params: dict[str, Any], results: dict[str, Any]) -> Any:
     return {
         "decision": results.get("build_legacy_pipeline", {}).get("decision"),
