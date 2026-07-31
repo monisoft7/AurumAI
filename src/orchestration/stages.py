@@ -478,6 +478,24 @@ def _thesis_construction(params: dict[str, Any], results: dict[str, Any]) -> Any
     return construction
 
 
+def _confidence_engine(params: dict[str, Any], results: dict[str, Any]) -> Any:
+    from thesis_construction.contracts import ThesisConstruction
+    from confidence_engine.engine import ConfidenceEngine
+
+    construction_data = results.get("thesis_construction")
+    if construction_data is None:
+        return {"error": "no thesis construction data available"}
+
+    if isinstance(construction_data, dict):
+        construction = ThesisConstruction.from_dict(construction_data)
+    else:
+        construction = construction_data
+
+    engine = ConfidenceEngine()
+    confidence = engine.evaluate(construction)
+    return confidence
+
+
 def _finalize(params: dict[str, Any], results: dict[str, Any]) -> Any:
     return {
         "decision": results.get("build_legacy_pipeline", {}).get("decision"),

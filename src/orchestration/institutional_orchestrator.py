@@ -8,6 +8,7 @@ from orchestration.orchestrator import InstitutionalOrchestrator, StageFn
 from orchestration.stages import (
     _build_context,
     _build_legacy_pipeline,
+    _confidence_engine,
     _counter_evidence,
     _evidence_collection,
     _evidence_reasoning,
@@ -49,5 +50,6 @@ __all__ = [
     "_evidence_reasoning",
     "_counter_evidence",
     "_thesis_construction",
+    "_confidence_engine",
     "_finalize",
 ]

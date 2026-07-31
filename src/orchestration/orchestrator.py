@@ -18,6 +18,7 @@ from orchestration.models import CheckpointResult, InstitutionalAssessment, Stag
 from orchestration.stages import (
     _build_context,
     _build_legacy_pipeline,
+    _confidence_engine,
     _counter_evidence,
     _evidence_collection,
     _evidence_reasoning,
@@ -267,6 +268,14 @@ class InstitutionalOrchestrator:
             job_id="thesis_construction",
             dependencies=("evidence_reasoning", "counter_evidence"),
             fn=orch._bind(_thesis_construction),
+            cache_ttl=600,
+            checkpoint=True,
+        ))
+
+        orch.register(PipelineJob(
+            job_id="confidence_engine",
+            dependencies=("thesis_construction",),
+            fn=orch._bind(_confidence_engine),
             cache_ttl=600,
             checkpoint=True,
         ))
