@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import json
-import shutil
-import tempfile
 from types import SimpleNamespace
 from pathlib import Path
 
@@ -329,78 +327,95 @@ class TestExtractionHelpers:
 # ===========================================================================
 
 
+def _write_sim_data_dir(d: Path) -> Path:
+    """Create a minimal data directory with one real event CSV and a
+    gold CSV, plus synthetic data for the missing types."""
+    econ = d / "economic"
+    cal = d / "calendar"
+    hist = d / "history" / "gold"
+    econ.mkdir(parents=True, exist_ok=True)
+    cal.mkdir(parents=True, exist_ok=True)
+    hist.mkdir(parents=True, exist_ok=True)
+
+    # Real event data — CPI (Date,Value)
+    (econ / "CPIAUCSL.csv").write_text(
+        "Date,Value\n"
+        "2020-01-15,100.0\n"
+        "2020-02-15,101.0\n"
+        "2020-03-15,99.5\n"
+        "2020-04-15,102.0\n",
+        encoding="utf-8",
+    )
+    # NFP
+    (econ / "PAYEMS.csv").write_text(
+        "Date,Value\n"
+        "2020-01-10,150000.0\n"
+        "2020-02-10,151000.0\n"
+        "2020-03-10,149000.0\n",
+        encoding="utf-8",
+    )
+    # PPI
+    (econ / "PPIACO.csv").write_text(
+        "Date,Value\n"
+        "2020-01-15,110.0\n"
+        "2020-02-15,111.0\n",
+        encoding="utf-8",
+    )
+    # Interest Rate
+    (econ / "FEDFUNDS.csv").write_text(
+        "Date,Value\n"
+        "2020-01-01,1.55\n"
+        "2020-02-01,1.50\n"
+        "2020-03-01,0.25\n",
+        encoding="utf-8",
+    )
+    # CPI release calendar matching the CPI data reference periods
+    (cal / "cpi_releases.csv").write_text(
+        "reference_period,release_date,release_time,timezone\n"
+        "2020-01-15,2020-01-15,08:30,US/Eastern\n"
+        "2020-02-15,2020-02-15,08:30,US/Eastern\n"
+        "2020-03-15,2020-03-15,08:30,US/Eastern\n"
+        "2020-04-15,2020-04-15,08:30,US/Eastern\n",
+        encoding="utf-8",
+    )
+    # Gold price (Date,Close) — 200 weekly rows starting 2019-01-01 so
+    # the earliest CPI release snapshot (2020-01-15) has enough data.
+    lines = ["Date,Close"]
+    price = 1500.0
+    for idx in range(200):
+        dt = pd.Timestamp("2019-01-01") + pd.Timedelta(days=idx * 7)
+        if dt.weekday() >= 5:
+            continue
+        lines.append(f"{dt.date().isoformat()},{price:.1f}")
+        price += 2.0 if idx % 2 == 0 else -1.0
+    (hist / "gold.csv").write_text("\n".join(lines), encoding="utf-8")
+
+    return d
+
+
 class TestHistoricalReplayEngine:
     """Tests using temporary CSV fixtures that simulate historical data."""
 
-    @pytest.fixture
-    def sim_data_dir(self, tmp_path: Path) -> Path:
-        """Create a minimal data directory with one real event CSV and a
-        gold CSV, plus synthetic data for the missing types."""
-        d = tmp_path / "sim_data"
-        econ = d / "economic"
-        cal = d / "calendar"
-        hist = d / "history" / "gold"
-        econ.mkdir(parents=True, exist_ok=True)
-        cal.mkdir(parents=True, exist_ok=True)
-        hist.mkdir(parents=True, exist_ok=True)
+    @pytest.fixture(scope="module")
+    def sim_data_dir(self, tmp_path_factory: pytest.TempPathFactory) -> Path:
+        """Shared minimal dataset, built once for the whole module."""
+        return _write_sim_data_dir(tmp_path_factory.mktemp("sim_data"))
 
-        # Real event data — CPI (Date,Value)
-        (econ / "CPIAUCSL.csv").write_text(
-            "Date,Value\n"
-            "2020-01-15,100.0\n"
-            "2020-02-15,101.0\n"
-            "2020-03-15,99.5\n"
-            "2020-04-15,102.0\n",
-            encoding="utf-8",
-        )
-        # NFP
-        (econ / "PAYEMS.csv").write_text(
-            "Date,Value\n"
-            "2020-01-10,150000.0\n"
-            "2020-02-10,151000.0\n"
-            "2020-03-10,149000.0\n",
-            encoding="utf-8",
-        )
-        # PPI
-        (econ / "PPIACO.csv").write_text(
-            "Date,Value\n"
-            "2020-01-15,110.0\n"
-            "2020-02-15,111.0\n",
-            encoding="utf-8",
-        )
-        # Interest Rate
-        (econ / "FEDFUNDS.csv").write_text(
-            "Date,Value\n"
-            "2020-01-01,1.55\n"
-            "2020-02-01,1.50\n"
-            "2020-03-01,0.25\n",
-            encoding="utf-8",
-        )
-        # CPI release calendar matching the CPI data reference periods
-        (cal / "cpi_releases.csv").write_text(
-            "reference_period,release_date,release_time,timezone\n"
-            "2020-01-15,2020-01-15,08:30,US/Eastern\n"
-            "2020-02-15,2020-02-15,08:30,US/Eastern\n"
-            "2020-03-15,2020-03-15,08:30,US/Eastern\n"
-            "2020-04-15,2020-04-15,08:30,US/Eastern\n",
-            encoding="utf-8",
-        )
-        # Gold price (Date,Close) — 200 weekly rows starting 2019-01-01 so
-        # the earliest CPI release snapshot (2020-01-15) has enough data.
-        lines = ["Date,Close"]
-        price = 1500.0
-        for idx in range(200):
-            dt = pd.Timestamp("2019-01-01") + pd.Timedelta(days=idx * 7)
-            if dt.weekday() >= 5:
-                continue
-            lines.append(f"{dt.date().isoformat()},{price:.1f}")
-            price += 2.0 if idx % 2 == 0 else -1.0
-        (hist / "gold.csv").write_text("\n".join(lines), encoding="utf-8")
+    @pytest.fixture(scope="module")
+    def report(self, sim_data_dir: Path) -> SimulationReport:
+        """One shared full replay over the shared dataset.
 
-        return d
+        run_simulation() is exactly engine.run_all() with default
+        parameters, so the 9 report-assertion tests below reuse a single
+        full replay instead of each running an identical one."""
+        return run_simulation(
+            data_dir=str(sim_data_dir),
+            gold_path=str(sim_data_dir / "history" / "gold" / "gold.csv"),
+        )
 
-    def test_engine_creates_synthetic_csvs(self, sim_data_dir: Path) -> None:
+    def test_engine_creates_synthetic_csvs(self, tmp_path: Path) -> None:
         """Engine should generate synthetic CSVs for missing event types."""
+        sim_data_dir = _write_sim_data_dir(tmp_path / "sim_data")
         engine = HistoricalReplayEngine(
             data_dir=sim_data_dir,
             gold_path=sim_data_dir / "history" / "gold" / "gold.csv",
@@ -421,12 +436,7 @@ class TestHistoricalReplayEngine:
         # expected — the simulation handles partial failures.
         assert report.successful_runs + report.failed_runs == 7
 
-    def test_run_all_structure(self, sim_data_dir: Path) -> None:
-        engine = HistoricalReplayEngine(
-            data_dir=sim_data_dir,
-            gold_path=sim_data_dir / "history" / "gold" / "gold.csv",
-        )
-        report = engine.run_all()
+    def test_run_all_structure(self, report: SimulationReport, sim_data_dir: Path) -> None:
         assert isinstance(report, SimulationReport)
         assert "T" in report.timestamp
         assert report.data_dir == str(sim_data_dir.resolve())
@@ -435,22 +445,12 @@ class TestHistoricalReplayEngine:
         assert report.successful_runs + report.failed_runs == len(report.results)
         assert report.total_events >= sum(r.event_count for r in report.results)
 
-    def test_each_event_type_has_result(self, sim_data_dir: Path) -> None:
-        engine = HistoricalReplayEngine(
-            data_dir=sim_data_dir,
-            gold_path=sim_data_dir / "history" / "gold" / "gold.csv",
-        )
-        report = engine.run_all()
+    def test_each_event_type_has_result(self, report: SimulationReport) -> None:
         types_found = {r.event_type for r in report.results}
         expected = {"CPI", "NFP", "PPI", "INTEREST_RATE", "GDP", "PMI", "FOMC"}
         assert types_found == expected
 
-    def test_result_has_metrics(self, sim_data_dir: Path) -> None:
-        engine = HistoricalReplayEngine(
-            data_dir=sim_data_dir,
-            gold_path=sim_data_dir / "history" / "gold" / "gold.csv",
-        )
-        report = engine.run_all()
+    def test_result_has_metrics(self, report: SimulationReport) -> None:
         cpi_result = next(r for r in report.results if r.event_type == "CPI")
         assert cpi_result.success is True, (
             f"CPI replay failed: {cpi_result.error}"
@@ -458,42 +458,23 @@ class TestHistoricalReplayEngine:
         assert cpi_result.event_count > 0
         assert cpi_result.execution_time_ms > 0
 
-    def test_forecast_summary_aggregated(self, sim_data_dir: Path) -> None:
-        engine = HistoricalReplayEngine(
-            data_dir=sim_data_dir,
-            gold_path=sim_data_dir / "history" / "gold" / "gold.csv",
-        )
-        report = engine.run_all()
+    def test_forecast_summary_aggregated(self, report: SimulationReport) -> None:
         fa = report.forecast_accuracy
         assert fa.total_forecasts == len(report.results)
         # With minimal fixture data, some forecasts may fail before
         # validation runs, so passed+failed may be less than total.
         assert fa.passed_validations + fa.failed_validations <= fa.total_forecasts
 
-    def test_risk_summary_aggregated(self, sim_data_dir: Path) -> None:
-        engine = HistoricalReplayEngine(
-            data_dir=sim_data_dir,
-            gold_path=sim_data_dir / "history" / "gold" / "gold.csv",
-        )
-        report = engine.run_all()
+    def test_risk_summary_aggregated(self, report: SimulationReport) -> None:
         risk = report.risk
         # Some runs may fail before risk gate; verify structure is valid
         assert risk.total_evaluations >= 0
 
-    def test_report_to_dict_roundtrip(self, sim_data_dir: Path) -> None:
-        engine = HistoricalReplayEngine(
-            data_dir=sim_data_dir,
-            gold_path=sim_data_dir / "history" / "gold" / "gold.csv",
-        )
-        report = engine.run_all()
+    def test_report_to_dict_roundtrip(self, report: SimulationReport) -> None:
         d = report.to_dict()
         assert isinstance(json.dumps(d), str)  # serialisable
 
-    def test_run_simulation_convenience(self, sim_data_dir: Path) -> None:
-        report = run_simulation(
-            data_dir=str(sim_data_dir),
-            gold_path=str(sim_data_dir / "history" / "gold" / "gold.csv"),
-        )
+    def test_run_simulation_convenience(self, report: SimulationReport) -> None:
         assert isinstance(report, SimulationReport)
         assert report.successful_runs + report.failed_runs == 7
 
@@ -521,12 +502,7 @@ class TestHistoricalReplayEngine:
 
     # -- OOS correctness integration ---------------------------------------
 
-    def test_cpi_result_has_correctness_fields(self, sim_data_dir: Path) -> None:
-        engine = HistoricalReplayEngine(
-            data_dir=sim_data_dir,
-            gold_path=sim_data_dir / "history" / "gold" / "gold.csv",
-        )
-        report = engine.run_all()
+    def test_cpi_result_has_correctness_fields(self, report: SimulationReport) -> None:
         cpi = next(r for r in report.results if r.event_type == "CPI")
         # decision_actual_return_pct is always computed when gold data exists
         assert cpi.decision_actual_return_pct is not None
@@ -538,12 +514,7 @@ class TestHistoricalReplayEngine:
         else:
             assert cpi.decision_correct is not None
 
-    def test_non_cpi_result_no_correctness(self, sim_data_dir: Path) -> None:
-        engine = HistoricalReplayEngine(
-            data_dir=sim_data_dir,
-            gold_path=sim_data_dir / "history" / "gold" / "gold.csv",
-        )
-        report = engine.run_all()
+    def test_non_cpi_result_no_correctness(self, report: SimulationReport) -> None:
         for r in report.results:
             if r.event_type != "CPI":
                 assert r.decision_correct is None, f"{r.event_type} should not have correctness"
@@ -564,6 +535,22 @@ class TestRealDataSimulation:
     DATA_DIR = PROJECT_ROOT / "data"
     GOLD_PATH = DATA_DIR / "history" / "gold" / "gold.csv"
 
+    @pytest.fixture(scope="module")
+    def real_report(self) -> SimulationReport:
+        """One full replay against the real repository data.
+
+        Both simulation tests below assert on different aspects of the
+        same report, so a single run replaces two identical ones.
+        horizon=6 matches the primary acceptance test configuration."""
+        if not self.DATA_DIR.exists():
+            pytest.skip("data/ directory not found at project root")
+        engine = HistoricalReplayEngine(
+            data_dir=self.DATA_DIR,
+            gold_path=self.GOLD_PATH,
+            horizon=6,
+        )
+        return engine.run_all()
+
     @pytest.mark.skipif(
         not DATA_DIR.exists(),
         reason="data/ directory not found at project root",
@@ -582,15 +569,10 @@ class TestRealDataSimulation:
         not DATA_DIR.exists(),
         reason="data/ directory not found at project root",
     )
-    def test_real_data_simulation_runs(self) -> None:
+    def test_real_data_simulation_runs(self, real_report: SimulationReport) -> None:
         """Run the full simulation against real data files.  This is the
         primary acceptance test for Phase 19.1."""
-        engine = HistoricalReplayEngine(
-            data_dir=self.DATA_DIR,
-            gold_path=self.GOLD_PATH,
-            horizon=6,
-        )
-        report = engine.run_all()
+        report = real_report
 
         assert isinstance(report, SimulationReport)
         assert report.total_events > 0
@@ -608,12 +590,8 @@ class TestRealDataSimulation:
         not DATA_DIR.exists(),
         reason="data/ directory not found at project root",
     )
-    def test_real_data_serialisable(self) -> None:
-        engine = HistoricalReplayEngine(
-            data_dir=self.DATA_DIR,
-            gold_path=self.GOLD_PATH,
-        )
-        report = engine.run_all()
+    def test_real_data_serialisable(self, real_report: SimulationReport) -> None:
+        report = real_report
         d = report.to_dict()
         assert isinstance(json.dumps(d), str)
         # Verify top-level keys
@@ -1229,77 +1207,32 @@ class TestChronologicalOOSResult:
 class TestChronologicalOOSEngine:
     """Integration tests for chronological train/eval separation."""
 
-    @pytest.fixture
-    def sim_data_dir(self, tmp_path: Path) -> Path:
-        """Same fixture as TestHistoricalReplayEngine.sim_data_dir."""
-        import pandas as pd
-        d = tmp_path / "sim_data"
-        econ = d / "economic"
-        cal = d / "calendar"
-        hist = d / "history" / "gold"
-        econ.mkdir(parents=True, exist_ok=True)
-        cal.mkdir(parents=True, exist_ok=True)
-        hist.mkdir(parents=True, exist_ok=True)
+    @pytest.fixture(scope="module")
+    def sim_data_dir(self, tmp_path_factory: pytest.TempPathFactory) -> Path:
+        """Shared minimal dataset, built once for the whole module."""
+        return _write_sim_data_dir(tmp_path_factory.mktemp("sim_data"))
 
-        (econ / "CPIAUCSL.csv").write_text(
-            "Date,Value\n"
-            "2020-01-15,100.0\n"
-            "2020-02-15,101.0\n"
-            "2020-03-15,99.5\n"
-            "2020-04-15,102.0\n",
-            encoding="utf-8",
-        )
-        (econ / "PAYEMS.csv").write_text(
-            "Date,Value\n"
-            "2020-01-10,150000.0\n"
-            "2020-02-10,151000.0\n"
-            "2020-03-10,149000.0\n",
-            encoding="utf-8",
-        )
-        (econ / "PPIACO.csv").write_text(
-            "Date,Value\n"
-            "2020-01-15,110.0\n"
-            "2020-02-15,111.0\n",
-            encoding="utf-8",
-        )
-        (econ / "FEDFUNDS.csv").write_text(
-            "Date,Value\n"
-            "2020-01-01,1.55\n"
-            "2020-02-01,1.50\n"
-            "2020-03-01,0.25\n",
-            encoding="utf-8",
-        )
-        (cal / "cpi_releases.csv").write_text(
-            "reference_period,release_date,release_time,timezone\n"
-            "2020-01-15,2020-01-15,08:30,US/Eastern\n"
-            "2020-02-15,2020-02-15,08:30,US/Eastern\n"
-            "2020-03-15,2020-03-15,08:30,US/Eastern\n"
-            "2020-04-15,2020-04-15,08:30,US/Eastern\n",
-            encoding="utf-8",
-        )
-        lines = ["Date,Close"]
-        price = 1500.0
-        for idx in range(200):
-            dt = pd.Timestamp("2019-01-01") + pd.Timedelta(days=idx * 7)
-            if dt.weekday() >= 5:
-                continue
-            lines.append(f"{dt.date().isoformat()},{price:.1f}")
-            price += 2.0 if idx % 2 == 0 else -1.0
-        (hist / "gold.csv").write_text("\n".join(lines), encoding="utf-8")
-        return d
+    @pytest.fixture(scope="module")
+    def chrono_report(self, sim_data_dir: Path) -> ChronologicalOOSResult:
+        """One shared 2020-03-01 chronological run (training + evaluation).
 
-    def test_cpi_separation_produces_results(
-        self, sim_data_dir: Path
-    ) -> None:
-        """CPI events after cutoff are replayed with training knowledge."""
-        cutoff = "2020-03-01"
+        knowledge_dir defaults to ``data_dir/oos_knowledge``, so this is
+        the exact same configuration the three tests below used before,
+        but the heavy engine.run() executes once instead of three times."""
         engine = ChronologicalOOSEngine(
-            cutoff_date=cutoff,
+            cutoff_date="2020-03-01",
             data_dir=sim_data_dir,
             gold_path=sim_data_dir / "history" / "gold" / "gold.csv",
+            knowledge_dir=sim_data_dir / "oos_knowledge",
             max_workers=2,
         )
-        result = engine.run()
+        return engine.run()
+
+    def test_cpi_separation_produces_results(
+        self, chrono_report: ChronologicalOOSResult
+    ) -> None:
+        """CPI events after cutoff are replayed with training knowledge."""
+        result = chrono_report
         assert result.cutoff_date == "2020-03-01"
         assert isinstance(result, ChronologicalOOSResult)
         # At least CPI should have evaluation results (one per release)
@@ -1318,20 +1251,12 @@ class TestChronologicalOOSEngine:
             r.event_count for r in result.evaluation_results
         )
 
-    def test_knowledge_dir_created(self, sim_data_dir: Path) -> None:
+    def test_knowledge_dir_created(
+        self, chrono_report: ChronologicalOOSResult, sim_data_dir: Path
+    ) -> None:
         """Training knowledge is persisted to the knowledge directory."""
-        cutoff = "2020-03-01"
-        knowledge_dir = sim_data_dir / "oos_knowledge"
-        engine = ChronologicalOOSEngine(
-            cutoff_date=cutoff,
-            data_dir=sim_data_dir,
-            gold_path=sim_data_dir / "history" / "gold" / "gold.csv",
-            knowledge_dir=knowledge_dir,
-            max_workers=2,
-        )
-        engine.run()
-        # CPI training lessons should exist
-        assert (knowledge_dir / "CPI" / "lessons.csv").exists()
+        # CPI training lessons should exist (written by the shared run)
+        assert (sim_data_dir / "oos_knowledge" / "CPI" / "lessons.csv").exists()
 
     def test_deterministic(self, sim_data_dir: Path) -> None:
         """Same inputs produce identical outputs."""
@@ -1383,27 +1308,17 @@ class TestChronologicalOOSEngine:
         for cpi in cpi_evals:
             assert cpi.event_count == 1
 
-    def test_prebuilt_lessons_injected(self, sim_data_dir: Path) -> None:
+    def test_prebuilt_lessons_injected(
+        self, chrono_report: ChronologicalOOSResult, sim_data_dir: Path
+    ) -> None:
         """Verify that prebuilt_lessons_path is threaded through
         to the pipeline by checking the knowledge dir exists with
         training lessons that are NOT overwritten after eval."""
-        cutoff = "2020-03-01"
-        knowledge_dir = sim_data_dir / "oos_knowledge"
-        engine = ChronologicalOOSEngine(
-            cutoff_date=cutoff,
-            data_dir=sim_data_dir,
-            gold_path=sim_data_dir / "history" / "gold" / "gold.csv",
-            knowledge_dir=knowledge_dir,
-            max_workers=2,
-        )
-        # Run training + evaluation
-        engine.run()
         # After evaluation, the training lessons should still exist
         # (they were loaded but not overwritten by evaluation-period lessons)
-        lessons_path = knowledge_dir / "CPI" / "lessons.csv"
+        lessons_path = sim_data_dir / "oos_knowledge" / "CPI" / "lessons.csv"
         assert lessons_path.exists()
         # The file should be non-empty
-        import pandas as pd
         df = pd.read_csv(lessons_path)
         assert len(df) > 0
 

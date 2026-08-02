@@ -1,8 +1,11 @@
 # Regression Pack Manifest
 
 Deterministic logical partition of the full regression suite (`tests/`) for staged
-execution and triage. Each test module belongs to **exactly one** pack. Packs are
-organized by architecture (not alphabetically).
+execution and triage. Each test belongs to **exactly one** pack; each test *module*
+belongs to exactly one pack, with a single documented exception:
+`test_historical_replay.py` is split at test level between Pack 10A (fast subset)
+and Pack 10B (heavy replay / real-data / chronological — Release Validation only).
+Packs are organized by architecture (not alphabetically).
 
 - Test counts per module are approximate (counted test-function definitions; a small
   number of parametrized cases inflate the true collection total).
@@ -197,14 +200,17 @@ organized by architecture (not alphabetically).
 
 ---
 
-## Pack 10 - Simulation / Replay / Orchestration / Integration
+## Pack 10A - Simulation / Orchestration / Integration (Developer Loop)
 
-- **Purpose:** Historical replay, simulation validation and scenario generation,
-  the institutional acceptance benchmark, performance gates, top-level
-  orchestration/institutional orchestrator, and the experiment framework
-  (registry + EXP-002).
+- **Purpose:** Fast simulation and orchestration tests for the practical developer
+  loop: the unit-level subset of the replay suite (models, aggregation, helpers,
+  edge cases), simulation validation and scenario generation, acceptance benchmarks,
+  performance gates, the institutional orchestrator, and the experiment framework.
+  Excludes **only** the genuinely heavy replay tests (full `run_all()` /
+  `ChronologicalOOSEngine.run()` executions), which live in Pack 10B.
 - **Included test modules:**
-  - `test_historical_replay.py`
+  - `test_historical_replay.py` — fast subset only (75 tests); the heavy tests are
+    split out to Pack 10B at test level (see Pack 10B for the exact exclusion list)
   - `test_simulation_validation.py`
   - `test_scenario_generation.py`
   - `test_benchmark.py`
@@ -216,10 +222,73 @@ organized by architecture (not alphabetically).
   - `test_experiment.py`
   - `test_experiment_002.py`
   - `test_experiment_registry.py`
-- **Approximate number of tests:** 348
-- **Expected runtime:** ~13-18 min (includes the heavy `test_graph_performance`
-  graph-builder stress and the 94-test replay module)
-- **Classification:** Slow
+- **Approximate number of tests:** 329
+- **Expected runtime:** ~8-15 min (dominated by the non-replay modules;
+  re-baseline on the target CI host)
+- **Classification:** Fast (developer loop)
+
+---
+
+## Pack 10B - Heavy Replay / Real-Data / Chronological (Release Validation)
+
+- **Purpose:** The genuinely heavy replay tests from `test_historical_replay.py`:
+  full 7-type institutional-pipeline replays (`run_all()`), the real-data acceptance
+  replay against the repository `data/` directory (including the 54-release CPI
+  release-by-release path), and the ChronologicalOOSEngine training/evaluation
+  simulations. These dominate module runtime (measured 30-90 min pre-refactor;
+  estimated ~25-50 min after the test-design refactor — re-baseline on the target
+  host).
+- **Usage:** Release Validation only. Not part of the developer loop; run before
+  releases/tags, on CI, or on demand.
+- **No code changes / no test logic changes:** the split is purely organizational —
+  each test listed below executes identically to its Pack 10A definition.
+- **Included tests** (exact node IDs; this is the documented module-level split
+  exception) and why each is heavy:
+
+  **Full `run_all()` replays — `TestHistoricalReplayEngine` (11):**
+  - `test_historical_replay.py::TestHistoricalReplayEngine::test_engine_creates_synthetic_csvs`
+    — executes a full 7-type `run_all()` replay (every event type through the
+    institutional pipeline) on the fixture dataset (~1-3 min).
+  - `test_historical_replay.py::TestHistoricalReplayEngine::test_run_all_structure`
+  - `test_historical_replay.py::TestHistoricalReplayEngine::test_each_event_type_has_result`
+  - `test_historical_replay.py::TestHistoricalReplayEngine::test_result_has_metrics`
+  - `test_historical_replay.py::TestHistoricalReplayEngine::test_forecast_summary_aggregated`
+  - `test_historical_replay.py::TestHistoricalReplayEngine::test_risk_summary_aggregated`
+  - `test_historical_replay.py::TestHistoricalReplayEngine::test_report_to_dict_roundtrip`
+  - `test_historical_replay.py::TestHistoricalReplayEngine::test_run_simulation_convenience`
+  - `test_historical_replay.py::TestHistoricalReplayEngine::test_cpi_result_has_correctness_fields`
+  - `test_historical_replay.py::TestHistoricalReplayEngine::test_non_cpi_result_no_correctness`
+    — the 9 tests above share the module-scoped `report` fixture, which executes one
+    full `run_all()` replay (~10-15 min); none of them can run without triggering it.
+  - `test_historical_replay.py::TestHistoricalReplayEngine::test_gold_date_column`
+    — executes its own full `run_all()` replay on a custom dataset (~1-3 min).
+
+  **Real-data acceptance replays — `TestRealDataSimulation` (2):**
+  - `test_historical_replay.py::TestRealDataSimulation::test_real_data_simulation_runs`
+    — the primary Phase 19.1 acceptance test: full replay against the real
+    `data/` directory, including the 54-release CPI release-by-release path
+    (~8-20 min).
+  - `test_historical_replay.py::TestRealDataSimulation::test_real_data_serialisable`
+    — shares the same real-data replay via the module-scoped `real_report` fixture.
+
+  **Chronological train/eval simulations — `TestChronologicalOOSEngine` (6):**
+  Each of these executes `ChronologicalOOSEngine.run()`, which replays the full
+  pipeline twice: a training phase (7 pre-cutoff pipeline runs building lessons)
+  plus an evaluation phase (7 post-cutoff runs, CPI release-by-release):
+  - `test_historical_replay.py::TestChronologicalOOSEngine::test_cpi_separation_produces_results`
+  - `test_historical_replay.py::TestChronologicalOOSEngine::test_knowledge_dir_created`
+  - `test_historical_replay.py::TestChronologicalOOSEngine::test_prebuilt_lessons_injected`
+    — the 3 tests above share the module-scoped `chrono_report` fixture (one `run()`).
+  - `test_historical_replay.py::TestChronologicalOOSEngine::test_deterministic`
+    — executes **two** full `run()` executions (r1 vs r2 determinism comparison).
+  - `test_historical_replay.py::TestChronologicalOOSEngine::test_cutoff_after_all_data`
+    — one full `run()`.
+  - `test_historical_replay.py::TestChronologicalOOSEngine::test_cutoff_before_all_data`
+    — one full `run()`.
+
+- **Approximate number of tests:** 19
+- **Expected runtime:** ~25-50 min (estimate; re-baseline on the target CI host)
+- **Classification:** Slow — Release Validation only
 
 ---
 
@@ -243,6 +312,7 @@ organized by architecture (not alphabetically).
 
 ## Totals
 
-- **Total packs:** 11
-- **Total test modules:** 98
-- **Total collected tests:** 2575
+- **Total packs:** 12
+- **Total test modules:** 98 (one module — `test_historical_replay.py` — split
+  across Pack 10A and Pack 10B at test level)
+- **Total collected tests:** 2575 (Pack 10A: 329 + Pack 10B: 19)

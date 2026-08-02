@@ -17,6 +17,12 @@ from knowledge.reasoning.chain import ReasoningChain
 
 
 class ReasoningEngine:
+    # Temporal-consistency dominance threshold: a direction side must hold at
+    # least this share of the weighted magnitude across horizon-separated
+    # evidence groups to override the opposing side; otherwise the aggregate
+    # signal is neutralized.
+    DIRECTION_DOMINANCE_THRESHOLD = 0.6
+
     def reason(self, evidence: EvidenceCollection, context: ReasoningContext) -> ReasoningChain:
         steps: list[ReasoningStep] = []
 
@@ -28,10 +34,11 @@ class ReasoningEngine:
 
         if steps:
             wa = self._weigh(evidence)
-            step = self._build_aggregation(evidence, wa, steps, len(steps))
+            direction_conflict = self._resolve_direction_conflict(evidence, steps)
+            step = self._build_aggregation(evidence, wa, steps, len(steps), direction_conflict)
             steps.append(step)
 
-            step = self._build_conclusion(evidence, wa, context, steps, len(steps))
+            step = self._build_conclusion(evidence, wa, context, steps, len(steps), direction_conflict)
             steps.append(step)
 
         chain_id = self._build_chain_id(context)
@@ -146,13 +153,83 @@ class ReasoningEngine:
             },
         )
 
+    def _resolve_direction_conflict(
+        self,
+        evidence: EvidenceCollection,
+        steps: list[ReasoningStep],
+    ) -> dict[str, Any] | None:
+        """Resolve directional conflicts between horizon-separated evidence groups.
+
+        Institutional temporal-consistency rule: when a comparison step splits
+        same-event evidence into distinct (condition | horizon) groups whose
+        average returns disagree on direction, one side must clearly dominate
+        by weighted magnitude (share >= DIRECTION_DOMINANCE_THRESHOLD) for the
+        aggregate to keep that direction; otherwise the aggregate signal is
+        neutralized (avg_return_pct = 0.0).
+        """
+        by_id = {ev.evidence_id: ev for ev in evidence}
+        for step in steps:
+            if step.step_type != STEP_COMPARISON:
+                continue
+            groups = step.details.get("condition_groups") or {}
+            if len(groups) < 2:
+                continue
+
+            group_returns: list[tuple[float, float]] = []
+            for group_ids in groups.values():
+                evs = [by_id[eid] for eid in group_ids if eid in by_id]
+                if not evs:
+                    continue
+                avg_return = sum(e.average_return_pct for e in evs) / len(evs)
+                group_confidence = sum(e.confidence for e in evs)
+                group_returns.append((avg_return, group_confidence))
+
+            directions = {
+                "positive" if r > 0 else "negative" if r < 0 else "flat"
+                for r, _ in group_returns
+            }
+            if not ({"positive", "negative"} <= directions):
+                continue
+
+            pos_mag = sum(abs(r) * c for r, c in group_returns if r > 0)
+            neg_mag = sum(abs(r) * c for r, c in group_returns if r < 0)
+            total = pos_mag + neg_mag
+            if total == 0.0:
+                continue
+
+            ratio = max(pos_mag, neg_mag) / total
+            if ratio >= self.DIRECTION_DOMINANCE_THRESHOLD:
+                dominant = "positive" if pos_mag > neg_mag else "negative"
+                return {
+                    "direction_conflict": True,
+                    "dominant_direction": dominant,
+                    "dominance_ratio": ratio,
+                    "avg_return_pct": None,
+                }
+            return {
+                "direction_conflict": True,
+                "dominant_direction": "neutral",
+                "dominance_ratio": ratio,
+                "avg_return_pct": 0.0,
+            }
+        return None
+
     @staticmethod
     def _weigh(evidence: EvidenceCollection) -> WeightedAggregate:
         return EvidenceWeighter().weigh(evidence)
 
-    def _build_aggregation(self, evidence: EvidenceCollection, wa: WeightedAggregate, steps: list[ReasoningStep], index: int) -> ReasoningStep:
+    def _build_aggregation(
+        self,
+        evidence: EvidenceCollection,
+        wa: WeightedAggregate,
+        steps: list[ReasoningStep],
+        index: int,
+        direction_conflict: dict[str, Any] | None = None,
+    ) -> ReasoningStep:
         step_id = f"step_{index}"
         avg_ret = wa.weighted_avg_return
+        if direction_conflict and direction_conflict.get("avg_return_pct") is not None:
+            avg_ret = direction_conflict["avg_return_pct"]
         avg_conf = wa.weighted_avg_confidence
         direction = "positive" if avg_ret > 0 else "negative" if avg_ret < 0 else "flat"
         all_ids = tuple(e.evidence_id for e in evidence)
@@ -163,28 +240,43 @@ class ReasoningEngine:
             f"({direction}) with weighted confidence of {avg_conf:.6f} "
             f"(effective sample size: {wa.effective_sample_size})."
         )
+        details = {
+            "count": wa.item_count,
+            "avg_return_pct": avg_ret,
+            "avg_confidence": avg_conf,
+            "avg_sample_count": avg_sample,
+            "weighted_avg_return": avg_ret,
+            "weighted_avg_confidence": avg_conf,
+            "effective_sample_size": wa.effective_sample_size,
+            "total_raw_weight": wa.total_raw_weight,
+            "attribution": wa.attribution,
+        }
+        if direction_conflict:
+            details["direction_conflict"] = direction_conflict["direction_conflict"]
+            details["dominant_direction"] = direction_conflict["dominant_direction"]
+            details["dominance_ratio"] = direction_conflict["dominance_ratio"]
         return ReasoningStep(
             step_id=step_id,
             step_type=STEP_AGGREGATION,
             conclusion=conclusion,
             confidence=avg_conf,
             supporting_evidence_ids=all_ids,
-            details={
-                "count": wa.item_count,
-                "avg_return_pct": avg_ret,
-                "avg_confidence": avg_conf,
-                "avg_sample_count": avg_sample,
-                "weighted_avg_return": avg_ret,
-                "weighted_avg_confidence": avg_conf,
-                "effective_sample_size": wa.effective_sample_size,
-                "total_raw_weight": wa.total_raw_weight,
-                "attribution": wa.attribution,
-            },
+            details=details,
         )
 
-    def _build_conclusion(self, evidence: EvidenceCollection, wa: WeightedAggregate, context: ReasoningContext, steps: list[ReasoningStep], index: int) -> ReasoningStep:
+    def _build_conclusion(
+        self,
+        evidence: EvidenceCollection,
+        wa: WeightedAggregate,
+        context: ReasoningContext,
+        steps: list[ReasoningStep],
+        index: int,
+        direction_conflict: dict[str, Any] | None = None,
+    ) -> ReasoningStep:
         step_id = f"step_{index}"
         avg_ret = wa.weighted_avg_return
+        if direction_conflict and direction_conflict.get("avg_return_pct") is not None:
+            avg_ret = direction_conflict["avg_return_pct"]
         avg_conf = wa.weighted_avg_confidence
 
         if avg_ret > 0.5:
