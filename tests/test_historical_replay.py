@@ -272,6 +272,15 @@ class TestExtractionHelpers:
         assert eng._extract_decision(self._make_finalize("STRONG_POSITIVE")) == "STRONG_POSITIVE"
         assert eng._extract_decision(self._make_finalize(None)) is None
 
+    def test_extract_institutional_decision(self) -> None:
+        eng = HistoricalReplayEngine
+        obj_finalize = self._make_finalize("STRONG_POSITIVE")
+        obj_finalize["decision"] = self._ns(decision="BUY", institutional_confidence=0.8)
+        assert eng._extract_decision(obj_finalize) == "BUY"
+        dict_finalize = self._make_finalize("STRONG_POSITIVE")
+        dict_finalize["decision"] = {"decision": "HOLD"}
+        assert eng._extract_decision(dict_finalize) == "HOLD"
+
     def test_extract_risk_decision(self) -> None:
         eng = HistoricalReplayEngine
         assert eng._extract_risk_decision(self._make_finalize(risk_action="halt")) == "halt"
@@ -522,8 +531,9 @@ class TestHistoricalReplayEngine:
         # decision_actual_return_pct is always computed when gold data exists
         assert cpi.decision_actual_return_pct is not None
         assert isinstance(cpi.decision_actual_return_pct, float)
-        # decision_correct is None when system abstains (INSUFFICIENT_EVIDENCE)
-        if cpi.decision == "INSUFFICIENT_EVIDENCE":
+        # decision_correct is None when system abstains
+        # (INSUFFICIENT_EVIDENCE or NO_TRADE)
+        if cpi.decision in ("INSUFFICIENT_EVIDENCE", "NO_TRADE"):
             assert cpi.decision_correct is None
         else:
             assert cpi.decision_correct is not None

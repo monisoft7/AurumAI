@@ -1,4 +1,4 @@
-"""W10 Institutional Scenario Generation."""
+"""W12 Institutional Scenario Generation."""
 
 from scenario_generation.contracts import (
     PROBABILITY_EPSILON,

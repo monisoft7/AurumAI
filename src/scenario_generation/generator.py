@@ -1,4 +1,4 @@
-"""W10 Institutional Scenario Generation: builds base/bull/bear scenarios
+"""W12 Institutional Scenario Generation: builds base/bull/bear scenarios
 for every thesis from ThesisConstruction (W8) and InstitutionalConfidence (W9)."""
 
 from __future__ import annotations
@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
+from confidence_engine.computer import ConfidenceComputer
 from confidence_engine.contracts import InstitutionalConfidence, ThesisConfidence
 from knowledge.integrity.provenance import Provenance
 from scenario_generation.contracts import (
@@ -43,25 +44,36 @@ SCENARIO_DIRECTIONS: dict[str, str] = {
 
 
 class ScenarioGenerator:
-    """Generates base/bull/bear scenarios for every thesis with
-    internally consistent probabilities."""
+    """Generates base/bull/bear scenarios for every thesis.
+
+    Per the frozen W12 specification, W12 runs before W9 (its downside-case
+    output is consumed by W9).  The W9 confidence input is therefore optional:
+    when it is absent the generator degrades gracefully to a deterministic
+    thesis-derived confidence proxy (PROJECT_SCOPE_V1 sec. 6.6).
+    """
 
     def generate(
         self,
         construction: ThesisConstruction,
-        confidence: InstitutionalConfidence,
+        confidence: InstitutionalConfidence | None = None,
     ) -> ScenarioGeneration:
         prov = Provenance(
             created_at=datetime.now(timezone.utc).isoformat(),
-            created_by="W10 ScenarioGenerator",
+            created_by="W12 ScenarioGenerator",
             entity_version="1.0.0",
         )
 
         scenarios: list[InstitutionalScenario] = []
         for thesis in construction.theses:
             tc = self._find_confidence(confidence, thesis.thesis_id)
+            if tc is not None:
+                confidence_value = tc.final_confidence
+            elif confidence is None:
+                confidence_value = self._fallback_confidence(thesis)
+            else:
+                confidence_value = 0.0
             probabilities = self._allocate_probabilities(
-                thesis.direction, tc.final_confidence if tc else 0.0
+                thesis.direction, confidence_value
             )
             for scenario_type in ("base", "bull", "bear"):
                 scenarios.append(
@@ -72,6 +84,7 @@ class ScenarioGenerator:
                         probability=probabilities[scenario_type],
                         provenance=prov,
                         regime=construction.regime,
+                        confidence_value=confidence_value,
                     )
                 )
 
@@ -86,7 +99,11 @@ class ScenarioGenerator:
         return ScenarioGeneration(
             scenario_generation_id=f"sg_{uuid4().hex[:12]}",
             construction_id=construction.construction_id,
-            confidence_id=confidence.confidence_id,
+            confidence_id=(
+                confidence.confidence_id
+                if confidence
+                else f"cf_fallback_{construction.construction_id}"
+            ),
             timestamp=datetime.now(timezone.utc).isoformat(),
             regime=construction.regime,
             scenarios=tuple(scenarios),
@@ -96,6 +113,9 @@ class ScenarioGenerator:
             metadata={
                 "total_theses_covered": len(thesis_ids),
                 "scenarios_per_thesis": 3,
+                "confidence_source": (
+                    "w9" if confidence is not None else "thesis_fallback"
+                ),
             },
         )
 
@@ -105,13 +125,21 @@ class ScenarioGenerator:
 
     def _find_confidence(
         self,
-        confidence: InstitutionalConfidence,
+        confidence: InstitutionalConfidence | None,
         thesis_id: str,
     ) -> ThesisConfidence | None:
+        if confidence is None:
+            return None
         for tc in confidence.theses_confidence:
             if tc.thesis_id == thesis_id:
                 return tc
         return None
+
+    @staticmethod
+    def _fallback_confidence(thesis: InvestmentThesis) -> float:
+        inputs = thesis.confidence_inputs or {}
+        proxy = float(inputs.get("avg_supporting_weight", 0.0))
+        return round(max(0.0, min(proxy, 1.0)), 4)
 
     def _allocate_probabilities(
         self, direction: str, final_confidence: float
@@ -139,6 +167,7 @@ class ScenarioGenerator:
         probability: float,
         provenance: Provenance,
         regime: str,
+        confidence_value: float,
     ) -> InstitutionalScenario:
         mechanism = thesis.economic_mechanism or "underlying economic mechanism"
         if scenario_type == "base":
@@ -167,13 +196,19 @@ class ScenarioGenerator:
             ),
             regime_path=regime_path,
             confidence_inputs={
-                "final_confidence": confidence.final_confidence if confidence else 0.0,
+                "final_confidence": (
+                    confidence.final_confidence if confidence else confidence_value
+                ),
                 "remaining_uncertainty": (
-                    confidence.remaining_uncertainty if confidence else 1.0
+                    confidence.remaining_uncertainty
+                    if confidence
+                    else round(1.0 - confidence_value, 4)
                 ),
                 "institutional_support": thesis.institutional_support,
                 "reliability_category": (
-                    confidence.reliability_category if confidence else "very_low"
+                    confidence.reliability_category
+                    if confidence
+                    else ConfidenceComputer().reliability_category(confidence_value)
                 ),
             },
             provenance_chain=tuple(base_chain),

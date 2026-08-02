@@ -1,4 +1,4 @@
-"""W13 Institutional Trade Recommendation: transforms the W12
+"""W14 Institutional Trade Recommendation: transforms the W13
 InstitutionalDecision into a complete, explainable trading recommendation."""
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ class RecommendationEngine:
     ) -> InstitutionalTradeRecommendation:
         prov = Provenance(
             created_at=datetime.now(timezone.utc).isoformat(),
-            created_by="W13 RecommendationEngine",
+            created_by="W14 RecommendationEngine",
             entity_version="1.0.0",
         )
         chain = list(decision.provenance_chain) + [prov]

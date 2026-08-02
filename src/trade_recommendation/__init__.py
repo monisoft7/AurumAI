@@ -1,4 +1,4 @@
-"""W13 Institutional Trade Recommendation (final AurumAI v1.0 workflow)."""
+"""W14 Institutional Trade Recommendation (final AurumAI v1.0 workflow)."""
 
 from trade_recommendation.contracts import InstitutionalTradeRecommendation
 from trade_recommendation.recommender import (

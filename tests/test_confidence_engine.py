@@ -532,6 +532,188 @@ class TestConfidenceEngine:
 
 
 # =========================================================================
+# B-4: W9 documented input consumption (W6 evidence, W12 downside case,
+# OOS ECE) and W9/W12 ordering conformance
+# =========================================================================
+
+
+def _make_reasoning(
+    construction: ThesisConstruction,
+    consensus: float = 0.8,
+    conflict: float = 0.1,
+):
+    from evidence_reasoning.contracts import EvidenceReasoning, EvidenceSet
+
+    sets = []
+    for thesis in construction.theses:
+        for set_id in thesis.supporting_set_ids:
+            sets.append(
+                EvidenceSet(
+                    set_id=set_id,
+                    event_type="REAL_YIELD",
+                    bias="bullish",
+                    evidence_ids=(f"ev_{set_id}",),
+                    net_institutional_weight=0.6,
+                    consensus_score=consensus,
+                    conflict_score=conflict,
+                    confidence_contribution=0.5,
+                    explanation="test set",
+                )
+            )
+    return EvidenceReasoning(
+        reasoning_id="er_b4",
+        collection_id="ec_b4",
+        timestamp="2026-07-30T18:00:00",
+        regime=construction.regime,
+        evidence_sets=tuple(sets),
+        total_evidence_sets=len(sets),
+        total_evidence_items=len(sets),
+    )
+
+
+def _make_generation(
+    construction: ThesisConstruction,
+    bear_invalidation: tuple[str, ...] = ("real yields reverse",),
+):
+    from scenario_generation.contracts import (
+        InstitutionalScenario,
+        ScenarioGeneration,
+    )
+
+    scenarios = []
+    for thesis in construction.theses:
+        for st in ("base", "bull", "bear"):
+            scenarios.append(
+                InstitutionalScenario(
+                    scenario_id=f"sc_{thesis.thesis_id}_{st}",
+                    thesis_id=thesis.thesis_id,
+                    scenario_type=st,
+                    probability=0.3333,
+                    expected_direction="bullish" if st != "bear" else "bearish",
+                    time_horizon_days=90,
+                    invalidation_conditions=(
+                        () if st != "bear" else bear_invalidation
+                    ),
+                    regime_path=("NORMAL_GROWTH",),
+                )
+            )
+    return ScenarioGeneration(
+        scenario_generation_id="sg_b4",
+        construction_id=construction.construction_id,
+        confidence_id="cf_b4",
+        timestamp="2026-07-30T18:00:00",
+        regime=construction.regime,
+        scenarios=tuple(scenarios),
+        thesis_ids=tuple(t.thesis_id for t in construction.theses),
+        total_scenarios=len(scenarios),
+        probability_consistency={t.thesis_id: 0.9999 for t in construction.theses},
+    )
+
+
+def _make_high_confidence_thesis(
+    thesis_id: str = "th_high",
+    supporting_set_ids: tuple[str, ...] = ("a", "b", "c"),
+) -> InvestmentThesis:
+    return _make_thesis(
+        thesis_id,
+        supporting_set_ids=supporting_set_ids,
+        institutional_support=0.9,
+        confidence_inputs={
+            "avg_supporting_weight": 0.9,
+            "avg_supporting_consensus": 0.9,
+            "conflict_severity": 0.0,
+            "confidence_penalty": 0.0,
+            "raw_support": 0.81,
+        },
+    )
+
+
+class TestW9InputConsumption:
+    def test_consumes_w6_evidence(self):
+        construction = _make_construction((_make_thesis("th_1"),))
+        reasoning = _make_reasoning(construction)
+        engine = ConfidenceEngine()
+        result = engine.evaluate(construction, reasoning=reasoning)
+        tc = result.theses_confidence[0]
+        w6 = tc.metadata["w6_evidence"]
+        assert w6["supporting_sets"] == 1
+        assert w6["evidence_items"] == 1
+        assert w6["avg_consensus"] == 0.8
+        assert w6["avg_conflict"] == 0.1
+        assert result.metadata["meta_evidence"]["w6_evidence_consumed"] is True
+
+    def test_consumes_w12_downside_case_without_cap_when_answered(self):
+        construction = _make_construction((_make_high_confidence_thesis(),))
+        generation = _make_generation(construction)
+        engine = ConfidenceEngine()
+        result = engine.evaluate(construction, generation=generation)
+        tc = result.theses_confidence[0]
+        assert tc.final_confidence == 0.855
+        assert tc.metadata["gs_test"]["all_answered"] is True
+        assert tc.metadata["gs_cap"] == "none"
+        assert result.metadata["meta_evidence"]["w12_downside_case_consumed"] is True
+
+    def test_gs_test_caps_confidence_when_answers_unanswered(self):
+        construction = _make_construction((_make_high_confidence_thesis(),))
+        generation = _make_generation(construction, bear_invalidation=())
+        engine = ConfidenceEngine()
+        result = engine.evaluate(construction, generation=generation)
+        tc = result.theses_confidence[0]
+        assert tc.metadata["gs_test"]["all_answered"] is False
+        assert tc.metadata["gs_test"]["downside_case"] is False
+        assert tc.metadata["gs_cap"] == "medium"
+        assert tc.final_confidence == 0.60
+        assert tc.remaining_uncertainty == 0.4
+        assert tc.reliability_category == "moderate"
+
+    def test_oos_ece_caps_at_medium(self):
+        construction = _make_construction((_make_high_confidence_thesis(),))
+        engine = ConfidenceEngine()
+        result = engine.evaluate(construction, oos_ece=0.2)
+        tc = result.theses_confidence[0]
+        assert tc.metadata["oos_calibration"]["cap_applied"] == "medium"
+        assert tc.final_confidence == 0.60
+
+    def test_oos_ece_caps_at_low(self):
+        construction = _make_construction((_make_high_confidence_thesis(),))
+        engine = ConfidenceEngine()
+        result = engine.evaluate(construction, oos_ece=0.3)
+        tc = result.theses_confidence[0]
+        assert tc.metadata["oos_calibration"]["cap_applied"] == "low"
+        assert tc.final_confidence == 0.35
+
+    def test_oos_ece_below_threshold_uncapped(self):
+        construction = _make_construction((_make_high_confidence_thesis(),))
+        engine = ConfidenceEngine()
+        result = engine.evaluate(construction, oos_ece=0.1)
+        tc = result.theses_confidence[0]
+        assert tc.metadata["oos_calibration"]["cap_applied"] == "none"
+        assert tc.final_confidence == 0.855
+
+    def test_absent_inputs_preserve_legacy_behavior(self):
+        construction = _make_construction((_make_thesis("th_1"),))
+        engine = ConfidenceEngine()
+        legacy = engine.evaluate(construction)
+        explicit = engine.evaluate(construction, reasoning=None, generation=None, oos_ece=None)
+        assert [t.final_confidence for t in legacy.theses_confidence] == [
+            t.final_confidence for t in explicit.theses_confidence
+        ]
+        assert "w6_evidence" not in legacy.theses_confidence[0].metadata
+        assert "gs_test" not in legacy.theses_confidence[0].metadata
+        assert "oos_calibration" not in legacy.theses_confidence[0].metadata
+        assert legacy.metadata["meta_evidence"] == {
+            "w6_evidence_consumed": False,
+            "w12_downside_case_consumed": False,
+            "oos_ece_consumed": False,
+        }
+        for tc in legacy.theses_confidence:
+            assert tc.remaining_uncertainty + tc.final_confidence == 1.0
+            assert tc.reliability_category == (
+                ConfidenceComputer().reliability_category(tc.final_confidence)
+            )
+
+
+# =========================================================================
 # W8 -> W9 integration test
 # =========================================================================
 

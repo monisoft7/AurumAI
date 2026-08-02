@@ -150,19 +150,19 @@ def _decision_is_correct(
 ) -> bool | None:
     """Return True/False for a directional bet, or None for abstention.
 
-    POSITIVE / STRONG_POSITIVE → correct if actual is UP.
-    NEGATIVE / STRONG_NEGATIVE → correct if actual is DOWN.
-    NEUTRAL                   → correct if actual is FLAT.
-    INSUFFICIENT_EVIDENCE     → None (not scored).
+    POSITIVE / STRONG_POSITIVE / BUY  → correct if actual is UP.
+    NEGATIVE / STRONG_NEGATIVE / SELL → correct if actual is DOWN.
+    NEUTRAL / HOLD                    → correct if actual is FLAT.
+    INSUFFICIENT_EVIDENCE / NO_TRADE  → None (not scored).
     """
     decision_upper = decision.upper()
-    if decision_upper == "INSUFFICIENT_EVIDENCE":
+    if decision_upper in ("INSUFFICIENT_EVIDENCE", "NO_TRADE"):
         return None
-    if decision_upper in ("POSITIVE", "STRONG_POSITIVE"):
+    if decision_upper in ("POSITIVE", "STRONG_POSITIVE", "BUY"):
         return actual_direction == "UP"
-    if decision_upper in ("NEGATIVE", "STRONG_NEGATIVE"):
+    if decision_upper in ("NEGATIVE", "STRONG_NEGATIVE", "SELL"):
         return actual_direction == "DOWN"
-    if decision_upper == "NEUTRAL":
+    if decision_upper in ("NEUTRAL", "HOLD"):
         return actual_direction == "FLAT"
     return None
 
@@ -980,10 +980,12 @@ class HistoricalReplayEngine:
     @staticmethod
     def _extract_decision(finalize_out: dict[str, Any]) -> str | None:
         dec = finalize_out.get("decision")
+        if hasattr(dec, "decision"):
+            return dec.decision
         if hasattr(dec, "decision_type"):
             return dec.decision_type
         if isinstance(dec, dict):
-            return dec.get("decision_type")
+            return dec.get("decision_type") or dec.get("decision")
         return None
 
     @staticmethod

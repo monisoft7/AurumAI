@@ -34,7 +34,7 @@ SAMPLE_ROWS = [
 def sample_calendar() -> FOMCCalendarConnector:
     path = Path(tempfile.mktemp(suffix=".csv"))
     pd.DataFrame(SAMPLE_ROWS).to_csv(path, index=False)
-    cal = FOMCCalendarConnector(path)
+    cal = FOMCCalendarConnector(path, auto_refresh=False)
     yield cal
     path.unlink(missing_ok=True)
 
@@ -60,7 +60,7 @@ class TestFOMCCalendarConnectorInit:
         path = Path(tempfile.mktemp(suffix=".csv"))
         pd.DataFrame({"x": [1]}).to_csv(path, index=False)
         with pytest.raises(ValueError, match="missing required columns"):
-            FOMCCalendarConnector(path).count
+            FOMCCalendarConnector(path, auto_refresh=False).count
         path.unlink(missing_ok=True)
 
 

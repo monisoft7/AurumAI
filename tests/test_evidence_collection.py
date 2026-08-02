@@ -1,4 +1,4 @@
-"""Unit + integration tests for W5 Institutional Evidence Collection."""
+"""Unit + integration tests for W6 Institutional Evidence Collection."""
 
 import json
 from datetime import datetime, timezone
@@ -63,7 +63,7 @@ class TestEvidence:
             mechanism="Real yield opportunity cost channel",
             provenance=Provenance(
                 created_at="2026-07-29T06:00:00",
-                created_by="W5 EvidenceCollector",
+                created_by="W6 EvidenceCollector",
                 entity_version="1.0.0",
             ),
             temporal_recency=0.85,
@@ -74,7 +74,7 @@ class TestEvidence:
         assert restored.bias == ev.bias
         assert restored.composite_weight == ev.composite_weight
         assert restored.provenance is not None
-        assert restored.provenance.created_by == "W5 EvidenceCollector"
+        assert restored.provenance.created_by == "W6 EvidenceCollector"
 
     def test_validate_passes_for_valid(self):
         ev = Evidence(
@@ -405,7 +405,7 @@ class TestEvidenceCollector:
 
 
 # =========================================================================
-# Integration tests: W4 -> W5
+# Integration tests: W5 -> W6
 # =========================================================================
 
 

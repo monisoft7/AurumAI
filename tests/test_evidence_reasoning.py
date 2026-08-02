@@ -493,18 +493,18 @@ class TestEvidenceReasoner:
         assert len(es.evidence_ids) == 2
 
     def test_provenance_chain_preserved(self):
-        prov = Provenance("2026-07-30T06:00:00", "W5 EvidenceCollector", "1.0.0")
+        prov = Provenance("2026-07-30T06:00:00", "W6 EvidenceCollector", "1.0.0")
         items = [_make_evidence("ev_1", event_type="REAL_YIELD", provenance=prov)]
         collection = _make_collection(items)
         reasoner = EvidenceReasoner()
         result = reasoner.reason(collection)
         es = result.evidence_sets[0]
         assert len(es.provenance_chain) == 1
-        assert es.provenance_chain[0].created_by == "W5 EvidenceCollector"
+        assert es.provenance_chain[0].created_by == "W6 EvidenceCollector"
 
 
 # =========================================================================
-# W5 -> W6 integration test
+# W6 evidence collection -> W6 evidence reasoning integration test
 # =========================================================================
 
 

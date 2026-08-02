@@ -1,4 +1,4 @@
-"""Unit + integration tests for W11 Institutional Risk / Reward Validation."""
+"""Unit + integration tests for W12 Institutional Risk / Reward Validation."""
 
 import json
 
@@ -526,12 +526,12 @@ class TestRiskRewardValidator:
             assert "tail_risk" in v.validation_explanation
             assert "reason=" in v.validation_explanation
 
-    def test_provenance_chain_ends_with_w11(self):
+    def test_provenance_chain_ends_with_w12(self):
         rv = _validate((_strong_bullish_thesis(),))
         for v in rv.validations:
-            assert v.provenance_chain[-1].created_by == "W11 RiskRewardValidator"
+            assert v.provenance_chain[-1].created_by == "W12 RiskRewardValidator"
             assert any(
-                p.created_by == "W10 ScenarioGenerator" for p in v.provenance_chain
+                p.created_by == "W12 ScenarioGenerator" for p in v.provenance_chain
             )
 
     def test_summary_counts(self):
@@ -565,7 +565,7 @@ class TestRiskRewardValidator:
 
 
 # =========================================================================
-# W8 -> W9 -> W10 -> W11 integration test
+# W8 -> W9 -> W12 -> W12 integration test
 # =========================================================================
 
 
@@ -622,7 +622,7 @@ def test_w8_to_w9_to_w10_to_w11_integration():
         assert not errors, f"Validation failed: {errors}"
         assert v.validation_status in VALID_VALIDATION_STATUS
         assert 0.0 <= v.risk_reward_ratio <= 10.0
-        assert v.provenance_chain[-1].created_by == "W11 RiskRewardValidator"
+        assert v.provenance_chain[-1].created_by == "W12 RiskRewardValidator"
         assert any(p.created_by == "W9 ConfidenceEngine" for p in v.provenance_chain)
 
     total = sum(validation.summary.values())
@@ -630,7 +630,7 @@ def test_w8_to_w9_to_w10_to_w11_integration():
 
 
 # =========================================================================
-# W11 orchestration stage tests
+# W12 orchestration stage tests
 # =========================================================================
 
 

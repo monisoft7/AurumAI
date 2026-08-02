@@ -1,4 +1,4 @@
-"""Unit + integration tests for W4 Signal vs Noise Classification."""
+"""Unit + integration tests for W5 Signal vs Noise Classification."""
 
 import json
 from datetime import datetime, timezone
@@ -448,7 +448,7 @@ class TestSignalAssessmentAssembler:
 
 
 # =========================================================================
-# Integration test: W3 -> W4 pipeline
+# Integration test: W3 -> W5 pipeline
 # =========================================================================
 
 

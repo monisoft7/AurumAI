@@ -1,4 +1,4 @@
-"""Unit + integration tests for W10 Institutional Scenario Generation."""
+"""Unit + integration tests for W12 Institutional Scenario Generation."""
 
 import json
 
@@ -485,11 +485,11 @@ class TestScenarioGenerator:
             assert s.confidence_inputs["institutional_support"] == 0.7
             assert s.confidence_inputs["reliability_category"] == "high"
 
-    def test_provenance_chain_ends_with_w10(self):
+    def test_provenance_chain_ends_with_w12(self):
         generation = _generate()
         for s in generation.scenarios:
             assert len(s.provenance_chain) >= 1
-            assert s.provenance_chain[-1].created_by == "W10 ScenarioGenerator"
+            assert s.provenance_chain[-1].created_by == "W12 ScenarioGenerator"
 
     def test_metadata_label(self):
         generation = _generate()
@@ -541,7 +541,7 @@ class TestScenarioGenerator:
 
 
 # =========================================================================
-# W8 -> W9 -> W10 integration test
+# W8 -> W9 -> W12 integration test
 # =========================================================================
 
 
@@ -607,7 +607,7 @@ def test_w8_to_w9_to_w10_integration():
         assert abs(total - 1.0) <= PROBABILITY_EPSILON
 
     provenance_ok = all(
-        s.provenance_chain[-1].created_by == "W10 ScenarioGenerator"
+        s.provenance_chain[-1].created_by == "W12 ScenarioGenerator"
         and any(p.created_by == "W9 ConfidenceEngine" for p in s.provenance_chain)
         for s in generation.scenarios
     )
@@ -615,7 +615,7 @@ def test_w8_to_w9_to_w10_integration():
 
 
 # =========================================================================
-# W10 orchestration stage tests
+# W12 orchestration stage tests
 # =========================================================================
 
 
@@ -646,12 +646,42 @@ def test_w10_orchestration_stage_missing_data():
     assert isinstance(result, dict)
     assert "error" in result
 
+    # W12 runs before W9 in the frozen v1.x DAG; missing W9 confidence must
+    # degrade gracefully (PROJECT_SCOPE_V1 sec. 6.6), not error.
     construction = _make_construction()
     result = _scenario_generation(
         {}, {"thesis_construction": construction.to_dict()}
     )
-    assert isinstance(result, dict)
-    assert "error" in result
+    assert isinstance(result, ScenarioGeneration)
+    assert result.construction_id == construction.construction_id
+    assert result.total_scenarios == 3
+    assert result.metadata["confidence_source"] == "thesis_fallback"
+    assert result.confidence_id == f"cf_fallback_{construction.construction_id}"
+
+
+def test_generate_without_confidence_uses_thesis_fallback():
+    construction = _make_construction((_make_thesis("th_1"),))
+    generation = ScenarioGenerator().generate(construction)
+
+    assert generation.metadata["confidence_source"] == "thesis_fallback"
+    assert generation.confidence_id == f"cf_fallback_{construction.construction_id}"
+    for tid, total in generation.probability_consistency.items():
+        assert abs(total - 1.0) <= PROBABILITY_EPSILON
+    for s in generation.scenarios:
+        assert 0.0 <= s.probability <= 1.0
+        assert s.confidence_inputs["final_confidence"] == 0.6
+        assert s.confidence_inputs["remaining_uncertainty"] == 0.4
+        assert s.confidence_inputs["reliability_category"] == "moderate"
+    assert not generation.validate()
+
+
+def test_generate_without_confidence_deterministic():
+    construction = _make_construction((_make_thesis("th_1"),))
+    first = ScenarioGenerator().generate(construction)
+    second = ScenarioGenerator().generate(construction)
+    by_type_a = {s.scenario_type: s.probability for s in first.scenarios}
+    by_type_b = {s.scenario_type: s.probability for s in second.scenarios}
+    assert by_type_a == by_type_b
 
 
 def test_w10_orchestration_stage_propagates_upstream_errors():

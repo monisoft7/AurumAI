@@ -1,4 +1,4 @@
-"""Unit + integration tests for W13 Institutional Trade Recommendation."""
+"""Unit + integration tests for W14 Institutional Trade Recommendation."""
 
 import json
 
@@ -226,7 +226,7 @@ class TestInstitutionalTradeRecommendation:
             decision_summary="x",
             institutional_thesis_summary="y",
             provenance_chain=(
-                Provenance("2026-07-31T12:00:00", "W12 DecisionEngine", "1.0.0"),
+                Provenance("2026-07-31T12:00:00", "W13 DecisionEngine", "1.0.0"),
             ),
         )
         assert not rec.validate()
@@ -410,9 +410,9 @@ class TestRecommendationEngine:
         assert any("monitor: real yields reverse" in c for c in rec.monitoring_conditions)
         assert any("re-evaluate" in c for c in rec.monitoring_conditions)
 
-    def test_provenance_chain_ends_with_w13(self):
+    def test_provenance_chain_ends_with_w14(self):
         rec = _recommend(_manual_decision())
-        assert rec.provenance_chain[-1].created_by == "W13 RecommendationEngine"
+        assert rec.provenance_chain[-1].created_by == "W14 RecommendationEngine"
         assert len(rec.provenance_chain) >= 1
 
     def test_buy_via_full_chain(self):
@@ -443,11 +443,11 @@ class TestRecommendationEngine:
 
 
 # =========================================================================
-# W8 -> W9 -> W10 -> W11 -> W12 -> W13 integration test
+# W8 -> W9 -> W12 -> W13 -> W14 integration test
 # =========================================================================
 
 
-def test_w8_to_w13_full_integration():
+def test_w8_to_w14_full_integration():
     from evidence_collection.contracts import Evidence, EvidenceCollection
     from evidence_reasoning.reasoner import EvidenceReasoner
     from counter_evidence.assessor import CounterEvidenceAssessor
@@ -515,13 +515,13 @@ def test_w8_to_w13_full_integration():
     assert rec.decision_summary
     assert rec.institutional_thesis_summary
     assert rec.monitoring_conditions
-    assert rec.provenance_chain[-1].created_by == "W13 RecommendationEngine"
+    assert rec.provenance_chain[-1].created_by == "W14 RecommendationEngine"
     assert any(p.created_by == "W9 ConfidenceEngine" for p in rec.provenance_chain)
-    assert any(p.created_by == "W12 DecisionEngine" for p in rec.provenance_chain)
+    assert any(p.created_by == "W13 DecisionEngine" for p in rec.provenance_chain)
 
 
 # =========================================================================
-# W13 orchestration stage tests
+# W14 orchestration stage tests
 # =========================================================================
 
 

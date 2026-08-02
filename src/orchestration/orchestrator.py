@@ -18,11 +18,13 @@ from orchestration.models import CheckpointResult, InstitutionalAssessment, Stag
 from orchestration.stages import (
     _build_context,
     _build_legacy_pipeline,
+    _bias_prevention,
     _confidence_engine,
     _counter_evidence,
     _decision_engine,
     _evidence_collection,
     _evidence_reasoning,
+    _event_triage,
     _finalize,
     _forecast,
     _forecast_confidence,
@@ -37,6 +39,7 @@ from orchestration.stages import (
     _scenario_generation,
     _signal_assessment,
     _thesis_construction,
+    _thesis_update,
     _trade_recommendation,
 )
 
@@ -245,8 +248,16 @@ class InstitutionalOrchestrator:
         ))
 
         orch.register(PipelineJob(
-            job_id="evidence_collection",
+            job_id="event_triage",
             dependencies=("signal_assessment",),
+            fn=orch._bind(_event_triage),
+            cache_ttl=600,
+            checkpoint=True,
+        ))
+
+        orch.register(PipelineJob(
+            job_id="evidence_collection",
+            dependencies=("event_triage",),
             fn=orch._bind(_evidence_collection),
             cache_ttl=600,
             checkpoint=True,
@@ -277,8 +288,16 @@ class InstitutionalOrchestrator:
         ))
 
         orch.register(PipelineJob(
+            job_id="thesis_update",
+            dependencies=("thesis_construction", "evidence_reasoning", "counter_evidence"),
+            fn=orch._bind(_thesis_update),
+            cache_ttl=600,
+            checkpoint=True,
+        ))
+
+        orch.register(PipelineJob(
             job_id="confidence_engine",
-            dependencies=("thesis_construction",),
+            dependencies=("thesis_update", "scenario_generation", "evidence_reasoning"),
             fn=orch._bind(_confidence_engine),
             cache_ttl=600,
             checkpoint=True,
@@ -286,7 +305,7 @@ class InstitutionalOrchestrator:
 
         orch.register(PipelineJob(
             job_id="scenario_generation",
-            dependencies=("thesis_construction", "confidence_engine"),
+            dependencies=("thesis_construction",),
             fn=orch._bind(_scenario_generation),
             cache_ttl=600,
             checkpoint=True,
@@ -301,12 +320,21 @@ class InstitutionalOrchestrator:
         ))
 
         orch.register(PipelineJob(
+            job_id="bias_prevention",
+            dependencies=("thesis_update", "counter_evidence", "confidence_engine"),
+            fn=orch._bind(_bias_prevention),
+            cache_ttl=600,
+            checkpoint=True,
+        ))
+
+        orch.register(PipelineJob(
             job_id="decision_engine",
             dependencies=(
                 "thesis_construction",
                 "confidence_engine",
                 "scenario_generation",
                 "risk_reward_validation",
+                "bias_prevention",
             ),
             fn=orch._bind(_decision_engine),
             cache_ttl=600,
@@ -404,7 +432,7 @@ class InstitutionalOrchestrator:
         orch.register(PipelineJob(
             job_id="finalize",
             dependencies=("risk_gate", "position_sizing", "forecast_confidence",
-                          "forecast_validation"),
+                          "forecast_validation", "decision_engine"),
             fn=orch._bind(_finalize),
             cache_ttl=None,
             checkpoint=True,

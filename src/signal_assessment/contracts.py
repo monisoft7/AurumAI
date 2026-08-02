@@ -105,7 +105,7 @@ class ClassifiedObservation:
 
 @dataclass(frozen=True)
 class SignalAssessment:
-    """W4 output contract: transforms PreMarketBriefing into classified observations."""
+    """W5 output contract: transforms PreMarketBriefing into classified observations."""
 
     assessment_id: str
     briefing_id: str

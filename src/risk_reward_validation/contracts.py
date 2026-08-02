@@ -1,4 +1,4 @@
-"""W11 Institutional Risk / Reward Validation contracts."""
+"""W12 Institutional Risk / Reward Validation contracts."""
 
 from __future__ import annotations
 
@@ -122,7 +122,7 @@ class InstitutionalRiskValidation:
 
 @dataclass(frozen=True)
 class RiskRewardValidation:
-    """W11 output: risk / reward validation for every institutional scenario."""
+    """W12 output: risk / reward validation for every institutional scenario."""
 
     validation_id: str
     scenario_generation_id: str

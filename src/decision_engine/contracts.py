@@ -1,4 +1,4 @@
-"""W12 Institutional Decision Engine contracts."""
+"""W13 Institutional Decision Engine contracts."""
 
 from __future__ import annotations
 
@@ -96,7 +96,7 @@ class RejectedAlternative:
 
 @dataclass(frozen=True)
 class InstitutionalDecision:
-    """W12 output: exactly one institutional decision (BUY / SELL / HOLD / NO TRADE)."""
+    """W13 output: exactly one institutional decision (BUY / SELL / HOLD / NO TRADE)."""
 
     decision_id: str
     decision: str

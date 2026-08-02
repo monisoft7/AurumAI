@@ -1,5 +1,5 @@
-"""W12 Institutional Decision Engine: produces exactly one institutional
-decision (BUY / SELL / HOLD / NO TRADE) from W8-W11 outputs."""
+"""W13 Institutional Decision Engine: produces exactly one institutional
+decision (BUY / SELL / HOLD / NO TRADE) from W8, W9, and W12 outputs."""
 
 from __future__ import annotations
 
@@ -53,7 +53,7 @@ class DecisionEngine:
     ) -> InstitutionalDecision:
         prov = Provenance(
             created_at=datetime.now(timezone.utc).isoformat(),
-            created_by="W12 DecisionEngine",
+            created_by="W13 DecisionEngine",
             entity_version="1.0.0",
         )
 
@@ -329,7 +329,7 @@ class DecisionEngine:
             if entry["best_status"] not in ELIGIBLE_STATUSES:
                 reason = (
                     f"no acceptable or borderline scenario: all scenarios rejected "
-                    f"by W11 risk/reward validation (best status={entry['best_status']})"
+                    f"by W12 risk/reward validation (best status={entry['best_status']})"
                 )
             elif selected is None:
                 reason = (

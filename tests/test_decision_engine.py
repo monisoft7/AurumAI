@@ -1,4 +1,4 @@
-"""Unit + integration tests for W12 Institutional Decision Engine."""
+"""Unit + integration tests for W13 Institutional Decision Engine."""
 
 import json
 
@@ -420,7 +420,7 @@ class TestDecisionEngine:
         )
         assert decision.decision == "NO_TRADE"
         assert len(decision.rejected_alternatives) == 1
-        assert "rejected by W11" in decision.rejected_alternatives[0].rejection_reason
+        assert "rejected by W12" in decision.rejected_alternatives[0].rejection_reason
 
     def test_no_trade_when_rr_ratio_exceeds_threshold(self):
         thesis = _make_thesis("th_1", "bullish", confidence=0.8)
@@ -492,10 +492,10 @@ class TestDecisionEngine:
         assert "composite_score=" in decision.decision_explanation
         assert "reason=" in decision.decision_explanation
 
-    def test_provenance_chain_ends_with_w12(self):
+    def test_provenance_chain_ends_with_w13(self):
         decision, _ = _decide((_strong_bullish(),))
-        assert decision.provenance_chain[-1].created_by == "W12 DecisionEngine"
-        assert any(p.created_by == "W11 RiskRewardValidator" for p in decision.provenance_chain)
+        assert decision.provenance_chain[-1].created_by == "W13 DecisionEngine"
+        assert any(p.created_by == "W12 RiskRewardValidator" for p in decision.provenance_chain)
 
     def test_composite_score_matches_drivers(self):
         decision, _ = _decide((_strong_bullish(),))
@@ -574,11 +574,11 @@ def _rv_risky() -> InstitutionalRiskValidation:
 
 
 # =========================================================================
-# W8 -> W9 -> W10 -> W11 -> W12 integration test
+# W8 -> W9 -> W12 -> W13 integration test
 # =========================================================================
 
 
-def test_w8_to_w9_to_w10_to_w11_to_w12_integration():
+def test_w8_to_w9_to_w12_to_w13_integration():
     from evidence_collection.contracts import Evidence, EvidenceCollection
     from evidence_reasoning.reasoner import EvidenceReasoner
     from counter_evidence.assessor import CounterEvidenceAssessor
@@ -639,7 +639,7 @@ def test_w8_to_w9_to_w10_to_w11_to_w12_integration():
 
     assert not decision.validate()
     assert decision.decision_explanation
-    assert decision.provenance_chain[-1].created_by == "W12 DecisionEngine"
+    assert decision.provenance_chain[-1].created_by == "W13 DecisionEngine"
     assert any(p.created_by == "W9 ConfidenceEngine" for p in decision.provenance_chain)
 
     for alt in decision.rejected_alternatives:
@@ -648,11 +648,11 @@ def test_w8_to_w9_to_w10_to_w11_to_w12_integration():
 
 
 # =========================================================================
-# W12 orchestration stage tests
+# W13 orchestration stage tests
 # =========================================================================
 
 
-def test_w12_orchestration_stage():
+def test_w13_orchestration_stage():
     from orchestration.stages import _decision_engine
 
     construction, confidence, generation, validation = _build_inputs(

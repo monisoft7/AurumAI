@@ -1,4 +1,4 @@
-"""W10 Institutional Scenario Generation contracts."""
+"""W12 Institutional Scenario Generation contracts."""
 
 from __future__ import annotations
 
@@ -119,7 +119,7 @@ class InstitutionalScenario:
 
 @dataclass(frozen=True)
 class ScenarioGeneration:
-    """W10 output: institutional forward-looking scenarios for every thesis."""
+    """W12 output: institutional forward-looking scenarios for every thesis."""
 
     scenario_generation_id: str
     construction_id: str

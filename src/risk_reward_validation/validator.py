@@ -1,4 +1,4 @@
-"""W11 Institutional Risk / Reward Validation: validates every W10 scenario
+"""W12 Institutional Risk / Reward Validation: validates every W12 scenario
 and classifies it as acceptable, borderline, or reject."""
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ class RiskRewardValidator:
     def validate(self, generation: ScenarioGeneration) -> RiskRewardValidation:
         prov = Provenance(
             created_at=datetime.now(timezone.utc).isoformat(),
-            created_by="W11 RiskRewardValidator",
+            created_by="W12 RiskRewardValidator",
             entity_version="1.0.0",
         )
 

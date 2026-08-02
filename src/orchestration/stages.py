@@ -376,10 +376,32 @@ def _signal_assessment(params: dict[str, Any], results: dict[str, Any]) -> Any:
     return assessment
 
 
+def _event_triage(params: dict[str, Any], results: dict[str, Any]) -> Any:
+    from signal_assessment.contracts import SignalAssessment
+    from event_triage.tierer import SignalTierer
+
+    assessment_data = results.get("signal_assessment")
+    if assessment_data is None:
+        assessment_data = params.get("assessment_data")
+    if assessment_data is None:
+        return {"error": "no assessment data available", "assignments": []}
+
+    if isinstance(assessment_data, dict):
+        assessment = SignalAssessment.from_dict(assessment_data)
+    else:
+        assessment = assessment_data
+
+    tierer = SignalTierer()
+    return tierer.tier(assessment)
+
+
 def _evidence_collection(params: dict[str, Any], results: dict[str, Any]) -> Any:
+    from dataclasses import replace
+
     from signal_assessment.contracts import SignalAssessment
     from evidence_collection.collector import EvidenceCollector
     from evidence_collection.contracts import EvidenceCollection
+    from event_triage.contracts import SignalTiering
 
     assessment_data = results.get("signal_assessment")
     if assessment_data is None:
@@ -395,6 +417,21 @@ def _evidence_collection(params: dict[str, Any], results: dict[str, Any]) -> Any
     kg = params.get("knowledge_graph")
     collector = EvidenceCollector(knowledge_graph=kg)
     collection = collector.collect(assessment, regime_weight=params.get("regime_weight", 0.8))
+
+    tiering_data = results.get("event_triage")
+    if tiering_data is not None:
+        if isinstance(tiering_data, dict):
+            tiering = SignalTiering.from_dict(tiering_data)
+        else:
+            tiering = tiering_data
+        merged_metadata = dict(collection.metadata)
+        merged_metadata["event_tiering"] = {
+            "tiering_id": tiering.tiering_id,
+            "tier_counts": tiering.tier_counts,
+            "tiers": {a.observation_id: a.tier for a in tiering.assignments},
+        }
+        collection = replace(collection, metadata=merged_metadata)
+
     return collection
 
 
@@ -478,21 +515,86 @@ def _thesis_construction(params: dict[str, Any], results: dict[str, Any]) -> Any
     return construction
 
 
-def _confidence_engine(params: dict[str, Any], results: dict[str, Any]) -> Any:
+def _thesis_update(params: dict[str, Any], results: dict[str, Any]) -> Any:
     from thesis_construction.contracts import ThesisConstruction
-    from confidence_engine.engine import ConfidenceEngine
+    from evidence_reasoning.contracts import EvidenceReasoning
+    from counter_evidence.contracts import CounterEvidenceAssessment
+    from thesis_update.updater import ThesisUpdater
 
     construction_data = results.get("thesis_construction")
-    if construction_data is None:
-        return {"error": "no thesis construction data available"}
+    reasoning_data = results.get("evidence_reasoning")
+    assessment_data = results.get("counter_evidence")
+    if construction_data is None or reasoning_data is None or assessment_data is None:
+        return {"error": "missing thesis_construction, evidence_reasoning, or counter_evidence data"}
 
     if isinstance(construction_data, dict):
         construction = ThesisConstruction.from_dict(construction_data)
     else:
         construction = construction_data
+    if isinstance(reasoning_data, dict):
+        reasoning = EvidenceReasoning.from_dict(reasoning_data)
+    else:
+        reasoning = reasoning_data
+    if isinstance(assessment_data, dict):
+        assessment = CounterEvidenceAssessment.from_dict(assessment_data)
+    else:
+        assessment = assessment_data
+
+    if not construction.theses:
+        return {"error": "no thesis available to update"}
+
+    updater = ThesisUpdater()
+    return updater.update(construction, reasoning, assessment)
+
+
+def _confidence_engine(params: dict[str, Any], results: dict[str, Any]) -> Any:
+    from thesis_construction.contracts import ThesisConstruction
+    from confidence_engine.engine import ConfidenceEngine
+
+    reasoning_data = results.get("evidence_reasoning")
+    generation_data = results.get("scenario_generation")
+
+    update_data = results.get("thesis_update")
+    if update_data is not None:
+        from thesis_update.contracts import ThesisUpdate
+
+        if isinstance(update_data, dict):
+            update = ThesisUpdate.from_dict(update_data)
+        else:
+            update = update_data
+        thesis = update.updated_thesis
+        construction = ThesisConstruction(
+            construction_id=update.update_id,
+            reasoning_id=update.reasoning_id,
+            assessment_id=update.assessment_id,
+            timestamp=update.timestamp,
+            regime=thesis.regime,
+            theses=(thesis,),
+            ranked_thesis_ids=(thesis.thesis_id,),
+            total_theses=1,
+            primary_thesis_id=thesis.thesis_id,
+        )
+    else:
+        construction_data = results.get("thesis_construction")
+        if construction_data is None:
+            return {"error": "no thesis construction data available"}
+
+        if isinstance(construction_data, dict):
+            construction = ThesisConstruction.from_dict(construction_data)
+        else:
+            construction = construction_data
+
+    oos_ece = params.get("oos_ece")
+    if not isinstance(oos_ece, (int, float)) or isinstance(oos_ece, bool):
+        oos_ece = None
 
     engine = ConfidenceEngine()
-    confidence = engine.evaluate(construction)
+    confidence = engine.evaluate(
+        construction,
+        reasoning=reasoning_data,
+        generation=generation_data,
+        oos_ece=oos_ece,
+    )
     return confidence
 
 
@@ -502,12 +604,13 @@ def _scenario_generation(params: dict[str, Any], results: dict[str, Any]) -> Any
     from scenario_generation.generator import ScenarioGenerator
 
     construction_data = results.get("thesis_construction")
-    confidence_data = results.get("confidence_engine")
-    if construction_data is None or confidence_data is None:
-        return {"error": "missing thesis_construction or confidence_engine data"}
+    if construction_data is None:
+        return {"error": "missing thesis_construction data"}
 
     if isinstance(construction_data, dict) and "error" in construction_data:
         return {"error": "thesis_construction stage failed"}
+
+    confidence_data = results.get("confidence_engine")
     if isinstance(confidence_data, dict) and "error" in confidence_data:
         return {"error": "confidence_engine stage failed"}
 
@@ -515,7 +618,10 @@ def _scenario_generation(params: dict[str, Any], results: dict[str, Any]) -> Any
         construction = ThesisConstruction.from_dict(construction_data)
     else:
         construction = construction_data
-    if isinstance(confidence_data, dict):
+
+    if confidence_data is None:
+        confidence = None
+    elif isinstance(confidence_data, dict):
         confidence = InstitutionalConfidence.from_dict(confidence_data)
     else:
         confidence = confidence_data
@@ -594,7 +700,47 @@ def _decision_engine(params: dict[str, Any], results: dict[str, Any]) -> Any:
 
     engine = DecisionEngine()
     decision = engine.decide(construction, confidence, generation, validation)
+
+    bias_data = results.get("bias_prevention")
+    if bias_data is not None:
+        from bias_prevention.contracts import BiasReview, apply_bias_review
+
+        if isinstance(bias_data, dict):
+            bias_review = BiasReview.from_dict(bias_data)
+        else:
+            bias_review = bias_data
+        decision = apply_bias_review(decision, bias_review)
+
     return decision
+
+
+def _bias_prevention(params: dict[str, Any], results: dict[str, Any]) -> Any:
+    from thesis_update.contracts import ThesisUpdate
+    from counter_evidence.contracts import CounterEvidenceAssessment
+    from confidence_engine.contracts import InstitutionalConfidence
+    from bias_prevention.detector import BiasReviewer
+
+    update_data = results.get("thesis_update")
+    assessment_data = results.get("counter_evidence")
+    confidence_data = results.get("confidence_engine")
+    if update_data is None or assessment_data is None or confidence_data is None:
+        return {"error": "missing thesis_update, counter_evidence, or confidence_engine data"}
+
+    if isinstance(update_data, dict):
+        update = ThesisUpdate.from_dict(update_data)
+    else:
+        update = update_data
+    if isinstance(assessment_data, dict):
+        assessment = CounterEvidenceAssessment.from_dict(assessment_data)
+    else:
+        assessment = assessment_data
+    if isinstance(confidence_data, dict):
+        confidence = InstitutionalConfidence.from_dict(confidence_data)
+    else:
+        confidence = confidence_data
+
+    reviewer = BiasReviewer()
+    return reviewer.review(update, assessment, confidence)
 
 
 def _trade_recommendation(params: dict[str, Any], results: dict[str, Any]) -> Any:
@@ -623,8 +769,18 @@ def _trade_recommendation(params: dict[str, Any], results: dict[str, Any]) -> An
 
 
 def _finalize(params: dict[str, Any], results: dict[str, Any]) -> Any:
+    legacy_pipeline = results.get("build_legacy_pipeline", {})
+    legacy_decision = legacy_pipeline.get("decision")
+    institutional_decision = results.get("decision_engine")
+    if isinstance(institutional_decision, dict) and "error" in institutional_decision:
+        institutional_decision = None
     return {
-        "decision": results.get("build_legacy_pipeline", {}).get("decision"),
+        "decision": (
+            institutional_decision
+            if institutional_decision is not None
+            else legacy_decision
+        ),
+        "legacy_decision": legacy_decision,
         "risk_decision": results.get("risk_gate"),
         "forecast_result": results.get("forecast"),
         "confidence": results.get("forecast_confidence", {}).get("confidence"),

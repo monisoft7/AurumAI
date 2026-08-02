@@ -1,4 +1,4 @@
-"""W13 Institutional Trade Recommendation contracts."""
+"""W14 Institutional Trade Recommendation contracts."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from knowledge.integrity.provenance import (
 
 @dataclass(frozen=True)
 class InstitutionalTradeRecommendation:
-    """W13 output (final AurumAI v1.0 workflow): a complete, explainable
+    """W14 output (final AurumAI v1.0 workflow): a complete, explainable
     trading recommendation that never violates the InstitutionalDecision."""
 
     recommendation_id: str

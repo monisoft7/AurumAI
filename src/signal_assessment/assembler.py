@@ -13,7 +13,7 @@ from signal_assessment.volume import VolumeFlowConfirmator
 
 
 class SignalAssessmentAssembler:
-    """Transforms a W3 PreMarketBriefing into a W4 SignalAssessment.
+    """Transforms a W3 PreMarketBriefing into a W5 SignalAssessment.
 
     Classifies every observation (overnight price changes, anomaly flags,
     news items, positioning data) using the Meth. §7 five-criteria system.

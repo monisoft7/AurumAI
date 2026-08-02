@@ -108,7 +108,7 @@ class Evidence:
 
 @dataclass(frozen=True)
 class EvidenceCollection:
-    """W5 output: collection of Evidence items with aggregate metadata."""
+    """W6 output: collection of Evidence items with aggregate metadata."""
 
     collection_id: str
     assessment_id: str

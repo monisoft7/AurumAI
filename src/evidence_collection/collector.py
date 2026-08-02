@@ -136,7 +136,7 @@ class EvidenceCollector:
 
         provenance = Provenance(
             created_at=datetime.now(timezone.utc).isoformat(),
-            created_by="W5 EvidenceCollector",
+            created_by="W6 EvidenceCollector",
             entity_version="1.0.0",
         )
 

@@ -648,10 +648,16 @@ class TestDefaultPipeline:
         completed = {s.stage_id for s in assessment.stages if s.status == "ok"}
         failed = {s.stage_id for s in assessment.stages if s.status == "failed"}
 
-        # DAG execution should have visited all 14 jobs
+        # DAG execution should have visited all 25 jobs
         all_stage_ids = {s.stage_id for s in assessment.stages}
         expected = {
-            "pre_market_scan", "ingest_event", "ingest_news", "build_legacy_pipeline",
+            "pre_market_scan", "signal_assessment", "event_triage",
+            "evidence_collection", "evidence_reasoning", "counter_evidence",
+            "thesis_construction", "thesis_update",
+            "confidence_engine", "scenario_generation",
+            "risk_reward_validation", "bias_prevention",
+            "decision_engine", "trade_recommendation",
+            "ingest_event", "ingest_news", "build_legacy_pipeline",
             "forecast", "forecast_confidence", "forecast_validation",
             "build_context", "risk_measures", "position_sizing",
             "risk_gate", "finalize",
@@ -662,6 +668,18 @@ class TestDefaultPipeline:
         if "finalize" in completed:
             bundle = assessment.outputs.get("finalize", {})
             assert isinstance(bundle, dict)
+
+    def test_w12_runs_before_w9_in_default_pipeline(self) -> None:
+        """Frozen v1.x spec: W12 (fragility audit) is invoked before W9
+        (confidence assignment); W9 consumes the W12 downside case."""
+        orch = InstitutionalOrchestrator.with_default_pipeline()
+        levels = _topological_levels(orch._jobs)
+        level_of = {jid: i for i, level in enumerate(levels) for jid in level}
+
+        assert level_of["scenario_generation"] < level_of["confidence_engine"]
+        assert "scenario_generation" in orch._jobs["confidence_engine"].dependencies
+        assert "evidence_reasoning" in orch._jobs["confidence_engine"].dependencies
+        assert "confidence_engine" not in orch._jobs["scenario_generation"].dependencies
 
     def test_partial_pipeline_manual(
         self,
@@ -797,7 +815,8 @@ class TestStageFunctions:
         from orchestration.institutional_orchestrator import _finalize
 
         results = {
-            "build_legacy_pipeline": {"decision": "BUY"},
+            "build_legacy_pipeline": {"decision": "STRONG_POSITIVE"},
+            "decision_engine": {"decision": "BUY", "institutional_confidence": 0.8},
             "risk_gate": "proceed",
             "forecast": {"points": []},
             "forecast_confidence": {"confidence": 0.85},
@@ -807,8 +826,32 @@ class TestStageFunctions:
             "position_sizing": {"position_sizing": 0.5, "risk_budget": {}},
         }
         bundle = _finalize({}, results)
-        assert bundle["decision"] == "BUY"
+        assert bundle["decision"] == {"decision": "BUY", "institutional_confidence": 0.8}
+        assert bundle["legacy_decision"] == "STRONG_POSITIVE"
         assert bundle["risk_decision"] == "proceed"
+
+    def test_finalize_falls_back_to_legacy_decision(self) -> None:
+        from orchestration.institutional_orchestrator import _finalize
+
+        results = {
+            "build_legacy_pipeline": {"decision": "STRONG_POSITIVE"},
+            "risk_gate": "proceed",
+        }
+        bundle = _finalize({}, results)
+        assert bundle["decision"] == "STRONG_POSITIVE"
+        assert bundle["legacy_decision"] == "STRONG_POSITIVE"
+
+    def test_finalize_ignores_error_from_decision_engine(self) -> None:
+        from orchestration.institutional_orchestrator import _finalize
+
+        results = {
+            "build_legacy_pipeline": {"decision": "STRONG_POSITIVE"},
+            "decision_engine": {"error": "decision_engine stage failed"},
+            "risk_gate": "proceed",
+        }
+        bundle = _finalize({}, results)
+        assert bundle["decision"] == "STRONG_POSITIVE"
+        assert bundle["legacy_decision"] == "STRONG_POSITIVE"
 
     def test_forecast_missing_gold_path(self) -> None:
         from orchestration.institutional_orchestrator import _forecast
@@ -984,8 +1027,9 @@ class TestDefaultPipelineIntegration:
         expected_jobs = {
             "pre_market_scan", "signal_assessment", "evidence_collection",
             "evidence_reasoning", "counter_evidence", "thesis_construction",
-            "confidence_engine", "scenario_generation", "risk_reward_validation",
-            "decision_engine", "trade_recommendation",
+            "thesis_update", "confidence_engine", "scenario_generation",
+            "risk_reward_validation", "bias_prevention", "decision_engine",
+            "trade_recommendation", "event_triage",
             "ingest_event", "ingest_news", "build_legacy_pipeline",
             "forecast", "forecast_confidence", "forecast_validation",
             "build_context", "risk_measures", "position_sizing",

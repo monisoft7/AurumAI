@@ -1,4 +1,4 @@
-"""W11 Institutional Risk / Reward Validation."""
+"""W12 Institutional Risk / Reward Validation."""
 
 from risk_reward_validation.contracts import (
     VALID_VALIDATION_STATUS,
