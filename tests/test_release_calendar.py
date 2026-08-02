@@ -407,7 +407,7 @@ class TestReplayDispatch:
     def test_release_calendar_path_for_returns_cpi(self) -> None:
         from simulation.historical_replay import HistoricalReplayEngine
         engine = HistoricalReplayEngine(Path("."), Path("dummy.csv"))
-        path = engine._release_calendar_path_for("CPI")
+        path = engine._release_calendar_path_for("CPI", Path("."))
         assert path is not None
         assert "cpi_releases" in path.name
         assert "calendar" in path.parts
@@ -416,7 +416,7 @@ class TestReplayDispatch:
         from simulation.historical_replay import HistoricalReplayEngine
         engine = HistoricalReplayEngine(Path("."), Path("dummy.csv"))
         for etype in ("NFP", "GDP", "PPI", "INTEREST_RATE", "PMI", "FOMC"):
-            assert engine._release_calendar_path_for(etype) is None
+            assert engine._release_calendar_path_for(etype, Path(".")) is None
 
 
 # ===========================================================================
