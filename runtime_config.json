@@ -1,0 +1,15 @@
+{
+  "event_type": "CPI",
+  "data_path": "data/economic/CPIAUCSL.csv",
+  "gold_path": "data/history/gold/gold.csv",
+  "gold_lessons_path": null,
+  "release_calendar_path": "data/calendar/cpi_releases.csv",
+  "yield_data_path": null,
+  "output_base_dir": "outputs",
+  "asset": "XAU/USD",
+  "horizon": 12,
+  "max_workers": 4,
+  "checkpoint_dir": null,
+  "trigger": "runtime",
+  "query": ""
+}
