@@ -1,0 +1,19 @@
+{
+  "config": {
+    "asset": "XAU/USD",
+    "checkpoint_dir": null,
+    "data_path": "data/economic/CPIAUCSL.csv",
+    "event_type": "CPI",
+    "gold_lessons_path": null,
+    "gold_path": "data/history/gold/gold.csv",
+    "horizon": 12,
+    "max_workers": 4,
+    "output_base_dir": "outputs",
+    "query": "",
+    "release_calendar_path": "data/calendar/cpi_releases.csv",
+    "trigger": "runtime",
+    "yield_data_path": null
+  },
+  "config_path": "C:\\AurumAI\\AurumAI\\runtime_config.json",
+  "resolved_against": "C:\\AurumAI\\AurumAI"
+}

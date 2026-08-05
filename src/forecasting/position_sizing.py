@@ -35,11 +35,12 @@ class VolatilityTargetSizer:
         annualization_factor: float = 252.0,
     ) -> PositionSizing:
         if returns.size == 0:
+            drawdown_state, _, _ = DrawdownManager().evaluate(returns)
             return PositionSizing(
                 scaling_factor=0.0,
                 target_vol=target_vol,
                 current_vol=0.0,
-                drawdown_state="normal",
+                drawdown_state=drawdown_state,
                 kelly_cap=None,
             )
         if target_vol <= 0.0:
@@ -61,11 +62,14 @@ class VolatilityTargetSizer:
         current_vol = round(current_vol, 6)
         scale = round(scale, 6)
 
+        prices = np.concatenate(([1.0], np.cumprod(1.0 + returns)))
+        drawdown_state, _, _ = DrawdownManager().evaluate(prices)
+
         return PositionSizing(
             scaling_factor=scale,
             target_vol=target_vol,
             current_vol=current_vol,
-            drawdown_state="normal",
+            drawdown_state=drawdown_state,
             kelly_cap=None,
         )
 

@@ -2,7 +2,8 @@
 
 Executes one complete institutional run through the existing
 ``InstitutionalOrchestrator`` and persists every output under
-``outputs/YYYY-MM-DD/``.
+``outputs/YYYY-MM-DD/<pipeline_id>/``. Each run gets its own directory, so no
+run ever sees or overwrites artifacts produced by another run.
 
 This file is the runtime layer only. It does not modify any analysis
 algorithm, workflow, or contract.
@@ -38,6 +39,7 @@ from dotenv import load_dotenv  # noqa: E402
 
 from knowledge.events.registry import EventRegistry  # noqa: E402
 from orchestration.orchestrator import InstitutionalOrchestrator  # noqa: E402
+from runtime_registry.outputs import date_dir  # noqa: E402
 from runtime_registry.registry import append_record, baseline_tag, build_record, git_head_commit  # noqa: E402
 
 LOG = logging.getLogger("aurumai.runtime")
@@ -147,6 +149,22 @@ def _validate_env() -> list[str]:
     return warnings
 
 
+def _new_pipeline_id(output_base: Path, run_date: str) -> str:
+    """Unique pipeline id whose name mirrors the run's output directory.
+
+    The id is ``runtime_YYYYMMDD_HHMMSS``. On a same-second collision with an
+    existing output directory a numeric suffix is appended so every run still
+    gets its own directory under ``outputs/YYYY-MM-DD/<pipeline_id>/``.
+    """
+    base = "runtime_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    candidate = base
+    counter = 1
+    while (date_dir(output_base, run_date) / candidate).exists():
+        counter += 1
+        candidate = f"{base}_{counter}"
+    return candidate
+
+
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
@@ -236,6 +254,47 @@ def _decision_confidence(decision: Any) -> float | None:
     return None
 
 
+def _decision_id(finalize: dict[str, Any]) -> str | None:
+    decision = finalize.get("decision")
+    if hasattr(decision, "decision_id"):
+        return getattr(decision, "decision_id", None)
+    if isinstance(decision, dict):
+        return decision.get("decision_id")
+    return None
+
+
+def _outcome_record(
+    *,
+    run_id: str,
+    event_type: str,
+    asset: str,
+    horizon: int,
+    gold_path: str,
+    entry_date: str,
+    decision: str,
+    institutional_confidence: float | None,
+    decision_id: str | None,
+) -> dict[str, Any]:
+    return {
+        "schema_version": "1.0",
+        "artifact": "decision_outcome",
+        "status": "pending",
+        "run_id": run_id,
+        "decision": decision,
+        "institutional_confidence": institutional_confidence,
+        "event_type": event_type,
+        "asset": asset,
+        "horizon_days": horizon,
+        "gold_path": gold_path,
+        "entry_date": entry_date,
+        "realized_gold_return": None,
+        "decision_correct": None,
+        "evaluation_timestamp": None,
+        "notes": [],
+        "decision_id": decision_id,
+    }
+
+
 def _print_summary(assessment: Any, run_dir: Path, decision_label: str,
                    decision_confidence: float | None, success: bool) -> None:
     stage_counts: dict[str, int] = {}
@@ -272,13 +331,18 @@ def main(argv: list[str] | None = None) -> int:
         prog="python run.py",
         description="AurumAI runtime entry point — executes one complete "
                     "institutional run and persists outputs under "
-                    "outputs/YYYY-MM-DD/.",
+                    "outputs/YYYY-MM-DD/<pipeline_id>/.",
     )
     parser.add_argument(
         "--config",
         default=str(DEFAULT_CONFIG_PATH),
         help=f"Path to the runtime configuration JSON "
              f"(default: {DEFAULT_CONFIG_PATH.name}).",
+    )
+    parser.add_argument(
+        "--no-refresh",
+        action="store_true",
+        help="Skip the gold data refresh before the run (offline mode).",
     )
     args = parser.parse_args(argv)
 
@@ -303,7 +367,8 @@ def main(argv: list[str] | None = None) -> int:
 
     run_date = datetime.date.today().isoformat()
     output_base = ROOT / str(config["output_base_dir"])
-    run_dir = output_base / run_date
+    pipeline_id = _new_pipeline_id(output_base, run_date)
+    run_dir = date_dir(output_base, run_date) / pipeline_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
     _init_logging(run_dir)
@@ -319,6 +384,9 @@ def main(argv: list[str] | None = None) -> int:
     }
     _write_json(run_dir / "config.json", effective_config)
 
+    if not args.no_refresh:
+        _refresh_gold_before_run(config, run_dir)
+
     checkpoint_dir = config.get("checkpoint_dir")
     if checkpoint_dir is not None:
         checkpoint_dir = str(ROOT / str(checkpoint_dir))
@@ -330,7 +398,6 @@ def main(argv: list[str] | None = None) -> int:
     artifacts_dir = run_dir / "artifacts"
     artifacts_dir.mkdir(parents=True, exist_ok=True)
 
-    pipeline_id = "runtime_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     params: dict[str, Any] = {
         "trigger": config.get("trigger", "runtime"),
         "pipeline_id": pipeline_id,
@@ -400,6 +467,20 @@ def main(argv: list[str] | None = None) -> int:
         ],
     })
 
+    if success:
+        _write_json(run_dir / "outcome.json", _outcome_record(
+            run_id=assessment.pipeline_id,
+            event_type=config["event_type"],
+            asset=config.get("asset", "XAU/USD"),
+            horizon=int(config["horizon"]),
+            gold_path=config["gold_path"],
+            entry_date=run_date,
+            decision=decision_label,
+            institutional_confidence=decision_confidence,
+            decision_id=_decision_id(finalize),
+        ))
+        LOG.info("Outcome record written to %s", run_dir / "outcome.json")
+
     LOG.info("Outputs written to %s", run_dir)
     _print_summary(assessment, run_dir, decision_label,
                    decision_confidence, success)
@@ -436,6 +517,31 @@ def _stage_counts(assessment: Any) -> dict[str, int]:
     for record in assessment.stages:
         counts[record.status] = counts.get(record.status, 0) + 1
     return counts
+
+
+def _refresh_gold_before_run(config: dict[str, Any], run_dir: Path) -> None:
+    """Refresh local gold history before a production run (fail-safe)."""
+    from connectors.gold_data_provider import refresh_gold_data
+
+    gold_path = ROOT / str(config["gold_path"])
+    try:
+        report = refresh_gold_data(gold_path, logger=LOG)
+        LOG.info(
+            "Gold data refresh: status=%s rows %d -> %d (+%d), "
+            "last date %s -> %s",
+            report.status, report.rows_before, report.rows_after,
+            report.rows_added, report.last_date_before, report.last_date_after,
+        )
+        if report.status != "ok":
+            LOG.warning(
+                "Gold data refresh incomplete (%s); proceeding with existing "
+                "dataset", report.message,
+            )
+    except Exception as exc:  # pragma: no cover - defensive
+        LOG.error(
+            "Gold data refresh failed (%s); proceeding with existing dataset",
+            exc,
+        )
 
 
 if __name__ == "__main__":

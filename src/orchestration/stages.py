@@ -4,6 +4,18 @@ from typing import Any
 
 _regime_initialized: bool = False
 
+_FORECAST_FREQ_ANNUALIZATION: dict[str, float] = {
+    "D": 252.0,
+    "B": 252.0,
+    "W": 52.0,
+    "ME": 12.0,
+    "M": 12.0,
+    "QE": 4.0,
+    "Q": 4.0,
+    "YE": 1.0,
+    "A": 1.0,
+}
+
 
 def _ensure_macro_regime_initialized(params: dict[str, Any]) -> None:
     global _regime_initialized
@@ -298,19 +310,54 @@ def _position_sizing(params: dict[str, Any], results: dict[str, Any]) -> Any:
     from forecasting.risk_budgeting import RiskParitySizer
     import numpy as np
 
-    risk_metrics = results.get("risk_measures")
+    forecast_result = results.get("forecast")
+    if isinstance(forecast_result, dict):
+        raw_points = forecast_result.get("points") or ()
+        metadata = forecast_result.get("metadata") or {}
+    else:
+        raw_points = getattr(forecast_result, "points", None) if forecast_result is not None else None
+        metadata = getattr(forecast_result, "metadata", None) if forecast_result is not None else None
 
-    vol_sizer = VolatilityTargetSizer()
-    np_rng = np.random.default_rng(42)
-    returns = np_rng.normal(0.005, 0.02, 252)
+    if not raw_points or len(raw_points) < 2:
+        return {
+            "position_sizing": None,
+            "risk_budget": None,
+            "status": "insufficient_data",
+        }
 
-    sizing = vol_sizer.compute(returns)
+    ys = np.array(
+        [float(p.y) if hasattr(p, "y") else float(p["y"]) for p in raw_points],
+        dtype=float,
+    )
+    if ys.size < 2 or not np.all(np.isfinite(ys)) or float(ys[0]) <= 0.0:
+        return {
+            "position_sizing": None,
+            "risk_budget": None,
+            "status": "insufficient_data",
+        }
 
-    rp_sizer = RiskParitySizer()
-    cov = np.array([[0.0004, 0.0001], [0.0001, 0.0003]])
-    budget = rp_sizer.compute(cov)
+    returns = ys[1:] / ys[:-1] - 1.0
+    if not np.all(np.isfinite(returns)):
+        return {
+            "position_sizing": None,
+            "risk_budget": None,
+            "status": "insufficient_data",
+        }
 
-    return {"position_sizing": sizing, "risk_budget": budget}
+    freq = (metadata or {}).get("freq")
+    annualization = _FORECAST_FREQ_ANNUALIZATION.get(str(freq).upper()) if freq else None
+    if annualization is None:
+        return {
+            "position_sizing": None,
+            "risk_budget": None,
+            "status": "insufficient_data",
+        }
+
+    sizing = VolatilityTargetSizer().compute(returns, annualization_factor=annualization)
+    cov = np.atleast_2d(np.cov(returns))
+    budget = RiskParitySizer().compute(cov)
+
+    return {"position_sizing": sizing, "risk_budget": budget, "status": "ok"}
 
 
 def _risk_gate(params: dict[str, Any], results: dict[str, Any]) -> Any:
@@ -334,14 +381,13 @@ def _risk_gate(params: dict[str, Any], results: dict[str, Any]) -> Any:
     )
 
     ps_result = results.get("position_sizing", {})
-    if isinstance(ps_result, dict):
-        scaling_factor = ps_result.get("position_sizing", 0.5)
-        if hasattr(scaling_factor, "scaling_factor"):
-            scaling_factor = scaling_factor.scaling_factor
-    else:
-        scaling_factor = 0.5
-
+    scaling_factor = 0.5
     drawdown_state = "normal"
+    if isinstance(ps_result, dict):
+        sizing = ps_result.get("position_sizing")
+        if sizing is not None and hasattr(sizing, "scaling_factor"):
+            scaling_factor = sizing.scaling_factor
+            drawdown_state = sizing.drawdown_state or "normal"
 
     gate = DecisionGate()
     gate_result = gate.evaluate(
@@ -547,6 +593,29 @@ def _thesis_update(params: dict[str, Any], results: dict[str, Any]) -> Any:
     return updater.update(construction, reasoning, assessment)
 
 
+def _construction_from_update(update: Any) -> Any:
+    """Build the single-thesis ThesisConstruction carried by a ThesisUpdate.
+
+    The updated thesis is the current version (thesis_id carries the version
+    suffix, e.g. th_xxx.v2), so downstream stages can resolve confidence and
+    scenarios keyed by the same versioned thesis_id produced by the update.
+    """
+    from thesis_construction.contracts import ThesisConstruction
+
+    thesis = update.updated_thesis
+    return ThesisConstruction(
+        construction_id=update.update_id,
+        reasoning_id=update.reasoning_id,
+        assessment_id=update.assessment_id,
+        timestamp=update.timestamp,
+        regime=thesis.regime,
+        theses=(thesis,),
+        ranked_thesis_ids=(thesis.thesis_id,),
+        total_theses=1,
+        primary_thesis_id=thesis.thesis_id,
+    )
+
+
 def _confidence_engine(params: dict[str, Any], results: dict[str, Any]) -> Any:
     from thesis_construction.contracts import ThesisConstruction
     from confidence_engine.engine import ConfidenceEngine
@@ -562,18 +631,7 @@ def _confidence_engine(params: dict[str, Any], results: dict[str, Any]) -> Any:
             update = ThesisUpdate.from_dict(update_data)
         else:
             update = update_data
-        thesis = update.updated_thesis
-        construction = ThesisConstruction(
-            construction_id=update.update_id,
-            reasoning_id=update.reasoning_id,
-            assessment_id=update.assessment_id,
-            timestamp=update.timestamp,
-            regime=thesis.regime,
-            theses=(thesis,),
-            ranked_thesis_ids=(thesis.thesis_id,),
-            total_theses=1,
-            primary_thesis_id=thesis.thesis_id,
-        )
+        construction = _construction_from_update(update)
     else:
         construction_data = results.get("thesis_construction")
         if construction_data is None:
@@ -603,21 +661,34 @@ def _scenario_generation(params: dict[str, Any], results: dict[str, Any]) -> Any
     from confidence_engine.contracts import InstitutionalConfidence
     from scenario_generation.generator import ScenarioGenerator
 
+    update_data = results.get("thesis_update")
     construction_data = results.get("thesis_construction")
-    if construction_data is None:
+    if update_data is None and construction_data is None:
         return {"error": "missing thesis_construction data"}
-
-    if isinstance(construction_data, dict) and "error" in construction_data:
-        return {"error": "thesis_construction stage failed"}
 
     confidence_data = results.get("confidence_engine")
     if isinstance(confidence_data, dict) and "error" in confidence_data:
         return {"error": "confidence_engine stage failed"}
 
-    if isinstance(construction_data, dict):
-        construction = ThesisConstruction.from_dict(construction_data)
+    if update_data is not None:
+        from thesis_update.contracts import ThesisUpdate
+
+        if isinstance(update_data, dict) and "error" in update_data:
+            return {"error": "thesis_update stage failed"}
+
+        if isinstance(update_data, dict):
+            update = ThesisUpdate.from_dict(update_data)
+        else:
+            update = update_data
+        construction = _construction_from_update(update)
     else:
-        construction = construction_data
+        if isinstance(construction_data, dict) and "error" in construction_data:
+            return {"error": "thesis_construction stage failed"}
+
+        if isinstance(construction_data, dict):
+            construction = ThesisConstruction.from_dict(construction_data)
+        else:
+            construction = construction_data
 
     if confidence_data is None:
         confidence = None
@@ -659,12 +730,13 @@ def _decision_engine(params: dict[str, Any], results: dict[str, Any]) -> Any:
     from risk_reward_validation.contracts import RiskRewardValidation
     from decision_engine.engine import DecisionEngine
 
+    update_data = results.get("thesis_update")
     construction_data = results.get("thesis_construction")
     confidence_data = results.get("confidence_engine")
     generation_data = results.get("scenario_generation")
     validation_data = results.get("risk_reward_validation")
     if (
-        construction_data is None
+        (update_data is None and construction_data is None)
         or confidence_data is None
         or generation_data is None
         or validation_data is None
@@ -672,16 +744,27 @@ def _decision_engine(params: dict[str, Any], results: dict[str, Any]) -> Any:
         return {"error": "missing upstream institutional data for decision engine"}
 
     upstream = {
-        "thesis_construction": construction_data,
         "confidence_engine": confidence_data,
         "scenario_generation": generation_data,
         "risk_reward_validation": validation_data,
     }
+    if update_data is not None:
+        upstream["thesis_update"] = update_data
+    else:
+        upstream["thesis_construction"] = construction_data
     for name, data in upstream.items():
         if isinstance(data, dict) and "error" in data:
             return {"error": f"{name} stage failed"}
 
-    if isinstance(construction_data, dict):
+    if update_data is not None:
+        from thesis_update.contracts import ThesisUpdate
+
+        if isinstance(update_data, dict):
+            update = ThesisUpdate.from_dict(update_data)
+        else:
+            update = update_data
+        construction = _construction_from_update(update)
+    elif isinstance(construction_data, dict):
         construction = ThesisConstruction.from_dict(construction_data)
     else:
         construction = construction_data
@@ -789,4 +872,5 @@ def _finalize(params: dict[str, Any], results: dict[str, Any]) -> Any:
         "risk_metrics": results.get("risk_measures"),
         "position_sizing": results.get("position_sizing", {}).get("position_sizing"),
         "risk_budget": results.get("position_sizing", {}).get("risk_budget"),
+        "position_sizing_status": results.get("position_sizing", {}).get("status"),
     }

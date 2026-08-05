@@ -696,3 +696,63 @@ def test_w10_orchestration_stage_propagates_upstream_errors():
     )
     assert isinstance(result, dict)
     assert "error" in result
+
+
+def test_w10_stage_uses_versioned_thesis_from_update():
+    """Issue #001 regression: when thesis_update is present, _scenario_generation
+    must generate scenarios keyed to the versioned thesis_id so the decision
+    stage can resolve them for the versioned thesis."""
+    from thesis_update.contracts import ThesisUpdate
+    from orchestration.stages import _scenario_generation
+
+    original = _make_thesis("th_issue001", "bullish")
+    versioned = InvestmentThesis(
+        thesis_id="th_issue001.v2",
+        direction=original.direction,
+        supporting_set_ids=original.supporting_set_ids,
+        counter_evidence_ids=original.counter_evidence_ids,
+        regime=original.regime,
+        economic_mechanism=original.economic_mechanism,
+        time_horizon_days=original.time_horizon_days,
+        invalidating_conditions=original.invalidating_conditions,
+        remaining_unknowns=original.remaining_unknowns,
+        confidence_inputs=dict(original.confidence_inputs),
+        institutional_support=original.institutional_support,
+        explanation=original.explanation,
+    )
+
+    construction = _make_construction((original,))
+    versioned_construction = _make_construction((versioned,))
+    confidence = _make_confidence(
+        versioned_construction, confidences={"th_issue001.v2": 0.7}
+    )
+
+    update = ThesisUpdate(
+        update_id="update-th_issue001-v2",
+        previous_thesis_id="th_issue001",
+        previous_version="v1",
+        new_thesis_version="v2",
+        reasoning_id="er_w10_test",
+        assessment_id="cea_w10_test",
+        timestamp="2026-07-31T09:00:00",
+        updated_evidence=(),
+        confidence_delta=0.0,
+        changed_assumptions=(),
+        change_summary="test",
+        action="no_change",
+        trigger_type="periodic",
+        updated_thesis=versioned,
+    )
+
+    result = _scenario_generation(
+        {},
+        {
+            "thesis_construction": construction.to_dict(),
+            "thesis_update": update.to_dict(),
+            "confidence_engine": confidence.to_dict(),
+        },
+    )
+
+    assert isinstance(result, ScenarioGeneration)
+    assert result.scenarios
+    assert all(s.thesis_id == "th_issue001.v2" for s in result.scenarios)

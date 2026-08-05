@@ -87,6 +87,23 @@ class TestVolatilityTargetSizer:
         assert s1.scaling_factor == s2.scaling_factor
         assert s1.current_vol == s2.current_vol
 
+    def test_drawdown_state_derived_from_returns(self) -> None:
+        prices = np.array([100.0, 105.0, 90.0, 80.0])
+        returns = prices[1:] / prices[:-1] - 1.0
+        s = VolatilityTargetSizer().compute(returns)
+        assert s.drawdown_state == "halted"
+
+    def test_drawdown_state_caution_from_returns(self) -> None:
+        prices = np.array([100.0, 105.0, 96.0, 94.0])
+        returns = prices[1:] / prices[:-1] - 1.0
+        s = VolatilityTargetSizer().compute(returns)
+        assert s.drawdown_state in ("caution", "halted")
+
+    def test_drawdown_state_normal_when_monotonic_up(self) -> None:
+        returns = np.array([0.01, 0.01, 0.01])
+        s = VolatilityTargetSizer().compute(returns)
+        assert s.drawdown_state == "normal"
+
 
 # ── DrawdownManager ─────────────────────────────────────────────────── #
 

@@ -1,0 +1,17 @@
+{
+  "poll_interval_seconds": 60,
+  "execution_window_minutes": 30,
+  "merge_window_minutes": 5,
+  "market_cooldown_minutes": 60,
+  "news_cooldown_minutes": 120,
+  "recovery_lookback_minutes": 1440,
+  "scheduled_slots": ["09:30"],
+  "event_types": ["CPI", "FOMC"],
+  "release_calendar_path": "data/calendar/cpi_releases.csv",
+  "fomc_calendar_path": "data/calendar/fomc_meetings.csv",
+  "news_min_relevance": 0.7,
+  "backoff_seconds": [300, 900, 1800],
+  "max_run_seconds": 180,
+  "pipeline_config": "runtime_config.json",
+  "asset": "XAU/USD"
+}

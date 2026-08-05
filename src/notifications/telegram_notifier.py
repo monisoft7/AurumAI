@@ -1,9 +1,9 @@
 """AurumAI Telegram notification output channel.
 
 Reads an already-generated institutional report
-(``outputs/YYYY-MM-DD/institutional_report.md``) and sends it to a Telegram
-chat. The report is split into chunks within Telegram's message size limit
-while preserving its markdown formatting.
+(``outputs/YYYY-MM-DD/<pipeline_id>/institutional_report.md``) and sends it
+to a Telegram chat. The report is split into chunks within Telegram's message
+size limit while preserving its markdown formatting.
 
 This module is an output channel only. It never computes or alters pipeline
 outputs, and every failure is contained here: a Telegram failure must never
@@ -17,7 +17,7 @@ Configuration (environment variables, e.g. via ``.env``):
 Usage:
 
     python -m src.notifications.telegram_notifier --test
-    python -m src.notifications.telegram_notifier --send outputs/YYYY-MM-DD/institutional_report.md
+    python -m src.notifications.telegram_notifier --send outputs/YYYY-MM-DD/<pipeline_id>/institutional_report.md
 """
 
 from __future__ import annotations

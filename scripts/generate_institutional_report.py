@@ -1,8 +1,8 @@
 """AurumAI Institutional Daily Report generator.
 
 Reporting layer only: transforms the serialized pipeline outputs already
-written under ``outputs/YYYY-MM-DD/`` into ``institutional_report.md`` and
-``institutional_report.html``.
+written under ``outputs/YYYY-MM-DD/<pipeline_id>/`` into
+``institutional_report.md`` and ``institutional_report.html``.
 
 This script never computes, recalculates, or invents values. Every figure
 in the report is a value the pipeline already wrote to disk; the only
@@ -11,6 +11,11 @@ transformations applied are presentational (number formatting, markup).
 Usage:
     python scripts/generate_institutional_report.py [--date YYYY-MM-DD]
     python scripts/generate_institutional_report.py [--output-dir PATH]
+
+``--date`` resolves to the most recent run under ``outputs/<date>/``;
+``--output-dir`` may point directly at a run directory or at a date
+directory. Legacy flat run directories (``outputs/YYYY-MM-DD/`` holding the
+run files directly) are resolved as well.
 
 Exit codes:
     0  report generated
@@ -29,6 +34,11 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
+from runtime_registry.outputs import is_run_dir, latest_run_dir  # noqa: E402
 
 EXIT_OK = 0
 EXIT_INPUT_ERROR = 2
@@ -941,32 +951,29 @@ def _resolve_output_dir(args: argparse.Namespace) -> Path:
         path = Path(args.output_dir)
         if not path.is_absolute():
             path = Path.cwd() / path
-        return path
+        if is_run_dir(path):
+            return path
+        resolved = latest_run_dir(path)
+        return resolved if resolved is not None else path
     if args.date:
-        return ROOT / "outputs" / args.date
-    base = ROOT / "outputs"
-    if not base.is_dir():
-        return base
-    candidates = [
-        d
-        for d in base.iterdir()
-        if d.is_dir() and (d / "summary.json").exists() and (d / "finalize.json").exists()
-    ]
-    if not candidates:
-        return base
-    return max(candidates, key=lambda d: d.name)
+        base = ROOT / "outputs" / args.date
+        resolved = latest_run_dir(ROOT / "outputs", args.date)
+        return resolved if resolved is not None else base
+    resolved = latest_run_dir(ROOT / "outputs")
+    return resolved if resolved is not None else ROOT / "outputs"
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python scripts/generate_institutional_report.py",
         description="Generates the Institutional Daily Report from existing "
-                    "pipeline outputs (outputs/YYYY-MM-DD/).",
+                    "pipeline outputs (outputs/YYYY-MM-DD/<pipeline_id>/).",
     )
     parser.add_argument(
         "--date",
-        help="Run date as YYYY-MM-DD; uses outputs/<date>/ (default: most "
-             "recent dated run directory under outputs/).",
+        help="Run date as YYYY-MM-DD; resolves to the latest run under "
+             "outputs/<date>/ (default: most recent run directory under "
+             "outputs/).",
     )
     parser.add_argument(
         "--output-dir",

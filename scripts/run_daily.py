@@ -11,8 +11,8 @@ Runs the complete daily institutional workflow:
 5. Print a concise execution summary and exit with a proper exit code.
 
 This file is the scheduling/runtime layer only. It executes the existing
-``run.py`` and ``scripts/generate_institutional_report.py`` unchanged; it
-does not modify any workflow, algorithm, contract, report, or registry
+``run.py`` and ``scripts/generate_institutional_report.py`` as subprocesses;
+it does not modify any workflow, algorithm, contract, report, or registry
 behavior.
 
 Usage:
@@ -34,6 +34,11 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
+from runtime_registry.outputs import latest_run_dir  # noqa: E402
 
 EXIT_OK = 0
 EXIT_RUN_FAILED = 1
@@ -50,6 +55,10 @@ def _run_date() -> str:
 
 def _run_dir(run_date: str) -> Path:
     return ROOT / "outputs" / run_date
+
+
+def _resolve_run_dir(run_date: str) -> Path | None:
+    return latest_run_dir(ROOT / "outputs", run_date)
 
 
 def _registry_records() -> list[dict[str, Any]]:
@@ -69,27 +78,53 @@ def _registry_records() -> list[dict[str, Any]]:
     return records
 
 
+def _refresh_gold() -> None:
+    """Refresh local gold history before the pipeline (fail-safe, idempotent)."""
+    try:
+        from connectors.gold_data_provider import GoldDataProvider
+
+        report = GoldDataProvider().refresh()
+        print(
+            f"run_daily: gold refresh {report.status} "
+            f"(rows {report.rows_before} -> {report.rows_after}, "
+            f"last {report.last_date_before} -> {report.last_date_after})"
+        )
+        if report.status != "ok":
+            print(
+                f"run_daily: gold refresh incomplete ({report.message}); "
+                "proceeding with existing dataset",
+                file=sys.stderr,
+            )
+    except Exception as exc:  # pragma: no cover - defensive
+        print(
+            f"run_daily: gold refresh failed ({exc}); "
+            "proceeding with existing dataset",
+            file=sys.stderr,
+        )
+
+
 def _run_pipeline() -> int:
+    _refresh_gold()
     return subprocess.run(
-        [sys.executable, str(PIPELINE_SCRIPT)],
+        [sys.executable, str(PIPELINE_SCRIPT), "--no-refresh"],
         cwd=str(ROOT),
     ).returncode
 
 
-def _generate_report(run_date: str) -> int:
+def _generate_report(run_dir: Path) -> int:
     return subprocess.run(
-        [sys.executable, str(REPORT_SCRIPT), "--date", run_date],
+        [sys.executable, str(REPORT_SCRIPT), "--output-dir", str(run_dir)],
         cwd=str(ROOT),
     ).returncode
 
 
-def _report_exists(run_date: str) -> bool:
-    path = _run_dir(run_date) / "institutional_report.md"
+def _report_exists(run_dir: Path) -> bool:
+    path = run_dir / "institutional_report.md"
     return path.exists() and path.stat().st_size > 0
 
 
-def _load_summary(run_date: str) -> dict[str, Any]:
-    path = _run_dir(run_date) / "summary.json"
+def _load_summary(run_dir: Path) -> dict[str, Any]:
+    path = run_dir / "summary.json"
     if not path.exists():
         return {}
     try:
@@ -99,13 +134,13 @@ def _load_summary(run_date: str) -> dict[str, Any]:
     return summary if isinstance(summary, dict) else {}
 
 
-def _send_telegram(run_date: str) -> tuple[bool, str]:
+def _send_telegram(run_dir: Path) -> tuple[bool, str]:
     """Send the report to Telegram. Never raises; never affects the pipeline."""
     sys.path.insert(0, str(ROOT / "src"))
     try:
         from notifications.telegram_notifier import TelegramConfigurationError, send_report
 
-        report_path = _run_dir(run_date) / "institutional_report.md"
+        report_path = run_dir / "institutional_report.md"
         message_count = send_report(report_path)
         return True, f"sent in {message_count} message(s)"
     except TelegramConfigurationError:
@@ -114,9 +149,9 @@ def _send_telegram(run_date: str) -> tuple[bool, str]:
         return False, f"failed (pipeline unaffected): {exc}"
 
 
-def _print_summary(run_date: str, rc: int, report_ok: bool,
+def _print_summary(run_dir: Path, rc: int, report_ok: bool,
                    registry_ok: bool, telegram_note: str, success: bool) -> None:
-    summary = _load_summary(run_date)
+    summary = _load_summary(run_dir)
     decision = summary.get("decision", "n/a")
     confidence = summary.get("decision_confidence")
     confidence_text = "n/a" if confidence is None else f"{confidence:.4f}"
@@ -125,13 +160,13 @@ def _print_summary(run_date: str, rc: int, report_ok: bool,
     print()
     print("AurumAI Daily Run Summary")
     print("=" * 60)
-    print(f"Date               : {run_date}")
+    print(f"Date               : {run_dir.parent.name}")
     print(f"Pipeline ID        : {summary.get('pipeline_id', 'n/a')}")
     print(f"Decision           : {decision} (confidence {confidence_text})")
     if wall is not None:
         print(f"Pipeline wall time : {wall:.1f} s")
     print(f"Exit code          : {rc}")
-    print(f"Report generated   : {_run_dir(run_date) / 'institutional_report.md'}")
+    print(f"Report generated   : {run_dir / 'institutional_report.md'}")
     print(f"Registry path      : {REGISTRY_PATH}")
     print(f"Verification       : exit_code={rc == 0}, report={report_ok}, "
           f"registry={registry_ok}")
@@ -158,26 +193,26 @@ def main(argv: list[str] | None = None) -> int:
 
     report_ok = False
     registry_ok = False
+    run_dir = _resolve_run_dir(run_date) or _run_dir(run_date)
 
     if rc == 0:
-        report_rc = _generate_report(run_date)
-        report_ok = report_rc == 0 and _report_exists(run_date)
+        report_rc = _generate_report(run_dir)
+        report_ok = report_rc == 0 and _report_exists(run_dir)
 
         records = _registry_records()
         appended = len(records) - records_before
-        expected_dir = str(_run_dir(run_date))
         registry_ok = (
             appended == 1
             and records[-1].get("exit_code") == 0
-            and records[-1].get("output_directory") == expected_dir
+            and records[-1].get("output_directory") == str(run_dir)
         )
 
     success = rc == 0 and report_ok and registry_ok
 
     telegram_note = "skipped (run not verified)"
     if success:
-        telegram_sent, telegram_note = _send_telegram(run_date)
-    _print_summary(run_date, rc, report_ok, registry_ok, telegram_note, success)
+        telegram_sent, telegram_note = _send_telegram(run_dir)
+    _print_summary(run_dir, rc, report_ok, registry_ok, telegram_note, success)
 
     return EXIT_OK if success else EXIT_RUN_FAILED
 

@@ -415,7 +415,7 @@ class InstitutionalOrchestrator:
 
         orch.register(PipelineJob(
             job_id="position_sizing",
-            dependencies=("risk_measures",),
+            dependencies=("forecast",),
             fn=orch._bind(_position_sizing),
             cache_ttl=300,
             checkpoint=True,
@@ -423,7 +423,8 @@ class InstitutionalOrchestrator:
 
         orch.register(PipelineJob(
             job_id="risk_gate",
-            dependencies=("build_context", "build_legacy_pipeline", "risk_measures"),
+            dependencies=("build_context", "build_legacy_pipeline", "risk_measures",
+                          "position_sizing"),
             fn=orch._bind(_risk_gate),
             cache_ttl=120,
             checkpoint=True,

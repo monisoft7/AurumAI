@@ -705,3 +705,67 @@ def test_w12_orchestration_stage_propagates_upstream_errors():
     )
     assert isinstance(result, dict)
     assert "error" in result
+
+
+def test_w13_stage_uses_versioned_thesis_from_update():
+    """Issue #001 regression: when thesis_update is present, _decision_engine
+    must evaluate the versioned thesis so that confidence keyed by the
+    versioned thesis_id is found instead of defaulting to 0.0."""
+    from thesis_update.contracts import ThesisUpdate
+    from orchestration.stages import _decision_engine
+
+    original = _make_thesis("th_issue001", "bullish", confidence=0.8)
+    versioned = InvestmentThesis(
+        thesis_id="th_issue001.v2",
+        direction=original.direction,
+        supporting_set_ids=original.supporting_set_ids,
+        counter_evidence_ids=original.counter_evidence_ids,
+        regime=original.regime,
+        economic_mechanism=original.economic_mechanism,
+        time_horizon_days=original.time_horizon_days,
+        invalidating_conditions=original.invalidating_conditions,
+        remaining_unknowns=original.remaining_unknowns,
+        confidence_inputs=dict(original.confidence_inputs),
+        institutional_support=original.institutional_support,
+        explanation=original.explanation,
+    )
+
+    # Confidence, scenarios and validations are keyed to the versioned thesis,
+    # mirroring the runtime where confidence/scenario stages consume the update.
+    _, confidence, generation, validation = _build_inputs(
+        (versioned,), confidences={"th_issue001.v2": 0.8}
+    )
+    construction, _, _, _ = _build_inputs((original,))
+
+    update = ThesisUpdate(
+        update_id="update-th_issue001-v2",
+        previous_thesis_id="th_issue001",
+        previous_version="v1",
+        new_thesis_version="v2",
+        reasoning_id="er_w12_test",
+        assessment_id="cea_w12_test",
+        timestamp="2026-07-31T11:00:00",
+        updated_evidence=(),
+        confidence_delta=0.0,
+        changed_assumptions=(),
+        change_summary="test",
+        action="no_change",
+        trigger_type="periodic",
+        updated_thesis=versioned,
+    )
+
+    result = _decision_engine(
+        {},
+        {
+            "thesis_construction": construction.to_dict(),
+            "thesis_update": update.to_dict(),
+            "confidence_engine": confidence.to_dict(),
+            "scenario_generation": generation.to_dict(),
+            "risk_reward_validation": validation.to_dict(),
+        },
+    )
+
+    assert isinstance(result, InstitutionalDecision)
+    assert result.selected_thesis_id == "th_issue001.v2"
+    assert result.institutional_confidence > 0.0
+    assert result.decision != "NO_TRADE"
