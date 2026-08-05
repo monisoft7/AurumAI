@@ -43,7 +43,7 @@ INSTRUMENT_TO_REGIME_BIAS: dict[str, str] = {
     "S&P 500 Futures": "bullish",
     "Brent Crude": "neutral",
     "EUR/USD": "bearish",
-    "USD/JPY": "bulllish",
+    "USD/JPY": "bullish",
     "Gold Positioning": "bullish",
 }
 

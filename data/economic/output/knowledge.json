@@ -1,7 +1,7 @@
 {
     "knowledge_version": "knowledge_summary_v1",
     "source_lessons": "C:\\AurumAI\\AurumAI\\data\\economic\\output\\lessons.csv",
-    "source_artifact_sha256": "f6122816b2bcc42fe865832e17afdd137de78c4c87ec7e0cb195f680757d13c0",
+    "source_artifact_sha256": "68915014e353532213f4bbc52a2877351c77113384dcf844f255e8601548ef03",
     "event_type": "CPI",
     "asset": "XAU/USD",
     "record_count": 6,
@@ -21,7 +21,7 @@
                 "CPI_GOLD_2017-05-01"
             ],
             "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\output\\lessons.csv",
-            "source_artifact_sha256": "f6122816b2bcc42fe865832e17afdd137de78c4c87ec7e0cb195f680757d13c0",
+            "source_artifact_sha256": "68915014e353532213f4bbc52a2877351c77113384dcf844f255e8601548ef03",
             "condition": {
                 "cpi_pressure": "inflation_pressure_down"
             },
@@ -58,7 +58,7 @@
                 "CPI_GOLD_2017-05-01"
             ],
             "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\output\\lessons.csv",
-            "source_artifact_sha256": "f6122816b2bcc42fe865832e17afdd137de78c4c87ec7e0cb195f680757d13c0",
+            "source_artifact_sha256": "68915014e353532213f4bbc52a2877351c77113384dcf844f255e8601548ef03",
             "condition": {
                 "cpi_pressure": "inflation_pressure_down"
             },
@@ -95,7 +95,7 @@
                 "CPI_GOLD_2017-05-01"
             ],
             "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\output\\lessons.csv",
-            "source_artifact_sha256": "f6122816b2bcc42fe865832e17afdd137de78c4c87ec7e0cb195f680757d13c0",
+            "source_artifact_sha256": "68915014e353532213f4bbc52a2877351c77113384dcf844f255e8601548ef03",
             "condition": {
                 "cpi_pressure": "inflation_pressure_down"
             },
@@ -145,38 +145,30 @@
                 "CPI_GOLD_2017-07-01",
                 "CPI_GOLD_2017-08-01",
                 "CPI_GOLD_2017-09-01",
-                "CPI_GOLD_2017-10-01",
-                "CPI_GOLD_2017-11-01",
-                "CPI_GOLD_2017-12-01",
-                "CPI_GOLD_2018-01-01",
-                "CPI_GOLD_2018-02-01",
-                "CPI_GOLD_2018-03-01",
-                "CPI_GOLD_2018-04-01",
-                "CPI_GOLD_2018-05-01",
-                "CPI_GOLD_2018-06-01"
+                "CPI_GOLD_2017-10-01"
             ],
             "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\output\\lessons.csv",
-            "source_artifact_sha256": "f6122816b2bcc42fe865832e17afdd137de78c4c87ec7e0cb195f680757d13c0",
+            "source_artifact_sha256": "68915014e353532213f4bbc52a2877351c77113384dcf844f255e8601548ef03",
             "condition": {
                 "cpi_pressure": "inflation_pressure_up"
             },
             "horizon_days": 1,
-            "sample_count": 32,
-            "positive_return_rate_pct": 43.75,
-            "negative_return_rate_pct": 56.25,
-            "up_direction_rate_pct": 40.625,
-            "down_direction_rate_pct": 56.25,
-            "flat_direction_rate_pct": 3.125,
-            "average_return_pct": -0.202162,
-            "median_return_pct": -0.226418,
+            "sample_count": 24,
+            "positive_return_rate_pct": 37.5,
+            "negative_return_rate_pct": 62.5,
+            "up_direction_rate_pct": 33.333333,
+            "down_direction_rate_pct": 62.5,
+            "flat_direction_rate_pct": 4.166667,
+            "average_return_pct": -0.278189,
+            "median_return_pct": -0.348446,
             "min_return_pct": -2.884698,
             "max_return_pct": 0.84053,
             "first_event_date": "2015-03-01",
-            "last_event_date": "2018-06-01",
-            "bias": "mixed_or_context_dependent",
-            "confidence": 0.545586,
+            "last_event_date": "2017-10-01",
+            "bias": "gold_negative_bias",
+            "confidence": 0.586128,
             "institutional_context": {},
-            "explanation": "For CPI condition cpi_pressure=inflation_pressure_up, 32 historical lessons show XAU/USD had a positive 1-day return in 43.75% of cases, with an average return of -0.202162%."
+            "explanation": "For CPI condition cpi_pressure=inflation_pressure_up, 24 historical lessons show XAU/USD had a positive 1-day return in 37.5% of cases, with an average return of -0.278189%."
         },
         {
             "knowledge_id": "CPI_XAU/USD_inflation_pressure_up_5D",
@@ -206,38 +198,30 @@
                 "CPI_GOLD_2017-07-01",
                 "CPI_GOLD_2017-08-01",
                 "CPI_GOLD_2017-09-01",
-                "CPI_GOLD_2017-10-01",
-                "CPI_GOLD_2017-11-01",
-                "CPI_GOLD_2017-12-01",
-                "CPI_GOLD_2018-01-01",
-                "CPI_GOLD_2018-02-01",
-                "CPI_GOLD_2018-03-01",
-                "CPI_GOLD_2018-04-01",
-                "CPI_GOLD_2018-05-01",
-                "CPI_GOLD_2018-06-01"
+                "CPI_GOLD_2017-10-01"
             ],
             "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\output\\lessons.csv",
-            "source_artifact_sha256": "f6122816b2bcc42fe865832e17afdd137de78c4c87ec7e0cb195f680757d13c0",
+            "source_artifact_sha256": "68915014e353532213f4bbc52a2877351c77113384dcf844f255e8601548ef03",
             "condition": {
                 "cpi_pressure": "inflation_pressure_up"
             },
             "horizon_days": 5,
-            "sample_count": 32,
-            "positive_return_rate_pct": 37.5,
-            "negative_return_rate_pct": 62.5,
-            "up_direction_rate_pct": 34.375,
-            "down_direction_rate_pct": 59.375,
-            "flat_direction_rate_pct": 6.25,
-            "average_return_pct": -0.333375,
-            "median_return_pct": -0.394327,
+            "sample_count": 24,
+            "positive_return_rate_pct": 41.666667,
+            "negative_return_rate_pct": 58.333333,
+            "up_direction_rate_pct": 37.5,
+            "down_direction_rate_pct": 54.166667,
+            "flat_direction_rate_pct": 8.333333,
+            "average_return_pct": -0.231561,
+            "median_return_pct": -0.265463,
             "min_return_pct": -4.408296,
             "max_return_pct": 3.302386,
             "first_event_date": "2015-03-01",
-            "last_event_date": "2018-06-01",
-            "bias": "gold_negative_bias",
-            "confidence": 0.588335,
+            "last_event_date": "2017-10-01",
+            "bias": "mixed_or_context_dependent",
+            "confidence": 0.559262,
             "institutional_context": {},
-            "explanation": "For CPI condition cpi_pressure=inflation_pressure_up, 32 historical lessons show XAU/USD had a positive 5-day return in 37.5% of cases, with an average return of -0.333375%."
+            "explanation": "For CPI condition cpi_pressure=inflation_pressure_up, 24 historical lessons show XAU/USD had a positive 5-day return in 41.666667% of cases, with an average return of -0.231561%."
         },
         {
             "knowledge_id": "CPI_XAU/USD_inflation_pressure_up_20D",
@@ -267,38 +251,30 @@
                 "CPI_GOLD_2017-07-01",
                 "CPI_GOLD_2017-08-01",
                 "CPI_GOLD_2017-09-01",
-                "CPI_GOLD_2017-10-01",
-                "CPI_GOLD_2017-11-01",
-                "CPI_GOLD_2017-12-01",
-                "CPI_GOLD_2018-01-01",
-                "CPI_GOLD_2018-02-01",
-                "CPI_GOLD_2018-03-01",
-                "CPI_GOLD_2018-04-01",
-                "CPI_GOLD_2018-05-01",
-                "CPI_GOLD_2018-06-01"
+                "CPI_GOLD_2017-10-01"
             ],
             "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\output\\lessons.csv",
-            "source_artifact_sha256": "f6122816b2bcc42fe865832e17afdd137de78c4c87ec7e0cb195f680757d13c0",
+            "source_artifact_sha256": "68915014e353532213f4bbc52a2877351c77113384dcf844f255e8601548ef03",
             "condition": {
                 "cpi_pressure": "inflation_pressure_up"
             },
             "horizon_days": 20,
-            "sample_count": 32,
-            "positive_return_rate_pct": 40.625,
-            "negative_return_rate_pct": 59.375,
-            "up_direction_rate_pct": 40.625,
-            "down_direction_rate_pct": 59.375,
+            "sample_count": 24,
+            "positive_return_rate_pct": 45.833333,
+            "negative_return_rate_pct": 54.166667,
+            "up_direction_rate_pct": 45.833333,
+            "down_direction_rate_pct": 54.166667,
             "flat_direction_rate_pct": 0.0,
-            "average_return_pct": -0.180909,
-            "median_return_pct": -0.653047,
+            "average_return_pct": -0.000246,
+            "median_return_pct": -0.335929,
             "min_return_pct": -8.895172,
             "max_return_pct": 7.961575,
             "first_event_date": "2015-03-01",
-            "last_event_date": "2018-06-01",
+            "last_event_date": "2017-10-01",
             "bias": "mixed_or_context_dependent",
-            "confidence": 0.563486,
+            "confidence": 0.52501,
             "institutional_context": {},
-            "explanation": "For CPI condition cpi_pressure=inflation_pressure_up, 32 historical lessons show XAU/USD had a positive 20-day return in 40.625% of cases, with an average return of -0.180909%."
+            "explanation": "For CPI condition cpi_pressure=inflation_pressure_up, 24 historical lessons show XAU/USD had a positive 20-day return in 45.833333% of cases, with an average return of -0.000246%."
         }
     ]
 }

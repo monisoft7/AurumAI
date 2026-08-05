@@ -15,6 +15,7 @@ class OvernightPriceChange:
     change_pct: float
     change_sigma: float
     session: str = ""
+    persistence_days: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -24,6 +25,7 @@ class OvernightPriceChange:
             "change_pct": self.change_pct,
             "change_sigma": self.change_sigma,
             "session": self.session,
+            "persistence_days": self.persistence_days,
         }
 
     @classmethod
@@ -35,6 +37,7 @@ class OvernightPriceChange:
             change_pct=float(data.get("change_pct", 0.0)),
             change_sigma=float(data.get("change_sigma", 0.0)),
             session=str(data.get("session", "")),
+            persistence_days=float(data.get("persistence_days", 0.0)),
         )
 
 

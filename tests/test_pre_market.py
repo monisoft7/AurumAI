@@ -52,6 +52,23 @@ class TestOvernightPriceChange:
         assert restored.instrument == ""
         assert restored.change_pct == 0.0
 
+    def test_persistence_days_roundtrip(self):
+        obj = OvernightPriceChange(
+            instrument="XAU/USD",
+            previous_close=1900.0,
+            current_price=1912.0,
+            change_pct=0.63,
+            change_sigma=2.1,
+            session="APAC",
+            persistence_days=4.0,
+        )
+        restored = OvernightPriceChange.from_dict(obj.to_dict())
+        assert restored.persistence_days == 4.0
+
+    def test_persistence_days_defaults_zero(self):
+        restored = OvernightPriceChange.from_dict({})
+        assert restored.persistence_days == 0.0
+
 
 class TestNewsItem:
     def test_to_dict_from_dict_roundtrip(self):
@@ -226,6 +243,39 @@ class TestOvernightDataFetcher:
             fetcher = OvernightDataFetcher()
             result = fetcher.fetch_all(session="APAC")
             assert "overnight_changes" in result
+
+    def test_default_lookback_is_10_days(self):
+        fetcher = OvernightDataFetcher()
+        assert fetcher._lookback_days == 10
+
+    def test_lookback_override(self):
+        fetcher = OvernightDataFetcher(lookback_days=5)
+        assert fetcher._lookback_days == 5
+
+    def test_real_z_score_path(self):
+        series = pd.Series([100.0, 101.0, 102.5, 103.0, 105.0])
+        sigma = OvernightDataFetcher._compute_sigma(series, 103.0, 105.0)
+        assert sigma > 0.0
+
+    def test_four_bar_window_sigma_still_zero(self):
+        series = pd.Series([100.0, 101.0, 102.0, 103.0])
+        sigma = OvernightDataFetcher._compute_sigma(series, 102.0, 103.0)
+        assert sigma == 0.0
+
+    def test_persistence_days_consecutive_direction(self):
+        series = pd.Series([100.0, 101.0, 102.5, 103.0, 105.0])
+        days = OvernightDataFetcher._compute_persistence_days(series)
+        assert days == 4.0
+
+    def test_persistence_days_stops_on_direction_change(self):
+        series = pd.Series([100.0, 101.0, 100.5, 101.0, 102.0])
+        days = OvernightDataFetcher._compute_persistence_days(series)
+        assert days == 2.0
+
+    def test_persistence_days_returns_zero_on_flat(self):
+        series = pd.Series([100.0, 100.0, 100.0])
+        days = OvernightDataFetcher._compute_persistence_days(series)
+        assert days == 0.0
 
 
 # =========================================================================

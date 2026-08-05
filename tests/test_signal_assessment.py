@@ -446,6 +446,74 @@ class TestSignalAssessmentAssembler:
         assert restored.assessment_id == assessment.assessment_id
         assert len(restored.observations) == len(assessment.observations)
 
+    def test_positioning_stub_classified_ignore(self):
+        briefing = self._make_briefing(
+            positioning_snapshot=PositioningSnapshot(
+                cot_z_score=0.0, cot_regime="neutral",
+                etf_flow_momentum="stable", etf_flow_change_pct=0.0,
+                open_interest_change_pct=0.0, gofo_rate=0.0,
+            ),
+        )
+        assembler = SignalAssessmentAssembler()
+        assessment = assembler.assemble(briefing)
+        positioning_obs = next(o for o in assessment.observations if o.source == "positioning")
+        assert positioning_obs.classification == ClassificationLabel.IGNORE.value
+
+    def test_positioning_genuine_etf_flow_not_ignored(self):
+        briefing = self._make_briefing(
+            positioning_snapshot=PositioningSnapshot(
+                cot_z_score=1.5, cot_regime="bullish",
+                etf_flow_momentum="accumulating", etf_flow_change_pct=2.3,
+                open_interest_change_pct=0.5, gofo_rate=0.12,
+            ),
+        )
+        assembler = SignalAssessmentAssembler()
+        assessment = assembler.assemble(briefing)
+        positioning_obs = next(o for o in assessment.observations if o.source == "positioning")
+        assert positioning_obs.classification != ClassificationLabel.IGNORE.value
+
+    def test_persistence_uses_real_days(self):
+        briefing = self._make_briefing(
+            overnight_changes=(
+                OvernightPriceChange("XAU/USD", 1900.0, 1912.0, 0.63, 3.0, "APAC", 16.0),
+            ),
+            news_items=(),
+        )
+        assembler = SignalAssessmentAssembler()
+        assessment = assembler.assemble(briefing)
+        obs = next(o for o in assessment.observations if o.source == "overnight_price")
+        persistence = next(c for c in obs.evidence if c.criterion == "persistence")
+        assert persistence.passed
+        assert "16d" in persistence.detail
+
+    def test_signal_reachable_with_persistent_move(self):
+        briefing = self._make_briefing(
+            overnight_changes=(
+                OvernightPriceChange("XAU/USD", 1900.0, 1950.0, 2.63, 3.0, "APAC", 16.0),
+                OvernightPriceChange("DXY", 100.0, 98.0, -2.0, 1.5, "APAC"),
+            ),
+            news_items=(),
+        )
+        assembler = SignalAssessmentAssembler()
+        assessment = assembler.assemble(briefing)
+        xau_obs = next(o for o in assessment.observations if o.instrument == "XAU/USD")
+        assert xau_obs.classification == ClassificationLabel.SIGNAL.value
+        assert xau_obs.confidence == 0.8
+
+    def test_one_day_noise_remains_watch(self):
+        briefing = self._make_briefing(
+            overnight_changes=(
+                OvernightPriceChange("XAU/USD", 1900.0, 1950.0, 2.63, 1.2, "APAC", 1.0),
+                OvernightPriceChange("DXY", 100.0, 98.0, -2.0, 1.5, "APAC"),
+            ),
+            news_items=(),
+        )
+        assembler = SignalAssessmentAssembler()
+        assessment = assembler.assemble(briefing)
+        xau_obs = next(o for o in assessment.observations if o.instrument == "XAU/USD")
+        assert xau_obs.classification == ClassificationLabel.WATCH.value
+        assert xau_obs.confidence == 0.3
+
 
 # =========================================================================
 # Integration test: W3 -> W5 pipeline

@@ -9,7 +9,19 @@ from signal_assessment.classifier import NoiseSignalClassifier
 from signal_assessment.contracts import ClassifiedObservation, CriterionScore, SignalAssessment
 from signal_assessment.narrative import NarrativeFitScorer
 from signal_assessment.persistence import PersistenceTracker
-from signal_assessment.volume import VolumeFlowConfirmator
+from signal_assessment.volume import ETF_FLOW_THRESHOLD_PCT, VolumeFlowConfirmator
+
+
+PERSISTENCE_TYPE_BY_INSTRUMENT = {
+    "XAU/USD": "COMEX",
+    "XAUUSD": "COMEX",
+    "GC=F": "COMEX",
+    "DXY": "DXY",
+    "DX-Y.NYB": "DXY",
+    "US10Y Real Yield": "gold_real_yield",
+    "US10Y Nominal Yield": "gold_real_yield",
+    "Breakeven Inflation": "gold_real_yield",
+}
 
 
 class SignalAssessmentAssembler:
@@ -42,8 +54,8 @@ class SignalAssessmentAssembler:
         for change in briefing.overnight_changes:
             changes_dict = {c.instrument: c.change_pct for c in briefing.overnight_changes}
             persistence = self._persistence.evaluate(
-                deviation_days=1.0,
-                instrument_type="ETF",
+                deviation_days=change.persistence_days,
+                instrument_type=PERSISTENCE_TYPE_BY_INSTRUMENT.get(change.instrument, "ETF"),
                 change_z_score=change.change_sigma,
             )
             breadth = self._breadth.evaluate(
@@ -109,7 +121,13 @@ class SignalAssessmentAssembler:
             label, confidence, reason = self._classifier.classify(
                 criteria_scores={
                     "persistence": pos_criteria,
-                    "breadth": CriterionScore("breadth", 0.5, 0.5, True, "positioning snapshot"),
+                    "breadth": CriterionScore(
+                        "breadth",
+                        0.5 if abs(positional.etf_flow_change_pct) > ETF_FLOW_THRESHOLD_PCT else 0.0,
+                        0.5,
+                        abs(positional.etf_flow_change_pct) > ETF_FLOW_THRESHOLD_PCT,
+                        f"ETF flow {positional.etf_flow_change_pct:+.2f}%",
+                    ),
                     "magnitude": CriterionScore("magnitude", min(abs(positional.cot_z_score) / 3.0, 1.0), 2.0, abs(positional.cot_z_score) >= 2.0, detail=f"COT z={positional.cot_z_score:.2f}"),
                     "narrative_fit": CriterionScore("narrative_fit", 0.0, 0.3, False, "no specific narrative for positioning"),
                     "volume_flow": vol_criteria,

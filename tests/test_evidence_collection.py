@@ -403,6 +403,11 @@ class TestEvidenceCollector:
         assert restored.collection_id == collection.collection_id
         assert restored.evidence_count == collection.evidence_count
 
+    def test_usd_jpy_bias_spelling_is_bullish(self):
+        from evidence_collection.collector import INSTRUMENT_TO_REGIME_BIAS
+
+        assert INSTRUMENT_TO_REGIME_BIAS["USD/JPY"] == "bullish"
+
 
 # =========================================================================
 # Integration tests: W5 -> W6

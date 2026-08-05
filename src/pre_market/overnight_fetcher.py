@@ -35,7 +35,7 @@ class OvernightDataFetcher:
     def __init__(
         self,
         fred_client: FredClient | None = None,
-        lookback_days: int = 5,
+        lookback_days: int = 10,
     ) -> None:
         self._fred = fred_client or FredClient()
         self._lookback_days = lookback_days
@@ -72,6 +72,7 @@ class OvernightDataFetcher:
                         change_pct=round(pct, 4),
                         change_sigma=round(sigma, 4),
                         session=session,
+                        persistence_days=self._compute_persistence_days(series),
                     ))
             except Exception:
                 pass
@@ -106,6 +107,7 @@ class OvernightDataFetcher:
             change_pct=round(pct, 4),
             change_sigma=round(sigma, 4),
             session=session,
+            persistence_days=self._compute_persistence_days(close),
         )
 
     @staticmethod
@@ -117,6 +119,22 @@ class OvernightDataFetcher:
             return 0.0
         single_return = (curr - prev) / abs(prev) if abs(prev) > 1e-12 else 0.0
         return float(single_return / returns.std())
+
+    @staticmethod
+    def _compute_persistence_days(series: pd.Series) -> float:
+        """Consecutive same-direction daily returns ending at the last bar."""
+        returns = series.pct_change().dropna()
+        if len(returns) < 1 or abs(returns.iloc[-1]) < 1e-12:
+            return 0.0
+        last_sign = 1.0 if returns.iloc[-1] > 0 else -1.0
+        days = 0
+        for ret in reversed(returns.tolist()):
+            if abs(ret) < 1e-12:
+                break
+            if (1.0 if ret > 0 else -1.0) != last_sign:
+                break
+            days += 1
+        return float(days)
 
     def fetch_all(self, session: str = "APAC") -> dict[str, Any]:
         return {
