@@ -18,6 +18,10 @@ class PipelineContext:
     min_samples_for_confidence: int = 12
     yield_data_path: Path | None = None
     yield_context_lookback_days: int = 30
+    dxy_data_path: Path | None = None
+    dxy_context_lookback_days: int = 30
+    breakeven_data_path: Path | None = None
+    breakeven_context_lookback_days: int = 30
     context_comparison_baseline_path: Path | None = None
     context_comparison_output_path: Path | None = None
     context_comparison_base_columns: tuple[str, ...] | None = None

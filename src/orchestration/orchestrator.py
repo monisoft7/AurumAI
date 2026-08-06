@@ -33,6 +33,7 @@ from orchestration.stages import (
     _ingest_news,
     _position_sizing,
     _pre_market_scan,
+    _regime_diagnosis,
     _risk_gate,
     _risk_measures,
     _risk_reward_validation,
@@ -233,7 +234,7 @@ class InstitutionalOrchestrator:
 
         orch.register(PipelineJob(
             job_id="pre_market_scan",
-            dependencies=(),
+            dependencies=("regime_diagnosis",),
             fn=orch._bind(_pre_market_scan),
             cache_ttl=1800,
             checkpoint=True,
@@ -257,7 +258,7 @@ class InstitutionalOrchestrator:
 
         orch.register(PipelineJob(
             job_id="evidence_collection",
-            dependencies=("event_triage",),
+            dependencies=("event_triage", "build_legacy_pipeline"),
             fn=orch._bind(_evidence_collection),
             cache_ttl=600,
             checkpoint=True,
@@ -370,6 +371,14 @@ class InstitutionalOrchestrator:
             dependencies=("ingest_event",),
             fn=orch._bind(_build_legacy_pipeline),
             cache_ttl=600,
+            checkpoint=True,
+        ))
+
+        orch.register(PipelineJob(
+            job_id="regime_diagnosis",
+            dependencies=("build_legacy_pipeline",),
+            fn=orch._bind(_regime_diagnosis),
+            cache_ttl=1800,
             checkpoint=True,
         ))
 

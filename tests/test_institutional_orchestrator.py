@@ -508,21 +508,26 @@ class TestOrchestratorOutput:
 
 class TestOrchestratorLevels:
     def test_14_job_dag_structure(self) -> None:
-        """Verify the 14-job default pipeline DAG has correct levels."""
+        """Verify the default pipeline DAG has correct levels."""
         orch = InstitutionalOrchestrator.with_default_pipeline()
         levels = _topological_levels(orch._jobs)
 
-        # Level 0: independent jobs (pre_market_scan, ingest_event, ingest_news)
+        # Level 0: independent jobs (ingest_event, ingest_news)
         level0 = set(levels[0])
-        assert "pre_market_scan" in level0
         assert "ingest_event" in level0
         assert "ingest_news" in level0
-        assert len(level0) == 3
+        assert len(level0) == 2
 
         # Level 1: depends on ingest_event (forecast, build_legacy_pipeline)
         level1 = set(levels[1])
         assert "forecast" in level1
         assert "build_legacy_pipeline" in level1
+
+        # W2 regime_diagnosis runs after its KG dependency and before W3
+        assert "regime_diagnosis" in {jid for level in levels for jid in level}
+        level_of = {jid: i for i, level in enumerate(levels) for jid in level}
+        assert level_of["build_legacy_pipeline"] < level_of["regime_diagnosis"]
+        assert level_of["regime_diagnosis"] < level_of["pre_market_scan"]
 
     def test_no_circular_in_default_pipeline(self) -> None:
         orch = InstitutionalOrchestrator.with_default_pipeline()
@@ -648,7 +653,7 @@ class TestDefaultPipeline:
         completed = {s.stage_id for s in assessment.stages if s.status == "ok"}
         failed = {s.stage_id for s in assessment.stages if s.status == "failed"}
 
-        # DAG execution should have visited all 25 jobs
+# DAG execution should have visited all 26 jobs
         all_stage_ids = {s.stage_id for s in assessment.stages}
         expected = {
             "pre_market_scan", "signal_assessment", "event_triage",
@@ -658,6 +663,7 @@ class TestDefaultPipeline:
             "risk_reward_validation", "bias_prevention",
             "decision_engine", "trade_recommendation",
             "ingest_event", "ingest_news", "build_legacy_pipeline",
+            "regime_diagnosis",
             "forecast", "forecast_confidence", "forecast_validation",
             "build_context", "risk_measures", "position_sizing",
             "risk_gate", "finalize",
@@ -1018,7 +1024,7 @@ class TestDefaultPipelineIntegration:
             "2024-05-01,2080.0\n"
             "2024-06-01,2120.0\n"
             "2024-07-01,2150.0\n",
-            encoding="utf-8",
+encoding="utf-8",
         )
         return p
 
@@ -1031,6 +1037,7 @@ class TestDefaultPipelineIntegration:
             "risk_reward_validation", "bias_prevention", "decision_engine",
             "trade_recommendation", "event_triage",
             "ingest_event", "ingest_news", "build_legacy_pipeline",
+            "regime_diagnosis",
             "forecast", "forecast_confidence", "forecast_validation",
             "build_context", "risk_measures", "position_sizing",
             "risk_gate", "finalize",
@@ -1052,3 +1059,130 @@ class TestDefaultPipelineIntegration:
         assert "position_sizing" in finalize_job.dependencies
         assert "forecast_confidence" in finalize_job.dependencies
         assert "forecast_validation" in finalize_job.dependencies
+
+
+# ===========================================================================
+# Knowledge Graph -> Institutional Evidence integration (boundary audit fix)
+# ===========================================================================
+
+
+def _signal_assessment_dict() -> dict:
+    return {
+        "assessment_id": "sa_int_kr",
+        "briefing_id": "premarket_int_kr",
+        "timestamp": "2026-08-06T12:00:00",
+        "regime": "NORMAL_GROWTH",
+        "regime_confidence": 0.85,
+        "observations": [
+            {
+                "observation_id": "obs_gold",
+                "source": "overnight_price",
+                "classification": "Signal",
+                "confidence": 0.85,
+                "regime": "NORMAL_GROWTH",
+                "reason": "criteria met",
+                "evidence": [
+                    {
+                        "criterion": "magnitude",
+                        "score": 1.0,
+                        "threshold": 2.0,
+                        "passed": True,
+                        "detail": "z=3.0",
+                    },
+                ],
+                "instrument": "XAU/USD",
+                "value": 1910.0,
+                "change_pct": 0.5,
+                "change_sigma": 1.2,
+            },
+        ],
+    }
+
+
+class TestKnowledgeGraphInstitutionalIntegration:
+    """Regression tests for the boundary-audit integration:
+
+    the institutional ``evidence_collection`` stage must consume the
+    Knowledge Graph produced by ``build_legacy_pipeline`` so institutional
+    evidence references real Knowledge Records, while retaining the
+    synthetic-KR fallback when no graph exists.
+    """
+
+    def _knowledge_graph(self) -> "KnowledgeGraph":
+        from knowledge.graph.graph import KnowledgeGraph
+        from knowledge.graph.node import GraphNode
+
+        kg = KnowledgeGraph()
+        kg.add_node(GraphNode(
+            node_id="CPI_GOLD_medium_12D",
+            node_type="knowledge_record",
+            properties={
+                "knowledge_id": "CPI_GOLD_medium_12D",
+                "event_type": "GENERAL",
+                "average_return_pct": 1.25,
+                "sample_count": 20,
+                "confidence": 0.7,
+            },
+        ))
+        return kg
+
+    def test_evidence_collection_depends_on_build_legacy_pipeline(self) -> None:
+        orch = InstitutionalOrchestrator.with_default_pipeline()
+        assert "build_legacy_pipeline" in orch._jobs["evidence_collection"].dependencies
+
+    def test_real_knowledge_records_consumed_not_synthetic(self) -> None:
+        from orchestration.institutional_orchestrator import _evidence_collection
+
+        results = {
+            "signal_assessment": _signal_assessment_dict(),
+            "build_legacy_pipeline": {"knowledge_graph": self._knowledge_graph()},
+        }
+        collection = _evidence_collection({"regime_weight": 0.8}, results)
+
+        assert collection.evidence_count > 0
+        for ev in collection.items:
+            assert ev.source_kr_id == "CPI_GOLD_medium_12D"
+            assert not ev.source_kr_id.startswith("kr_synthetic_")
+            assert ev.source_kr_node_id == "CPI_GOLD_medium_12D"
+
+    def test_retrieval_path_exercised_returns_kr_ids(self) -> None:
+        from orchestration.institutional_orchestrator import _evidence_collection
+
+        kg = self._knowledge_graph()
+        kr_ids = [n.node_id for n in kg.filter_nodes(event_type="GENERAL")]
+        assert kr_ids == ["CPI_GOLD_medium_12D"]
+
+        results = {
+            "signal_assessment": _signal_assessment_dict(),
+            "build_legacy_pipeline": {"knowledge_graph": kg},
+        }
+        collection = _evidence_collection({}, results)
+        assert any(
+            ev.source_kr_id in kr_ids for ev in collection.items
+        )
+
+    def test_institutional_pipeline_works_without_knowledge_graph(self) -> None:
+        from orchestration.institutional_orchestrator import _evidence_collection
+
+        results = {
+            "signal_assessment": _signal_assessment_dict(),
+        }
+        collection = _evidence_collection({}, results)
+
+        assert collection.evidence_count > 0
+        for ev in collection.items:
+            assert ev.source_kr_id.startswith("kr_synthetic_")
+
+    def test_params_knowledge_graph_still_honored_as_fallback(self) -> None:
+        from orchestration.institutional_orchestrator import _evidence_collection
+
+        results = {"signal_assessment": _signal_assessment_dict()}
+        params = {"knowledge_graph": self._knowledge_graph()}
+        collection = _evidence_collection(params, results)
+
+        assert collection.evidence_count > 0
+        for ev in collection.items:
+            assert ev.source_kr_id == "CPI_GOLD_medium_12D"
+            assert not ev.source_kr_id.startswith("kr_synthetic_")
+
+

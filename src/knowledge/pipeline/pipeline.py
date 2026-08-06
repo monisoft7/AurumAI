@@ -15,6 +15,11 @@ from knowledge.context.comparison import (
     ContextComparisonReport,
 )
 from knowledge.context.yields import YieldContextConfig, YieldContextEnricher
+from knowledge.context.dxy import DXYContextConfig, DXYContextEnricher
+from knowledge.context.breakeven import (
+    BreakevenContextConfig,
+    BreakevenContextEnricher,
+)
 from knowledge.lesson_summary import LessonSummaryAggregator, LessonSummaryConfig
 from knowledge.graph.builder import GraphBuilder
 from knowledge.evidence.query import EvidenceQuery
@@ -94,6 +99,22 @@ class InferencePipeline:
                 )
             ).enrich_csv(lessons_path)
             references["yield_context_path"] = str(context.yield_data_path)
+        if context.dxy_data_path is not None:
+            lessons = DXYContextEnricher(
+                DXYContextConfig(
+                    dxy_path=context.dxy_data_path,
+                    lookback_days=context.dxy_context_lookback_days,
+                )
+            ).enrich_csv(lessons_path)
+            references["dxy_context_path"] = str(context.dxy_data_path)
+        if context.breakeven_data_path is not None:
+            lessons = BreakevenContextEnricher(
+                BreakevenContextConfig(
+                    breakeven_path=context.breakeven_data_path,
+                    lookback_days=context.breakeven_context_lookback_days,
+                )
+            ).enrich_csv(lessons_path)
+            references["breakeven_context_path"] = str(context.breakeven_data_path)
         elapsed = (time.perf_counter() - t0) * 1000
         result.add_stage(
             "build_lessons",

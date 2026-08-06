@@ -60,6 +60,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "gold_lessons_path": None,
     "release_calendar_path": "data/calendar/cpi_releases.csv",
     "yield_data_path": "data/economic/DFII10.csv",
+    "dxy_data_path": "data/context/dxy/dxy.csv",
+    "breakeven_data_path": "data/economic/T5YIE.csv",
     "output_base_dir": "outputs",
     "asset": "XAU/USD",
     "horizon": 12,
@@ -110,7 +112,7 @@ def _validate_config(config: dict[str, Any]) -> list[str]:
         elif not (ROOT / str(value)).exists():
             errors.append(f"{key} not found: {value}")
 
-    for key in ("gold_lessons_path", "release_calendar_path", "yield_data_path"):
+    for key in ("gold_lessons_path", "release_calendar_path", "yield_data_path", "dxy_data_path", "breakeven_data_path"):
         value = config.get(key)
         if value and not (ROOT / str(value)).exists():
             errors.append(f"{key} not found: {value}")
@@ -410,7 +412,7 @@ def main(argv: list[str] | None = None) -> int:
         "horizon": int(config["horizon"]),
         "query": config.get("query", ""),
     }
-    for key in ("gold_lessons_path", "release_calendar_path", "yield_data_path"):
+    for key in ("gold_lessons_path", "release_calendar_path", "yield_data_path", "dxy_data_path", "breakeven_data_path"):
         value = config.get(key)
         if value:
             params[key] = str(ROOT / str(value))

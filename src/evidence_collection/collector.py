@@ -47,6 +47,15 @@ INSTRUMENT_TO_REGIME_BIAS: dict[str, str] = {
     "Gold Positioning": "bullish",
 }
 
+EVENT_TYPE_TO_EVIDENCE_CLASS: dict[str, str] = {
+    "CPI": "INFLATION",
+    "PPI": "INFLATION",
+    "FOMC": "REAL_YIELD",
+    "INTEREST_RATE": "REAL_YIELD",
+    "DXY": "USD_FX",
+    "ETF": "ETF_FLOW",
+}
+
 
 class EvidenceCollector:
     """Consumes SignalAssessment and transforms meaningful signals into Evidence.
@@ -175,6 +184,15 @@ class EvidenceCollector:
         if self._kg is None:
             return [], []
         nodes = self._kg.filter_nodes(event_type=event_type)
+        if not nodes:
+            mapped_types = [
+                t for t, cls in EVENT_TYPE_TO_EVIDENCE_CLASS.items()
+                if cls == event_type
+            ]
+            for mapped_type in mapped_types:
+                nodes = self._kg.filter_nodes(event_type=mapped_type)
+                if nodes:
+                    break
         if not nodes:
             nodes = self._kg.filter_nodes(event_type="GENERAL")
         kr_ids = [n.node_id for n in nodes[:3]] if nodes else []

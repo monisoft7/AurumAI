@@ -409,6 +409,73 @@ class TestEvidenceCollector:
         assert INSTRUMENT_TO_REGIME_BIAS["USD/JPY"] == "bullish"
 
 
+class TestKnowledgeRecordEventClassMapping:
+    """Regression tests for the EVENT_TYPE_TO_EVIDENCE_CLASS mapping:
+
+    a Knowledge Record authored in the economic-event taxonomy (e.g.
+    ``CPI``) must satisfy an institutional Evidence query keyed on the
+    evidence-class taxonomy (e.g. ``INFLATION``), while exact-match and
+    unknown-event-type behavior stay unchanged.
+    """
+
+    def _graph(self, event_types) -> KnowledgeGraph:
+        kg = KnowledgeGraph()
+        for i, et in enumerate(event_types):
+            kg.add_node(GraphNode(
+                node_id=f"KR-{et}-{i:03d}",
+                node_type="knowledge_record",
+                properties={"event_type": et, "title": f"{et} KR"},
+            ))
+        return kg
+
+    def test_cpi_kr_retrieved_when_evidence_asks_inflation(self):
+        kg = self._graph(["CPI", "CPI", "PPI"])
+        obs = _make_observation(instrument="Breakeven Inflation")
+        assessment = _make_assessment([obs])
+        collector = EvidenceCollector(knowledge_graph=kg)
+        collection = collector.collect(assessment)
+
+        assert collection.evidence_count == 1
+        ev = collection.items[0]
+        assert ev.event_type == "INFLATION"
+        assert not ev.source_kr_id.startswith("kr_synthetic_")
+        assert ev.source_kr_id.startswith("KR-CPI-") or ev.source_kr_id.startswith("KR-PPI-")
+
+    def test_existing_exact_match_behavior_unchanged(self):
+        kg = self._graph(["REAL_YIELD", "INTEREST_RATE"])
+        obs = _make_observation(instrument="US10Y Real Yield")
+        assessment = _make_assessment([obs])
+        collector = EvidenceCollector(knowledge_graph=kg)
+        collection = collector.collect(assessment)
+
+        ev = collection.items[0]
+        assert ev.event_type == "REAL_YIELD"
+        assert ev.source_kr_id == "KR-REAL_YIELD-000"
+        assert ev.source_kr_node_id == "KR-REAL_YIELD-000"
+
+    def test_unknown_event_types_still_return_no_match(self):
+        kg = self._graph(["SOME_UNKNOWN_CLASS"])
+        obs = _make_observation(instrument="US10Y Real Yield")
+        assessment = _make_assessment([obs])
+        collector = EvidenceCollector(knowledge_graph=kg)
+        collection = collector.collect(assessment)
+
+        ev = collection.items[0]
+        assert ev.event_type == "REAL_YIELD"
+        assert ev.source_kr_id.startswith("kr_synthetic_")
+
+    def test_general_fallback_unaffected_by_mapping(self):
+        kg = self._graph(["CPI"])
+        obs = _make_observation(instrument="XAU/USD")
+        assessment = _make_assessment([obs])
+        collector = EvidenceCollector(knowledge_graph=kg)
+        collection = collector.collect(assessment)
+
+        ev = collection.items[0]
+        assert ev.event_type == "GENERAL"
+        assert ev.source_kr_id.startswith("kr_synthetic_")
+
+
 # =========================================================================
 # Integration tests: W5 -> W6
 # =========================================================================

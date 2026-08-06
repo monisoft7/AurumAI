@@ -131,6 +131,22 @@ def _build_legacy_pipeline(params: dict[str, Any], results: dict[str, Any]) -> A
             "us10y_level",
             "us10y_trend",
         )
+    if (
+        params.get("dxy_data_path")
+        and not params.get("prebuilt_lessons_path")
+    ):
+        institutional_context_columns += (
+            "dxy_level",
+            "dxy_trend",
+        )
+    if (
+        params.get("breakeven_data_path")
+        and not params.get("prebuilt_lessons_path")
+    ):
+        institutional_context_columns += (
+            "t5yie_level",
+            "t5yie_trend",
+        )
 
     ctx = PipelineContext(
         event=event,
@@ -151,6 +167,10 @@ def _build_legacy_pipeline(params: dict[str, Any], results: dict[str, Any]) -> A
         institutional_context_columns=institutional_context_columns,
         yield_data_path=Path(params["yield_data_path"]) if params.get("yield_data_path") else None,
         yield_context_lookback_days=params.get("yield_context_lookback_days", 30),
+        dxy_data_path=Path(params["dxy_data_path"]) if params.get("dxy_data_path") else None,
+        dxy_context_lookback_days=params.get("dxy_context_lookback_days", 30),
+        breakeven_data_path=Path(params["breakeven_data_path"]) if params.get("breakeven_data_path") else None,
+        breakeven_context_lookback_days=params.get("breakeven_context_lookback_days", 30),
     )
 
     pipe = InferencePipeline()
@@ -414,6 +434,8 @@ def _risk_gate(params: dict[str, Any], results: dict[str, Any]) -> Any:
 
 
 def _signal_assessment(params: dict[str, Any], results: dict[str, Any]) -> Any:
+    from dataclasses import replace
+
     from signal_assessment.assembler import SignalAssessmentAssembler
     from pre_market.contracts import PreMarketBriefing
 
@@ -432,6 +454,14 @@ def _signal_assessment(params: dict[str, Any], results: dict[str, Any]) -> Any:
         regime=briefing.regime,
     )
     assessment = assembler.assemble(briefing)
+
+    diagnosis = results.get("regime_diagnosis")
+    if isinstance(diagnosis, dict) and diagnosis.get("regime"):
+        assessment = replace(
+            assessment,
+            regime=str(diagnosis["regime"]),
+            regime_confidence=float(diagnosis.get("confidence", assessment.regime_confidence)),
+        )
     return assessment
 
 
@@ -473,9 +503,20 @@ def _evidence_collection(params: dict[str, Any], results: dict[str, Any]) -> Any
     else:
         assessment = assessment_data
 
-    kg = params.get("knowledge_graph")
+    kg = results.get("build_legacy_pipeline", {}).get("knowledge_graph")
+    if kg is None:
+        kg = params.get("knowledge_graph")
+
+    diagnosis = results.get("regime_diagnosis")
+    if isinstance(diagnosis, dict) and isinstance(
+        diagnosis.get("confidence"), (int, float)
+    ):
+        regime_weight = float(diagnosis["confidence"])
+    else:
+        regime_weight = params.get("regime_weight", 0.8)
+
     collector = EvidenceCollector(knowledge_graph=kg)
-    collection = collector.collect(assessment, regime_weight=params.get("regime_weight", 0.8))
+    collection = collector.collect(assessment, regime_weight=regime_weight)
 
     tiering_data = results.get("event_triage")
     if tiering_data is not None:
@@ -494,12 +535,79 @@ def _evidence_collection(params: dict[str, Any], results: dict[str, Any]) -> Any
     return collection
 
 
+def _regime_diagnosis(params: dict[str, Any], results: dict[str, Any]) -> Any:
+    import json
+    from pathlib import Path
+
+    from knowledge.regime.composite_score import CompositeScoreBuilder
+    from knowledge.regime.contracts import RegimeDiagnosis, RegimeIndicator
+    from knowledge.regime.indicator_hierarchy import IndicatorHierarchyGenerator
+    from knowledge.regime.institutional_regime_detector import (
+        InstitutionalRegimeDetector,
+    )
+
+    composite_data = CompositeScoreBuilder().build()
+    if len(composite_data) == 0:
+        raise ValueError("composite_score data empty -- cannot diagnose regime")
+
+    detector = InstitutionalRegimeDetector(random_state=42).fit(composite_data)
+    diag = detector.diagnose(float(composite_data["composite_score"].iloc[-1]))
+
+    kg = results.get("build_legacy_pipeline", {}).get("knowledge_graph")
+    hierarchy = IndicatorHierarchyGenerator().generate(
+        diag.regime,
+        include_krs=True,
+        graph=kg,
+    )
+
+    diagnosis = RegimeDiagnosis(
+        regime=diag.regime,
+        label=diag.label,
+        confidence=diag.confidence,
+        probabilities=dict(diag.probabilities),
+        in_transition=diag.in_transition,
+        transition_type=diag.transition_type,
+        previous_regime=diag.previous_regime,
+        timestamp=diag.timestamp,
+        transition_confidence=diag.transition_confidence,
+        regime_duration_days=diag.regime_duration_days,
+        gram_residual=diag.gram_residual,
+        gram_trend=diag.gram_trend,
+        indicator_hierarchy=tuple(
+            RegimeIndicator.from_dict(i) for i in hierarchy.get("indicators", [])
+        ),
+        trigger_levels=tuple(hierarchy.get("trigger_levels", [])),
+    )
+
+    errors = diagnosis.validate()
+    if errors:
+        raise ValueError(f"invalid RegimeDiagnosis: {errors}")
+
+    output_dir = params.get("output_dir")
+    if output_dir is not None:
+        artifact = Path(output_dir) / "regime_diagnosis.json"
+        artifact.write_text(
+            json.dumps(diagnosis.to_dict(), indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+
+    return diagnosis.to_dict()
+
+
 def _pre_market_scan(params: dict[str, Any], results: dict[str, Any]) -> Any:
     from pre_market.briefing_assembler import PreMarketBriefingAssembler
 
+    diagnosis = results.get("regime_diagnosis")
+    if isinstance(diagnosis, dict) and diagnosis.get("regime"):
+        regime = str(diagnosis["regime"])
+        regime_confidence = float(diagnosis.get("confidence", 0.0))
+    else:
+        regime = params.get("regime", "")
+        regime_confidence = params.get("regime_confidence", 0.0)
+
     assembler = PreMarketBriefingAssembler(
-        regime=params.get("regime", ""),
-        regime_confidence=params.get("regime_confidence", 0.0),
+        regime=regime,
+        regime_confidence=regime_confidence,
     )
     briefing = assembler.assemble(
         session=params.get("pre_market_session", "APAC"),

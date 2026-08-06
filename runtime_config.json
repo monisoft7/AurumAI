@@ -5,6 +5,8 @@
   "gold_lessons_path": null,
   "release_calendar_path": "data/calendar/cpi_releases.csv",
   "yield_data_path": "data/economic/DFII10.csv",
+  "dxy_data_path": "data/context/dxy/dxy.csv",
+  "breakeven_data_path": "data/economic/T5YIE.csv",
   "output_base_dir": "outputs",
   "asset": "XAU/USD",
   "horizon": 12,
