@@ -120,6 +120,18 @@ def _build_legacy_pipeline(params: dict[str, Any], results: dict[str, Any]) -> A
             event=event,
         )
 
+    institutional_context_columns = tuple(
+        params.get("institutional_context_columns") or ()
+    )
+    if (
+        params.get("yield_data_path")
+        and not params.get("prebuilt_lessons_path")
+    ):
+        institutional_context_columns += (
+            "us10y_level",
+            "us10y_trend",
+        )
+
     ctx = PipelineContext(
         event=event,
         event_data_path=Path(params["data_path"]),
@@ -136,6 +148,7 @@ def _build_legacy_pipeline(params: dict[str, Any], results: dict[str, Any]) -> A
         reasoning_horizon=params.get("reasoning_horizon"),
         reasoning_condition=reasoning_condition,
         min_evidence_count=params.get("min_evidence_count", 1),
+        institutional_context_columns=institutional_context_columns,
         yield_data_path=Path(params["yield_data_path"]) if params.get("yield_data_path") else None,
         yield_context_lookback_days=params.get("yield_context_lookback_days", 30),
     )

@@ -59,7 +59,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "gold_path": "data/history/gold/gold.csv",
     "gold_lessons_path": None,
     "release_calendar_path": "data/calendar/cpi_releases.csv",
-    "yield_data_path": None,
+    "yield_data_path": "data/economic/DFII10.csv",
     "output_base_dir": "outputs",
     "asset": "XAU/USD",
     "horizon": 12,
