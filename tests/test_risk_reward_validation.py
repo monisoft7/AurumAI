@@ -70,33 +70,7 @@ def _generate_scenarios(
         total_theses=len(theses),
         primary_thesis_id=theses[0].thesis_id if theses else "",
     )
-    from confidence_engine.contracts import InstitutionalConfidence, ThesisConfidence
-
-    tcs = tuple(
-        ThesisConfidence(
-            thesis_id=t.thesis_id,
-            final_confidence=float(t.confidence_inputs.get("avg_supporting_weight", 0.0)),
-            remaining_uncertainty=round(
-                1.0 - float(t.confidence_inputs.get("avg_supporting_weight", 0.0)), 4
-            ),
-            reliability_category=(
-                "high"
-                if float(t.confidence_inputs.get("avg_supporting_weight", 0.0)) >= 0.7
-                else "very_low"
-            ),
-        )
-        for t in theses
-    )
-    confidence = InstitutionalConfidence(
-        confidence_id="cf_w11_test",
-        construction_id=construction.construction_id,
-        timestamp="2026-07-31T10:00:00",
-        regime=regime,
-        theses_confidence=tcs,
-        ranked_thesis_ids=construction.ranked_thesis_ids,
-        primary_thesis_id=construction.primary_thesis_id,
-    )
-    return ScenarioGenerator().generate(construction, confidence)
+    return ScenarioGenerator().generate(construction)
 
 
 def _validate(
@@ -565,16 +539,15 @@ class TestRiskRewardValidator:
 
 
 # =========================================================================
-# W8 -> W9 -> W12 -> W12 integration test
+# W8 -> W10 -> W12 integration test
 # =========================================================================
 
 
-def test_w8_to_w9_to_w10_to_w11_integration():
+def test_w8_to_w10_to_w11_integration():
     from evidence_collection.contracts import Evidence, EvidenceCollection
     from evidence_reasoning.reasoner import EvidenceReasoner
     from counter_evidence.assessor import CounterEvidenceAssessor
     from thesis_construction.constructor import ThesisConstructor
-    from confidence_engine.engine import ConfidenceEngine
     from scenario_generation.generator import ScenarioGenerator
 
     ev1 = Evidence(
@@ -605,8 +578,7 @@ def test_w8_to_w9_to_w10_to_w11_integration():
     reasoning = EvidenceReasoner().reason(collection)
     assessment = CounterEvidenceAssessor().assess(reasoning)
     construction = ThesisConstructor().construct(reasoning, assessment)
-    confidence = ConfidenceEngine().evaluate(construction)
-    generation = ScenarioGenerator().generate(construction, confidence)
+    generation = ScenarioGenerator().generate(construction)
     validation = RiskRewardValidator().validate(generation)
 
     assert validation.scenario_generation_id == generation.scenario_generation_id
@@ -623,7 +595,7 @@ def test_w8_to_w9_to_w10_to_w11_integration():
         assert v.validation_status in VALID_VALIDATION_STATUS
         assert 0.0 <= v.risk_reward_ratio <= 10.0
         assert v.provenance_chain[-1].created_by == "W12 RiskRewardValidator"
-        assert any(p.created_by == "W9 ConfidenceEngine" for p in v.provenance_chain)
+        assert any(p.created_by == "W12 ScenarioGenerator" for p in v.provenance_chain)
 
     total = sum(validation.summary.values())
     assert total == validation.total_validations

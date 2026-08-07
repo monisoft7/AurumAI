@@ -128,7 +128,7 @@ def _decide_via_chain(
         ranked_thesis_ids=construction.ranked_thesis_ids,
         primary_thesis_id=construction.primary_thesis_id,
     )
-    generation = ScenarioGenerator().generate(construction, confidence)
+    generation = ScenarioGenerator().generate(construction)
     validation = RiskRewardValidator().validate(generation)
     return DecisionEngine().decide(construction, confidence, generation, validation)
 
@@ -443,7 +443,7 @@ class TestRecommendationEngine:
 
 
 # =========================================================================
-# W8 -> W9 -> W12 -> W13 -> W14 integration test
+# W8 -> W10 -> W12 -> W13 -> W14 integration test
 # =========================================================================
 
 
@@ -486,7 +486,7 @@ def test_w8_to_w14_full_integration():
     assessment = CounterEvidenceAssessor().assess(reasoning)
     construction = ThesisConstructor().construct(reasoning, assessment)
     confidence = ConfidenceEngine().evaluate(construction)
-    generation = ScenarioGenerator().generate(construction, confidence)
+    generation = ScenarioGenerator().generate(construction)
     validation = RiskRewardValidator().validate(generation)
     decision = DecisionEngine().decide(construction, confidence, generation, validation)
     rec = RecommendationEngine().recommend(decision, instrument="XAU/USD")
@@ -516,7 +516,7 @@ def test_w8_to_w14_full_integration():
     assert rec.institutional_thesis_summary
     assert rec.monitoring_conditions
     assert rec.provenance_chain[-1].created_by == "W14 RecommendationEngine"
-    assert any(p.created_by == "W9 ConfidenceEngine" for p in rec.provenance_chain)
+    assert any(p.created_by == "W12 ScenarioGenerator" for p in rec.provenance_chain)
     assert any(p.created_by == "W13 DecisionEngine" for p in rec.provenance_chain)
 
 

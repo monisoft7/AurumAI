@@ -4,10 +4,6 @@ import json
 
 import pytest
 
-from confidence_engine.contracts import (
-    InstitutionalConfidence,
-    ThesisConfidence,
-)
 from scenario_generation.contracts import (
     PROBABILITY_EPSILON,
     SCENARIO_TYPE_LABELS,
@@ -76,42 +72,11 @@ def _make_construction(
     )
 
 
-def _make_confidence(
-    construction: ThesisConstruction,
-    confidence_id: str = "cf_w10_test",
-    confidences: dict[str, float] | None = None,
-) -> InstitutionalConfidence:
-    if confidences is None:
-        confidences = {t.thesis_id: 0.7 for t in construction.theses}
-    tcs = tuple(
-        ThesisConfidence(
-            thesis_id=t.thesis_id,
-            final_confidence=confidences.get(t.thesis_id, 0.0),
-            remaining_uncertainty=round(1.0 - confidences.get(t.thesis_id, 0.0), 4),
-            reliability_category=(
-                "high" if confidences.get(t.thesis_id, 0.0) >= 0.7 else "moderate"
-            ),
-        )
-        for t in construction.theses
-    )
-    return InstitutionalConfidence(
-        confidence_id=confidence_id,
-        construction_id=construction.construction_id,
-        timestamp="2026-07-31T09:00:00",
-        regime=construction.regime,
-        theses_confidence=tcs,
-        ranked_thesis_ids=construction.ranked_thesis_ids,
-        primary_thesis_id=construction.primary_thesis_id,
-    )
-
-
 def _generate(
     theses: tuple[InvestmentThesis, ...] | None = None,
-    confidences: dict[str, float] | None = None,
 ) -> ScenarioGeneration:
     construction = _make_construction(theses)
-    confidence = _make_confidence(construction, confidences=confidences)
-    return ScenarioGenerator().generate(construction, confidence)
+    return ScenarioGenerator().generate(construction)
 
 
 # =========================================================================
@@ -383,21 +348,21 @@ class TestScenarioGenerator:
                 assert s.probability == 0.5
 
     def test_bullish_thesis_skews_bull(self):
-        generation = _generate(confidences={"th_1": 0.8})
+        generation = _generate()
         probs = {s.scenario_type: s.probability for s in generation.scenarios}
         assert probs["bull"] > probs["bear"]
-        assert probs["bear"] == 0.145
-        assert probs["bull"] == 0.355
+        assert probs["bear"] == 0.165
+        assert probs["bull"] == 0.335
 
     def test_bearish_thesis_skews_bear(self):
-        generation = _generate((_make_thesis("th_1", "bearish"),), {"th_1": 0.8})
+        generation = _generate((_make_thesis("th_1", "bearish"),))
         probs = {s.scenario_type: s.probability for s in generation.scenarios}
         assert probs["bear"] > probs["bull"]
-        assert probs["bear"] == 0.355
-        assert probs["bull"] == 0.145
+        assert probs["bear"] == 0.335
+        assert probs["bull"] == 0.165
 
     def test_neutral_thesis_splits_tails(self):
-        generation = _generate((_make_thesis("th_1", "neutral"),), {"th_1": 0.7})
+        generation = _generate((_make_thesis("th_1", "neutral"),))
         probs = {s.scenario_type: s.probability for s in generation.scenarios}
         assert probs["bull"] == 0.25
         assert probs["bear"] == 0.25
@@ -423,24 +388,21 @@ class TestScenarioGenerator:
 
     def test_regime_path_bull_and_bear(self):
         construction = _make_construction(regime="NORMAL_GROWTH")
-        confidence = _make_confidence(construction)
-        generation = ScenarioGenerator().generate(construction, confidence)
+        generation = ScenarioGenerator().generate(construction)
         by_type = {s.scenario_type: s for s in generation.scenarios}
         assert by_type["bull"].regime_path == ("NORMAL_GROWTH", "NORMAL_GROWTH")
         assert by_type["bear"].regime_path == ("NORMAL_GROWTH", "DEFLATIONARY_CRISIS")
 
     def test_regime_path_inflationary(self):
         construction = _make_construction(regime="INFLATIONARY")
-        confidence = _make_confidence(construction)
-        generation = ScenarioGenerator().generate(construction, confidence)
+        generation = ScenarioGenerator().generate(construction)
         by_type = {s.scenario_type: s for s in generation.scenarios}
         assert by_type["bull"].regime_path == ("INFLATIONARY", "NORMAL_GROWTH")
         assert by_type["bear"].regime_path == ("INFLATIONARY", "STAGFLATIONARY")
 
     def test_unknown_regime_falls_back(self):
         construction = _make_construction(regime="UNKNOWN_REGIME")
-        confidence = _make_confidence(construction)
-        generation = ScenarioGenerator().generate(construction, confidence)
+        generation = ScenarioGenerator().generate(construction)
         by_type = {s.scenario_type: s for s in generation.scenarios}
         assert by_type["base"].regime_path == ("UNKNOWN_REGIME",)
         assert by_type["bull"].regime_path == ("UNKNOWN_REGIME", "UNKNOWN_REGIME")
@@ -477,13 +439,13 @@ class TestScenarioGenerator:
             for c in by_type["bear"].invalidation_conditions
         )
 
-    def test_confidence_inputs_from_w9(self):
-        generation = _generate(confidences={"th_1": 0.75})
+    def test_confidence_inputs_from_thesis_fallback(self):
+        generation = _generate()
         for s in generation.scenarios:
-            assert s.confidence_inputs["final_confidence"] == 0.75
-            assert s.confidence_inputs["remaining_uncertainty"] == 0.25
+            assert s.confidence_inputs["final_confidence"] == 0.6
+            assert s.confidence_inputs["remaining_uncertainty"] == 0.4
             assert s.confidence_inputs["institutional_support"] == 0.7
-            assert s.confidence_inputs["reliability_category"] == "high"
+            assert s.confidence_inputs["reliability_category"] == "moderate"
 
     def test_provenance_chain_ends_with_w12(self):
         generation = _generate()
@@ -500,26 +462,20 @@ class TestScenarioGenerator:
 
     def test_empty_construction(self):
         construction = _make_construction(())
-        confidence = _make_confidence(construction)
-        generation = ScenarioGenerator().generate(construction, confidence)
+        generation = ScenarioGenerator().generate(construction)
         assert generation.total_scenarios == 0
         assert generation.thesis_ids == ()
         assert generation.probability_consistency == {}
 
-    def test_missing_confidence_for_thesis(self):
+    def test_missing_confidence_uses_thesis_fallback(self):
         thesis = _make_thesis("th_1")
         construction = _make_construction((thesis,))
-        confidence = InstitutionalConfidence(
-            confidence_id="cf_empty",
-            construction_id=construction.construction_id,
-            timestamp="2026-07-31T09:00:00",
-            regime="NORMAL_GROWTH",
-        )
-        generation = ScenarioGenerator().generate(construction, confidence)
+        generation = ScenarioGenerator().generate(construction)
         assert generation.total_scenarios == 3
+        assert generation.confidence_id == f"cf_fallback_{construction.construction_id}"
         for s in generation.scenarios:
-            assert s.confidence_inputs["final_confidence"] == 0.0
-            assert s.confidence_inputs["reliability_category"] == "very_low"
+            assert s.confidence_inputs["final_confidence"] == 0.6
+            assert s.confidence_inputs["reliability_category"] == "moderate"
 
     def test_generation_roundtrip(self):
         generation = _generate(
@@ -545,12 +501,11 @@ class TestScenarioGenerator:
 # =========================================================================
 
 
-def test_w8_to_w9_to_w10_integration():
+def test_w8_to_w10_integration():
     from evidence_collection.contracts import Evidence, EvidenceCollection
     from evidence_reasoning.reasoner import EvidenceReasoner
     from counter_evidence.assessor import CounterEvidenceAssessor
     from thesis_construction.constructor import ThesisConstructor
-    from confidence_engine.engine import ConfidenceEngine
 
     ev1 = Evidence(
         evidence_id="ev_gold_1", source_kr_id="KR-001", source_kr_node_id="KR-001",
@@ -580,11 +535,10 @@ def test_w8_to_w9_to_w10_integration():
     reasoning = EvidenceReasoner().reason(collection)
     assessment = CounterEvidenceAssessor().assess(reasoning)
     construction = ThesisConstructor().construct(reasoning, assessment)
-    confidence = ConfidenceEngine().evaluate(construction)
-    generation = ScenarioGenerator().generate(construction, confidence)
+    generation = ScenarioGenerator().generate(construction)
 
     assert generation.construction_id == construction.construction_id
-    assert generation.confidence_id == confidence.confidence_id
+    assert generation.confidence_id == f"cf_fallback_{construction.construction_id}"
     assert generation.regime == "NORMAL_GROWTH"
     assert generation.total_scenarios == 3 * construction.total_theses
 
@@ -597,10 +551,6 @@ def test_w8_to_w9_to_w10_integration():
         assert s.expected_direction in {"bullish", "bearish", "neutral"}
         assert 0.0 <= s.probability <= 1.0
         assert len(s.regime_path) >= 1
-        assert s.confidence_inputs["final_confidence"] == (
-            next(tc.final_confidence for tc in confidence.theses_confidence
-                 if tc.thesis_id == s.thesis_id)
-        )
 
     assert not generation.validate()
     for tid, total in generation.probability_consistency.items():
@@ -608,7 +558,7 @@ def test_w8_to_w9_to_w10_integration():
 
     provenance_ok = all(
         s.provenance_chain[-1].created_by == "W12 ScenarioGenerator"
-        and any(p.created_by == "W9 ConfidenceEngine" for p in s.provenance_chain)
+        and not any(p.created_by == "W9 ConfidenceEngine" for p in s.provenance_chain)
         for s in generation.scenarios
     )
     assert provenance_ok
@@ -625,18 +575,79 @@ def test_w10_orchestration_stage():
     construction = _make_construction(
         (_make_thesis("th_1"), _make_thesis("th_2", "bearish"))
     )
-    confidence = _make_confidence(construction, confidences={"th_1": 0.8, "th_2": 0.4})
     result = _scenario_generation(
         {},
         {
             "thesis_construction": construction.to_dict(),
-            "confidence_engine": confidence.to_dict(),
         },
     )
     assert isinstance(result, ScenarioGeneration)
     assert result.construction_id == construction.construction_id
-    assert result.confidence_id == confidence.confidence_id
+    assert result.confidence_id == f"cf_fallback_{construction.construction_id}"
     assert result.total_scenarios == 6
+
+
+def test_scenario_generation_no_longer_consumes_confidence_engine():
+    """Regression: the W12 scenario generation stage must not depend on, or
+    consume, the W9 ConfidenceEngine output.  A confidence_engine result
+    present in the pipeline results must be ignored entirely (the frozen DAG
+    runs W12 before W9, so the read is dead code)."""
+    import inspect
+
+    from orchestration.stages import _scenario_generation
+
+    sig = inspect.signature(ScenarioGenerator.generate)
+    assert "confidence" not in sig.parameters
+
+    construction = _make_construction(
+        (_make_thesis("th_1"), _make_thesis("th_2", "bearish"))
+    )
+    confidence_data = _make_confidence(construction)
+    result = _scenario_generation(
+        {},
+        {
+            "thesis_construction": construction.to_dict(),
+            "confidence_engine": confidence_data,
+        },
+    )
+    assert isinstance(result, ScenarioGeneration)
+    assert result.construction_id == construction.construction_id
+    assert result.confidence_id == f"cf_fallback_{construction.construction_id}"
+    assert result.metadata["confidence_source"] == "thesis_fallback"
+    assert result.total_scenarios == 6
+
+    for s in result.scenarios:
+        thesis = next(
+            t for t in construction.theses if t.thesis_id == s.thesis_id
+        )
+        fallback = ScenarioGenerator._fallback_confidence(thesis)
+        assert s.confidence_inputs["final_confidence"] == fallback
+
+
+def _make_confidence(construction) -> dict:
+    from confidence_engine.contracts import (
+        InstitutionalConfidence,
+        ThesisConfidence,
+    )
+
+    tcs = tuple(
+        ThesisConfidence(
+            thesis_id=t.thesis_id,
+            final_confidence=0.9,
+            remaining_uncertainty=0.1,
+            reliability_category="high",
+        )
+        for t in construction.theses
+    )
+    return InstitutionalConfidence(
+        confidence_id="cf_should_be_ignored",
+        construction_id=construction.construction_id,
+        timestamp="2026-07-31T09:00:00",
+        regime=construction.regime,
+        theses_confidence=tcs,
+        ranked_thesis_ids=construction.ranked_thesis_ids,
+        primary_thesis_id=construction.primary_thesis_id,
+    ).to_dict()
 
 
 def test_w10_orchestration_stage_missing_data():
@@ -691,7 +702,6 @@ def test_w10_orchestration_stage_propagates_upstream_errors():
         {},
         {
             "thesis_construction": {"error": "failed"},
-            "confidence_engine": {"error": "failed"},
         },
     )
     assert isinstance(result, dict)
@@ -722,10 +732,6 @@ def test_w10_stage_uses_versioned_thesis_from_update():
     )
 
     construction = _make_construction((original,))
-    versioned_construction = _make_construction((versioned,))
-    confidence = _make_confidence(
-        versioned_construction, confidences={"th_issue001.v2": 0.7}
-    )
 
     update = ThesisUpdate(
         update_id="update-th_issue001-v2",
@@ -749,10 +755,11 @@ def test_w10_stage_uses_versioned_thesis_from_update():
         {
             "thesis_construction": construction.to_dict(),
             "thesis_update": update.to_dict(),
-            "confidence_engine": confidence.to_dict(),
         },
     )
 
     assert isinstance(result, ScenarioGeneration)
     assert result.scenarios
     assert all(s.thesis_id == "th_issue001.v2" for s in result.scenarios)
+    assert result.metadata["confidence_source"] == "thesis_fallback"
+    assert result.confidence_id == f"cf_fallback_{result.construction_id}"

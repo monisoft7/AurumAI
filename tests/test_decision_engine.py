@@ -114,7 +114,7 @@ def _build_inputs(
         ranked_thesis_ids=construction.ranked_thesis_ids,
         primary_thesis_id=construction.primary_thesis_id,
     )
-    generation = ScenarioGenerator().generate(construction, confidence)
+    generation = ScenarioGenerator().generate(construction)
     validation = RiskRewardValidatorForTest().validate(generation)
     return construction, confidence, generation, validation
 
@@ -616,7 +616,7 @@ def test_w8_to_w9_to_w12_to_w13_integration():
     assessment = CounterEvidenceAssessor().assess(reasoning)
     construction = ThesisConstructor().construct(reasoning, assessment)
     confidence = ConfidenceEngine().evaluate(construction)
-    generation = ScenarioGenerator().generate(construction, confidence)
+    generation = ScenarioGenerator().generate(construction)
     validation = RiskRewardValidator().validate(generation)
     decision = DecisionEngine().decide(
         construction, confidence, generation, validation
@@ -640,7 +640,7 @@ def test_w8_to_w9_to_w12_to_w13_integration():
     assert not decision.validate()
     assert decision.decision_explanation
     assert decision.provenance_chain[-1].created_by == "W13 DecisionEngine"
-    assert any(p.created_by == "W9 ConfidenceEngine" for p in decision.provenance_chain)
+    assert any(p.created_by == "W12 ScenarioGenerator" for p in decision.provenance_chain)
 
     for alt in decision.rejected_alternatives:
         assert alt.thesis_id != decision.selected_thesis_id

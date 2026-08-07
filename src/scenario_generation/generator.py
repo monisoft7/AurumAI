@@ -1,5 +1,6 @@
 """W12 Institutional Scenario Generation: builds base/bull/bear scenarios
-for every thesis from ThesisConstruction (W8) and InstitutionalConfidence (W9)."""
+for every thesis from ThesisConstruction (W8) using a deterministic
+thesis-derived confidence proxy."""
 
 from __future__ import annotations
 
@@ -8,7 +9,6 @@ from typing import Any
 from uuid import uuid4
 
 from confidence_engine.computer import ConfidenceComputer
-from confidence_engine.contracts import InstitutionalConfidence, ThesisConfidence
 from knowledge.integrity.provenance import Provenance
 from scenario_generation.contracts import (
     SCENARIO_TYPE_LABELS,
@@ -47,16 +47,12 @@ class ScenarioGenerator:
     """Generates base/bull/bear scenarios for every thesis.
 
     Per the frozen W12 specification, W12 runs before W9 (its downside-case
-    output is consumed by W9).  The W9 confidence input is therefore optional:
-    when it is absent the generator degrades gracefully to a deterministic
-    thesis-derived confidence proxy (PROJECT_SCOPE_V1 sec. 6.6).
+    output is consumed by W9).  Scenario probabilities are therefore always
+    derived from a deterministic thesis-derived confidence proxy
+    (PROJECT_SCOPE_V1 sec. 6.6) rather than from the W9 confidence output.
     """
 
-    def generate(
-        self,
-        construction: ThesisConstruction,
-        confidence: InstitutionalConfidence | None = None,
-    ) -> ScenarioGeneration:
+    def generate(self, construction: ThesisConstruction) -> ScenarioGeneration:
         prov = Provenance(
             created_at=datetime.now(timezone.utc).isoformat(),
             created_by="W12 ScenarioGenerator",
@@ -65,13 +61,7 @@ class ScenarioGenerator:
 
         scenarios: list[InstitutionalScenario] = []
         for thesis in construction.theses:
-            tc = self._find_confidence(confidence, thesis.thesis_id)
-            if tc is not None:
-                confidence_value = tc.final_confidence
-            elif confidence is None:
-                confidence_value = self._fallback_confidence(thesis)
-            else:
-                confidence_value = 0.0
+            confidence_value = self._fallback_confidence(thesis)
             probabilities = self._allocate_probabilities(
                 thesis.direction, confidence_value
             )
@@ -79,7 +69,6 @@ class ScenarioGenerator:
                 scenarios.append(
                     self._build_scenario(
                         thesis=thesis,
-                        confidence=tc,
                         scenario_type=scenario_type,
                         probability=probabilities[scenario_type],
                         provenance=prov,
@@ -99,11 +88,7 @@ class ScenarioGenerator:
         return ScenarioGeneration(
             scenario_generation_id=f"sg_{uuid4().hex[:12]}",
             construction_id=construction.construction_id,
-            confidence_id=(
-                confidence.confidence_id
-                if confidence
-                else f"cf_fallback_{construction.construction_id}"
-            ),
+            confidence_id=f"cf_fallback_{construction.construction_id}",
             timestamp=datetime.now(timezone.utc).isoformat(),
             regime=construction.regime,
             scenarios=tuple(scenarios),
@@ -113,27 +98,13 @@ class ScenarioGenerator:
             metadata={
                 "total_theses_covered": len(thesis_ids),
                 "scenarios_per_thesis": 3,
-                "confidence_source": (
-                    "w9" if confidence is not None else "thesis_fallback"
-                ),
+                "confidence_source": "thesis_fallback",
             },
         )
 
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
-
-    def _find_confidence(
-        self,
-        confidence: InstitutionalConfidence | None,
-        thesis_id: str,
-    ) -> ThesisConfidence | None:
-        if confidence is None:
-            return None
-        for tc in confidence.theses_confidence:
-            if tc.thesis_id == thesis_id:
-                return tc
-        return None
 
     @staticmethod
     def _fallback_confidence(thesis: InvestmentThesis) -> float:
@@ -162,7 +133,6 @@ class ScenarioGenerator:
     def _build_scenario(
         self,
         thesis: InvestmentThesis,
-        confidence: ThesisConfidence | None,
         scenario_type: str,
         probability: float,
         provenance: Provenance,
@@ -175,9 +145,7 @@ class ScenarioGenerator:
         else:
             expected_direction = SCENARIO_DIRECTIONS.get(scenario_type, "neutral")
         regime_path = self._regime_path(regime, scenario_type)
-        base_chain = list(
-            confidence.provenance_chain if confidence else thesis.provenance_chain
-        ) + [provenance]
+        base_chain = list(thesis.provenance_chain) + [provenance]
 
         return InstitutionalScenario(
             scenario_id=f"sc_{uuid4().hex[:12]}",
@@ -196,19 +164,11 @@ class ScenarioGenerator:
             ),
             regime_path=regime_path,
             confidence_inputs={
-                "final_confidence": (
-                    confidence.final_confidence if confidence else confidence_value
-                ),
-                "remaining_uncertainty": (
-                    confidence.remaining_uncertainty
-                    if confidence
-                    else round(1.0 - confidence_value, 4)
-                ),
+                "final_confidence": confidence_value,
+                "remaining_uncertainty": round(1.0 - confidence_value, 4),
                 "institutional_support": thesis.institutional_support,
-                "reliability_category": (
-                    confidence.reliability_category
-                    if confidence
-                    else ConfidenceComputer().reliability_category(confidence_value)
+                "reliability_category": ConfidenceComputer().reliability_category(
+                    confidence_value
                 ),
             },
             provenance_chain=tuple(base_chain),

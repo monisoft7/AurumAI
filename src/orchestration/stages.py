@@ -779,17 +779,12 @@ def _confidence_engine(params: dict[str, Any], results: dict[str, Any]) -> Any:
 
 def _scenario_generation(params: dict[str, Any], results: dict[str, Any]) -> Any:
     from thesis_construction.contracts import ThesisConstruction
-    from confidence_engine.contracts import InstitutionalConfidence
     from scenario_generation.generator import ScenarioGenerator
 
     update_data = results.get("thesis_update")
     construction_data = results.get("thesis_construction")
     if update_data is None and construction_data is None:
         return {"error": "missing thesis_construction data"}
-
-    confidence_data = results.get("confidence_engine")
-    if isinstance(confidence_data, dict) and "error" in confidence_data:
-        return {"error": "confidence_engine stage failed"}
 
     if update_data is not None:
         from thesis_update.contracts import ThesisUpdate
@@ -811,15 +806,8 @@ def _scenario_generation(params: dict[str, Any], results: dict[str, Any]) -> Any
         else:
             construction = construction_data
 
-    if confidence_data is None:
-        confidence = None
-    elif isinstance(confidence_data, dict):
-        confidence = InstitutionalConfidence.from_dict(confidence_data)
-    else:
-        confidence = confidence_data
-
     generator = ScenarioGenerator()
-    generation = generator.generate(construction, confidence)
+    generation = generator.generate(construction)
     return generation
 
 
