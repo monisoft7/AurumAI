@@ -15,6 +15,21 @@ REGIME_EXPECTED_EVENT_TYPES: dict[str, set[str]] = {
     "STRUCTURAL_REGIME_CHANGE": {"REAL_YIELD", "USD_FX", "INFLATION", "GENERAL"},
 }
 
+# Event types that have an admitted evidence producer (instrument scanners and
+# knowledge/news ingestion). An admitted channel absent from the evidence sets
+# reflects upstream filtering, not an unavailable pipeline, so it must not be
+# treated as missing evidence. Only channels with no producer (e.g., CB_GOLD)
+# remain eligible as missing expected evidence.
+# (docs/design/COUNTER_EVIDENCE_CORRECTION_V1.md, section 3.6)
+ADMITTED_EVIDENCE_CHANNELS: set[str] = {
+    "GENERAL",
+    "USD_FX",
+    "REAL_YIELD",
+    "INFLATION",
+    "ETF_FLOW",
+    "GEOPOLITICAL",
+}
+
 # Regime-to-expected-bias mapping for regime-conflict detection
 REGIME_EXPECTED_BIAS: dict[str, str] = {
     "NORMAL_GROWTH": "bullish",
@@ -109,6 +124,13 @@ class ConflictDetector:
         evidence_sets: tuple[EvidenceSet, ...],
         regime: str,
     ) -> list[str]:
+        """Returns expected channels that are genuinely unavailable.
+
+        Channels with an admitted evidence producer are not reported as missing
+        even when absent from the current evidence sets, because their absence
+        reflects upstream filtering rather than an unavailable evidence channel.
+        (docs/design/COUNTER_EVIDENCE_CORRECTION_V1.md, section 3.6)
+        """
         present = {es.event_type for es in evidence_sets}
         expected = REGIME_EXPECTED_EVENT_TYPES.get(regime, set())
-        return sorted(expected - present)
+        return sorted(expected - present - ADMITTED_EVIDENCE_CHANNELS)

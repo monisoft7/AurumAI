@@ -229,10 +229,11 @@ class TestConflictDetector:
 
     def test_missing_event_types(self):
         sets = (_make_evidence_set(event_type="REAL_YIELD"),)
-        missing = ConflictDetector.missing_event_types(sets, "NORMAL_GROWTH")
+        missing = ConflictDetector.missing_event_types(sets, "INFLATIONARY")
+        assert "CB_GOLD" in missing
         assert "REAL_YIELD" not in missing
-        assert "USD_FX" in missing
-        assert "INFLATION" in missing
+        assert "USD_FX" not in missing
+        assert "INFLATION" not in missing
 
     def test_missing_event_types_all_present(self):
         sets = (
@@ -313,7 +314,19 @@ class TestBiasAnalyzer:
         assert penalty > 0.0
 
     def test_confidence_penalty_with_regime_conflict(self):
+        penalty = BiasAnalyzer.compute_confidence_penalty(0.0, ["regime_conflict"], True)
+        assert penalty == 0.1
+
+    def test_confidence_penalty_boolean_add_on_removed(self):
         penalty = BiasAnalyzer.compute_confidence_penalty(0.0, [], True)
+        assert penalty == 0.0
+
+    def test_confidence_penalty_cross_set_flag_not_double_counted(self):
+        penalty = BiasAnalyzer.compute_confidence_penalty(0.5, ["cross_set_conflict"], False)
+        assert penalty == 0.2
+
+    def test_confidence_penalty_no_dissent_not_charged(self):
+        penalty = BiasAnalyzer.compute_confidence_penalty(0.5, ["no_dissent"], False)
         assert penalty == 0.2
 
     def test_confidence_penalty_clamps(self):
@@ -369,12 +382,12 @@ class TestCounterEvidenceAssessor:
         assert result.confidence_penalty > 0.0
 
     def test_assess_missing_evidence(self):
-        sets = (_make_evidence_set("es_1", event_type="REAL_YIELD"),)
-        reasoning = _make_reasoning(sets, regime="NORMAL_GROWTH")
+        sets = (_make_evidence_set("es_1", event_type="USD_FX"),)
+        reasoning = _make_reasoning(sets, regime="INFLATIONARY")
         assessor = CounterEvidenceAssessor()
         result = assessor.assess(reasoning)
         assert "missing_evidence" in result.bias_flags
-        assert len(result.missing_evidence) > 0
+        assert result.missing_evidence == ("CB_GOLD",)
 
     def test_assess_source_concentration(self):
         sets = (_make_evidence_set("es_1"),)
@@ -422,6 +435,35 @@ class TestCounterEvidenceAssessor:
         result = assessor.assess(reasoning)
         assert result.regime == "INFLATIONARY"
         assert "confirmation_bias" not in result.bias_flags or len(result.bias_flags) >= 0
+
+    def test_assess_audited_run_corrected_values(self):
+        reasoning = _make_reasoning(
+            sets=(
+                _make_evidence_set("es_usd_fx", event_type="USD_FX", bias="bearish", conflict_score=0.0),
+                _make_evidence_set("es_general", event_type="GENERAL", bias="bullish", conflict_score=0.0),
+            ),
+            regime="INFLATIONARY",
+        )
+        assessor = CounterEvidenceAssessor()
+        result = assessor.assess(reasoning)
+        assert result.conflict_severity == 0.25
+        assert result.missing_evidence == ("CB_GOLD",)
+        assert result.confidence_penalty == 0.3
+        assert result.regime_conflict is True
+        assert "no_dissent" not in result.bias_flags
+
+    def test_assess_no_dissent_suppressed_when_cross_contradiction(self):
+        # no_dissent is a mislabeled heuristic when cross-set contradiction
+        # exists; it must not be emitted (COUNTER_EVIDENCE_CORRECTION design 3.5).
+        sets = (
+            _make_evidence_set("es_1", bias="bullish", conflict_score=0.0),
+            _make_evidence_set("es_2", bias="bearish", conflict_score=0.0),
+        )
+        reasoning = _make_reasoning(sets)
+        assessor = CounterEvidenceAssessor()
+        result = assessor.assess(reasoning)
+        assert "no_dissent" not in result.bias_flags
+        assert "cross_set_conflict" in result.bias_flags
 
 
 # =========================================================================

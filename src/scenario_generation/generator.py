@@ -60,8 +60,10 @@ class ScenarioGenerator:
         )
 
         scenarios: list[InstitutionalScenario] = []
+        sources: dict[str, str] = {}
         for thesis in construction.theses:
-            confidence_value = self._fallback_confidence(thesis)
+            confidence_value, source = self._scenario_confidence(thesis)
+            sources[thesis.thesis_id] = source
             probabilities = self._allocate_probabilities(
                 thesis.direction, confidence_value
             )
@@ -78,6 +80,12 @@ class ScenarioGenerator:
                 )
 
         thesis_ids = tuple(t.thesis_id for t in construction.theses)
+        primary = construction.primary_thesis
+        confidence_source = (
+            sources[primary.thesis_id]
+            if primary is not None and primary.thesis_id in sources
+            else "thesis_fallback"
+        )
         consistency = {
             tid: round(
                 sum(s.probability for s in scenarios if s.thesis_id == tid), 4
@@ -98,13 +106,32 @@ class ScenarioGenerator:
             metadata={
                 "total_theses_covered": len(thesis_ids),
                 "scenarios_per_thesis": 3,
-                "confidence_source": "thesis_fallback",
+                "confidence_source": confidence_source,
             },
         )
 
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _scenario_confidence(thesis: InvestmentThesis) -> tuple[float, str]:
+        """Selects the confidence value used for a thesis's scenarios.
+
+        First choice: the institutional penalty-adjusted support already
+        present in the scenario input bundle (thesis.institutional_support =
+        avg_supporting_weight x (1 - confidence_penalty)).  The raw
+        evidence-set weight fallback (avg_supporting_weight) is preserved
+        only when that penalty-adjusted value is absent from the bundle.
+        Returns the confidence value and a deterministic source label.
+        """
+        support = thesis.institutional_support
+        if support > 0.0:
+            return (
+                round(max(0.0, min(float(support), 1.0)), 4),
+                "thesis_support",
+            )
+        return ScenarioGenerator._fallback_confidence(thesis), "thesis_fallback"
 
     @staticmethod
     def _fallback_confidence(thesis: InvestmentThesis) -> float:

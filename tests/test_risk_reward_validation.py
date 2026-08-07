@@ -82,7 +82,7 @@ def _validate(
 
 
 def _strong_bullish_thesis() -> InvestmentThesis:
-    return _make_thesis("th_strong", confidence_inputs={
+    return _make_thesis("th_strong", institutional_support=0.72, confidence_inputs={
         "avg_supporting_weight": 0.8,
         "avg_supporting_consensus": 0.9,
         "conflict_severity": 0.0,
@@ -92,7 +92,7 @@ def _strong_bullish_thesis() -> InvestmentThesis:
 
 
 def _weak_bullish_thesis() -> InvestmentThesis:
-    return _make_thesis("th_weak", confidence_inputs={
+    return _make_thesis("th_weak", institutional_support=0.036, confidence_inputs={
         "avg_supporting_weight": 0.3,
         "avg_supporting_consensus": 0.4,
         "conflict_severity": 0.8,
@@ -415,13 +415,13 @@ class TestRiskRewardValidator:
         rv = _validate((_strong_bullish_thesis(),))
         generation = _generate_scenarios((_strong_bullish_thesis(),))
         bull = next(v for v in rv.validations if v.metadata["scenario_type"] == "bull")
-        assert bull.expected_upside == 0.86
-        assert bull.maximum_downside == 0.176
-        assert bull.expected_reward == 0.3053
-        assert bull.expected_risk == 0.0625
-        assert bull.tail_risk == 0.1
+        assert bull.expected_upside == 0.804
+        assert bull.maximum_downside == 0.1984
+        assert bull.expected_reward == 0.279
+        assert bull.expected_risk == 0.0688
+        assert bull.tail_risk == 0.14
         assert bull.regime_risk == 0.4
-        assert bull.volatility_impact == 0.3
+        assert bull.volatility_impact == 0.34
         assert bull.liquidity_risk == 0.1233
 
     def test_weak_bullish_thesis_classification(self):
@@ -431,7 +431,7 @@ class TestRiskRewardValidator:
         for v in rv.validations:
             scenario = next(s for s in generation.scenarios if s.scenario_id == v.scenario_id)
             by_scenario[scenario.scenario_type] = v
-        assert by_scenario["bull"].validation_status == "borderline"
+        assert by_scenario["bull"].validation_status == "reject"
         assert by_scenario["base"].validation_status == "borderline"
 
     def test_risk_reward_ratio_formula(self):

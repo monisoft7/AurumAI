@@ -49,8 +49,21 @@ class BiasAnalyzer:
         bias_flags: list[str],
         regime_conflict: bool,
     ) -> float:
+        """Aggregate W7 penalty from unique, evidence-backed, non-filtered causes.
+
+        Penalty units per docs/design/COUNTER_EVIDENCE_CORRECTION_V1.md:
+        - conflict_severity * 0.4 (cross-set contradiction severity)
+        - +0.1 when the ``regime_conflict`` flag is set (regime mismatch)
+        - +0.1 when the ``missing_evidence`` flag is set (truly unavailable channel)
+
+        ``cross_set_conflict`` is the same fact already counted by severity;
+        ``no_dissent`` is a mislabeled heuristic in multi-set contradiction
+        cases; and the separate ``regime_conflict`` boolean is a duplicate of
+        the flag. None of those add penalty mass.
+        """
         penalty = conflict_severity * 0.4
-        penalty += len(bias_flags) * 0.1
-        if regime_conflict:
-            penalty += 0.2
+        if "regime_conflict" in bias_flags:
+            penalty += 0.1
+        if "missing_evidence" in bias_flags:
+            penalty += 0.1
         return max(0.0, min(round(penalty, 4), 1.0))

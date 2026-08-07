@@ -32,7 +32,7 @@ class CounterEvidenceAssessor:
 
         if self._analyzer.confirmation_bias(sets):
             bias_flags.append("confirmation_bias")
-        if self._analyzer.no_dissent(sets):
+        if self._analyzer.no_dissent(sets) and not contradicting_ids:
             bias_flags.append("no_dissent")
         if self._detector.source_concentration(sets):
             bias_flags.append("source_concentration")
