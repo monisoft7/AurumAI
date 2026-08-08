@@ -1,4 +1,4 @@
-"""Unit + integration tests for W3 Pre-Market Intelligence Scan."""
+﻿"""Unit + integration tests for W3 Pre-Market Intelligence Scan."""
 
 import json
 from datetime import datetime, timezone
@@ -370,12 +370,113 @@ class TestRiskReportGenerator:
 
 
 class TestPositioningDataFetcher:
-    def test_fetch_returns_snapshot(self):
-        fetcher = PositioningDataFetcher()
+    def test_fetch_returns_snapshot(self, tmp_path):
+        fetcher = PositioningDataFetcher(oi_state_file=tmp_path / "oi_state.json")
         snapshot = fetcher.fetch()
         assert isinstance(snapshot, PositioningSnapshot)
         assert snapshot.cot_regime == "neutral"
         assert snapshot.etf_flow_momentum in ("accumulating", "distributing", "stable")
+        assert snapshot.open_interest_change_pct == 0.0
+
+    def test_fetch_open_interest_first_observation_returns_zero(self, tmp_path):
+        state_file = tmp_path / "oi_state.json"
+        fetcher = PositioningDataFetcher(oi_state_file=state_file)
+        with patch("yfinance.Ticker") as mock_ticker:
+            mock_ticker.return_value.get_info.return_value = {"openInterest": 298095}
+            result = fetcher._fetch_open_interest()
+        assert result == {"change_pct": 0.0}
+        assert state_file.exists()
+        saved = json.loads(state_file.read_text(encoding="utf-8"))
+        assert saved["open_interest"] == 298095.0
+
+    def test_fetch_open_interest_second_observation_returns_change_pct(self, tmp_path):
+        state_file = tmp_path / "oi_state.json"
+        state_file.write_text(
+            json.dumps(
+                {"timestamp": "2026-08-07T00:00:00+00:00", "open_interest": 290000.0}
+            ),
+            encoding="utf-8",
+        )
+        fetcher = PositioningDataFetcher(oi_state_file=state_file)
+        with patch("yfinance.Ticker") as mock_ticker:
+            mock_ticker.return_value.get_info.return_value = {"openInterest": 297155}
+            result = fetcher._fetch_open_interest()
+        expected = round((297155.0 - 290000.0) / 290000.0 * 100.0, 2)
+        assert result == {"change_pct": expected}
+        saved = json.loads(state_file.read_text(encoding="utf-8"))
+        assert saved["open_interest"] == 297155.0
+
+    def test_fetch_open_interest_unavailable_falls_back(self, tmp_path):
+        state_file = tmp_path / "oi_state.json"
+        state_file.write_text(
+            json.dumps(
+                {"timestamp": "2026-08-07T00:00:00+00:00", "open_interest": 290000.0}
+            ),
+            encoding="utf-8",
+        )
+        fetcher = PositioningDataFetcher(oi_state_file=state_file)
+        with patch("yfinance.Ticker") as mock_ticker:
+            mock_ticker.return_value.get_info.return_value = {}
+            result = fetcher._fetch_open_interest()
+        assert result == {"change_pct": 0.0}
+        saved = json.loads(state_file.read_text(encoding="utf-8"))
+        assert saved["open_interest"] == 290000.0
+
+    def test_fetch_open_interest_exception_falls_back(self, tmp_path):
+        state_file = tmp_path / "oi_state.json"
+        state_file.write_text(
+            json.dumps(
+                {"timestamp": "2026-08-07T00:00:00+00:00", "open_interest": 290000.0}
+            ),
+            encoding="utf-8",
+        )
+        fetcher = PositioningDataFetcher(oi_state_file=state_file)
+        with patch("yfinance.Ticker", side_effect=RuntimeError("network down")):
+            result = fetcher._fetch_open_interest()
+        assert result == {"change_pct": 0.0}
+        saved = json.loads(state_file.read_text(encoding="utf-8"))
+        assert saved["open_interest"] == 290000.0
+
+    def test_fetch_open_interest_malformed_state_does_not_crash(self, tmp_path):
+        state_file = tmp_path / "oi_state.json"
+        state_file.write_text("{not valid json", encoding="utf-8")
+        fetcher = PositioningDataFetcher(oi_state_file=state_file)
+        with patch("yfinance.Ticker") as mock_ticker:
+            mock_ticker.return_value.get_info.return_value = {"openInterest": 298095}
+            result = fetcher._fetch_open_interest()
+        assert result == {"change_pct": 0.0}
+        saved = json.loads(state_file.read_text(encoding="utf-8"))
+        assert saved["open_interest"] == 298095.0
+
+    def test_fetch_open_interest_invalid_previous_state_ignored(self, tmp_path):
+        state_file = tmp_path / "oi_state.json"
+        state_file.write_text(
+            json.dumps({"timestamp": "...", "open_interest": -10}), encoding="utf-8"
+        )
+        fetcher = PositioningDataFetcher(oi_state_file=state_file)
+        with patch("yfinance.Ticker") as mock_ticker:
+            mock_ticker.return_value.get_info.return_value = {"openInterest": 298095}
+            result = fetcher._fetch_open_interest()
+        assert result == {"change_pct": 0.0}
+
+    def test_fetch_open_interest_never_uses_volume(self, tmp_path):
+        state_file = tmp_path / "oi_state.json"
+        state_file.write_text(
+            json.dumps(
+                {"timestamp": "2026-08-07T00:00:00+00:00", "open_interest": 290000.0}
+            ),
+            encoding="utf-8",
+        )
+        fetcher = PositioningDataFetcher(oi_state_file=state_file)
+        with patch("yfinance.Ticker") as mock_ticker:
+            mock_ticker.return_value.get_info.return_value = {
+                "openInterest": 297155,
+                "volume": 999999999,
+            }
+            result = fetcher._fetch_open_interest()
+        expected = round((297155.0 - 290000.0) / 290000.0 * 100.0, 2)
+        assert result == {"change_pct": expected}
+        assert expected != round((999999999.0 - 290000.0) / 290000.0 * 100.0, 2)
 
 
 # =========================================================================
@@ -514,3 +615,4 @@ def test_pre_market_scan_stage():
     assert isinstance(result, PreMarketBriefing)
     assert result.regime == "NORMAL_GROWTH"
     assert result.briefing_id.startswith("premarket_")
+

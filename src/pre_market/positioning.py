@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
+import math
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -20,6 +23,12 @@ class PositioningDataFetcher:
 
     COT_TICKER = "GC=F"
     ETF_TICKERS = {"GLD": "GLD", "IAUM": "IAUM"}
+    _DEFAULT_OI_STATE_FILE = Path("data/economic/gold_oi_state.json")
+
+    def __init__(self, oi_state_file: str | Path | None = None) -> None:
+        self._oi_state_file = (
+            Path(oi_state_file) if oi_state_file else self._DEFAULT_OI_STATE_FILE
+        )
 
     def fetch(self) -> PositioningSnapshot:
         cot = self._fetch_cot()
@@ -70,19 +79,73 @@ class PositioningDataFetcher:
             return {"momentum": "stable", "change_pct": 0.0}
 
     def _fetch_open_interest(self) -> dict[str, Any]:
+        """Real COMEX gold open interest via the existing yfinance quote field.
+
+        Uses the current ``openInterest`` level from ``Ticker("GC=F").get_info()``
+        (no new provider/connector) and computes the day-over-day percentage
+        change against the last previously observed level, persisted in a small
+        state file (fred-client cache pattern). Traded ``Volume`` is never used
+        as a substitute for open interest.
+
+        Fail-safe: unavailable/invalid OI, or a missing/malformed previous
+        state, returns ``{"change_pct": 0.0}`` without raising and without
+        overwriting a valid previous state.
+        """
+        current_oi = self._fetch_current_oi()
+        if current_oi is None:
+            return {"change_pct": 0.0}
+
+        previous_oi = self._load_previous_oi()
+        if previous_oi is not None:
+            change_pct = round((current_oi - previous_oi) / previous_oi * 100.0, 2)
+        else:
+            change_pct = 0.0
+
+        self._persist_oi_level(current_oi, datetime.now(timezone.utc).isoformat())
+        return {"change_pct": change_pct}
+
+    def _fetch_current_oi(self) -> float | None:
         try:
             import yfinance as yf
 
-            data = yf.download(self.COT_TICKER, period="10d", progress=False, auto_adjust=True)
-            if data.empty or len(data) < 2:
-                return {"change_pct": 0.0}
-                prev_oi = float(data["Volume"].iloc[-2].iloc[0]) if "Volume" in data.columns else 0.0
-                curr_oi = float(data["Volume"].iloc[-1].iloc[0]) if "Volume" in data.columns else 0.0
-            if prev_oi > 0:
-                return {"change_pct": round((curr_oi - prev_oi) / prev_oi * 100.0, 2)}
-            return {"change_pct": 0.0}
+            info = yf.Ticker(self.COT_TICKER).get_info()
+            raw = info.get("openInterest")
+            if raw is None or not isinstance(raw, (int, float)):
+                return None
+            level = float(raw)
+            if not math.isfinite(level) or level <= 0.0:
+                return None
+            return level
         except Exception:
-            return {"change_pct": 0.0}
+            return None
+
+    def _load_previous_oi(self) -> float | None:
+        try:
+            if not self._oi_state_file.exists():
+                return None
+            raw = json.loads(self._oi_state_file.read_text(encoding="utf-8"))
+            value = raw.get("open_interest")
+            if value is None:
+                return None
+            level = float(value)
+            if not math.isfinite(level) or level <= 0.0:
+                return None
+            return level
+        except Exception:
+            return None
+
+    def _persist_oi_level(self, level: float, timestamp: str) -> None:
+        try:
+            self._oi_state_file.parent.mkdir(parents=True, exist_ok=True)
+            self._oi_state_file.write_text(
+                json.dumps(
+                    {"timestamp": timestamp, "open_interest": round(level, 2)},
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+        except Exception:
+            pass
 
     @staticmethod
     def _fetch_gofo() -> dict[str, Any]:

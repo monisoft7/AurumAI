@@ -421,6 +421,75 @@ class TestSignalAssessmentAssembler:
         assessment = assembler.assemble(briefing)
         assert "anomaly_flag" in {o.source for o in assessment.observations}
 
+    def test_anomaly_distinct_template_violations_get_distinct_ids(self):
+        briefing = self._make_briefing(
+            anomaly_flags=(
+                AnomalyFlag(
+                    "template_violation", "high", "XAU/USD",
+                    "Gold and DXY moving opposite (negative correlation expected)",
+                    1.9, 0.0,
+                ),
+                AnomalyFlag(
+                    "template_violation", "high", "XAU/USD",
+                    "Gold and real yields co-move (negative correlation expected)",
+                    1.5, 0.0,
+                ),
+            ),
+        )
+        assembler = SignalAssessmentAssembler()
+        assessment = assembler.assemble(briefing)
+        anomaly_obs = [o for o in assessment.observations if o.source == "anomaly_flag"]
+        assert len(anomaly_obs) == 2
+        assert len({o.observation_id for o in anomaly_obs}) == 2
+        assert {o.observation_id for o in anomaly_obs} == {
+            "obs_anomaly_XAU/USD_template_violation_gold_and_dxy_moving_opposite_negative_correlation_expected",
+            "obs_anomaly_XAU/USD_template_violation_gold_and_real_yields_co_move_negative_correlation_expected",
+        }
+
+    def test_anomaly_identical_flags_share_observation_id(self):
+        flag = AnomalyFlag(
+            "template_violation", "high", "XAU/USD",
+            "Gold and DXY moving opposite (negative correlation expected)",
+            1.9, 0.0,
+        )
+        briefing = self._make_briefing(anomaly_flags=(flag, flag))
+        assembler = SignalAssessmentAssembler()
+        assessment = assembler.assemble(briefing)
+        anomaly_obs = [o for o in assessment.observations if o.source == "anomaly_flag"]
+        assert len(anomaly_obs) == 2
+        assert len({o.observation_id for o in anomaly_obs}) == 1
+
+    def test_anomaly_classification_and_criteria_unchanged(self):
+        briefing = self._make_briefing(
+            anomaly_flags=(
+                AnomalyFlag(
+                    "template_violation", "high", "XAU/USD",
+                    "Gold and DXY moving opposite (negative correlation expected)",
+                    1.9, 0.0,
+                ),
+            ),
+        )
+        assembler = SignalAssessmentAssembler()
+        assessment = assembler.assemble(briefing)
+        obs = next(o for o in assessment.observations if o.source == "anomaly_flag")
+        assert obs.observation_id == (
+            "obs_anomaly_XAU/USD_template_violation_"
+            "gold_and_dxy_moving_opposite_negative_correlation_expected"
+        )
+        assert obs.classification == ClassificationLabel.WATCH.value
+        assert obs.confidence == 0.3
+        criteria = {c.criterion: c for c in obs.evidence}
+        assert criteria["persistence"].passed
+        assert criteria["persistence"].score == 1.0
+        assert criteria["magnitude"].score == pytest.approx(min(1.9 / 3.0, 1.0))
+        assert not criteria["magnitude"].passed
+        assert criteria["breadth"].score == 0.0
+        assert not criteria["breadth"].passed
+        assert criteria["narrative_fit"].score == 0.0
+        assert not criteria["narrative_fit"].passed
+        assert criteria["volume_flow"].score == 0.0
+        assert not criteria["volume_flow"].passed
+
     def test_assemble_returns_some_signals(self):
         briefing = self._make_briefing(
             overnight_changes=(
@@ -498,7 +567,9 @@ class TestSignalAssessmentAssembler:
         assessment = assembler.assemble(briefing)
         xau_obs = next(o for o in assessment.observations if o.instrument == "XAU/USD")
         assert xau_obs.classification == ClassificationLabel.SIGNAL.value
-        assert xau_obs.confidence == 0.8
+        # 4/5 criteria pass (persistence, breadth, magnitude, and now the
+        # wired ETF flow volume_flow) -> confidence 0.9.
+        assert xau_obs.confidence == 0.9
 
     def test_one_day_noise_remains_watch(self):
         briefing = self._make_briefing(
@@ -506,6 +577,9 @@ class TestSignalAssessmentAssembler:
                 OvernightPriceChange("XAU/USD", 1900.0, 1950.0, 2.63, 1.2, "APAC", 1.0),
                 OvernightPriceChange("DXY", 100.0, 98.0, -2.0, 1.5, "APAC"),
             ),
+            # No volume/flow producer data -> the wire presents no data
+            # and the one-day move stays a Watch, never a Signal.
+            positioning_snapshot=None,
             news_items=(),
         )
         assembler = SignalAssessmentAssembler()
@@ -513,6 +587,120 @@ class TestSignalAssessmentAssembler:
         xau_obs = next(o for o in assessment.observations if o.instrument == "XAU/USD")
         assert xau_obs.classification == ClassificationLabel.WATCH.value
         assert xau_obs.confidence == 0.3
+
+    # ------------------------------------------------------------------
+    # Correction #1 regression tests: overnight volume_flow wiring
+    # (the existing PositioningDataFetcher data must reach the existing
+    # VolumeFlowConfirmator for gold-class overnight observations).
+    # ------------------------------------------------------------------
+
+    def test_overnight_volume_producer_reaches_confirmator(self):
+        briefing = self._make_briefing(
+            overnight_changes=(
+                OvernightPriceChange("XAU/USD", 1900.0, 1910.0, 0.53, 1.2, "APAC"),
+            ),
+            news_items=(),
+        )
+        mock_volume = MagicMock(spec=VolumeFlowConfirmator)
+        mock_volume.evaluate.return_value = CriterionScore("volume_flow", 0.5, 0.5, False, "mock")
+        assembler = SignalAssessmentAssembler(volume_confirmator=mock_volume)
+        assembler.assemble(briefing)
+        flow_calls = [
+            call for call in mock_volume.evaluate.call_args_list
+            if "change_sigma" in call.kwargs and "etf_flow_change_pct" in call.kwargs
+        ]
+        assert len(flow_calls) == 1
+        assert flow_calls[0].kwargs["change_sigma"] == 1.2
+        assert flow_calls[0].kwargs["etf_flow_change_pct"] == 2.3
+        assert flow_calls[0].kwargs["etf_flow_momentum"] == "accumulating"
+        assert flow_calls[0].kwargs["open_interest_change_pct"] == 0.5
+
+    def test_overnight_volume_flow_not_forced_false_with_valid_data(self):
+        briefing = self._make_briefing(
+            overnight_changes=(
+                OvernightPriceChange("XAU/USD", 1900.0, 1910.0, 0.53, 1.2, "APAC"),
+            ),
+            news_items=(),
+        )
+        assembler = SignalAssessmentAssembler()
+        assessment = assembler.assemble(briefing)
+        obs = next(o for o in assessment.observations if o.source == "overnight_price")
+        volume = next(c for c in obs.evidence if c.criterion == "volume_flow")
+        assert volume.passed is True
+        assert volume.score >= 0.5
+        assert "ETF" in volume.detail
+
+    def test_overnight_volume_flow_unchanged_without_snapshot(self):
+        briefing = self._make_briefing(
+            overnight_changes=(
+                OvernightPriceChange("XAU/USD", 1900.0, 1910.0, 0.53, 1.2, "APAC"),
+            ),
+            positioning_snapshot=None,
+            news_items=(),
+        )
+        assembler = SignalAssessmentAssembler()
+        assessment = assembler.assemble(briefing)
+        obs = next(o for o in assessment.observations if o.source == "overnight_price")
+        volume = next(c for c in obs.evidence if c.criterion == "volume_flow")
+        assert volume.passed is False
+        assert volume.score == 0.0
+        assert "no volume/flow data available" in volume.detail
+
+    def test_overnight_volume_flow_unchanged_with_stub_level_data(self):
+        briefing = self._make_briefing(
+            overnight_changes=(
+                OvernightPriceChange("XAU/USD", 1900.0, 1910.0, 0.53, 1.2, "APAC"),
+            ),
+            positioning_snapshot=PositioningSnapshot(
+                cot_z_score=0.0, cot_regime="neutral",
+                etf_flow_momentum="stable", etf_flow_change_pct=0.0,
+                open_interest_change_pct=0.0, gofo_rate=0.0,
+            ),
+            news_items=(),
+        )
+        assembler = SignalAssessmentAssembler()
+        assessment = assembler.assemble(briefing)
+        obs = next(o for o in assessment.observations if o.source == "overnight_price")
+        volume = next(c for c in obs.evidence if c.criterion == "volume_flow")
+        assert volume.passed is False
+        assert volume.score == 0.0
+        assert "no volume/flow data available" in volume.detail
+
+    def test_overnight_volume_flow_not_misapplied_to_non_gold(self):
+        briefing = self._make_briefing(
+            overnight_changes=(
+                OvernightPriceChange("EUR/USD", 1.09, 1.088, -0.3, 1.2, "APAC"),
+            ),
+            news_items=(),
+        )
+        assembler = SignalAssessmentAssembler()
+        assessment = assembler.assemble(briefing)
+        obs = next(o for o in assessment.observations if o.source == "overnight_price")
+        volume = next(c for c in obs.evidence if c.criterion == "volume_flow")
+        assert volume.passed is False
+        assert volume.score == 0.0
+        assert "no volume/flow data available" in volume.detail
+
+    def test_volume_wiring_leaves_other_criteria_unchanged(self):
+        def non_volume_criteria(snapshot):
+            briefing = self._make_briefing(
+                overnight_changes=(
+                    OvernightPriceChange("XAU/USD", 1900.0, 1910.0, 0.53, 1.2, "APAC"),
+                ),
+                positioning_snapshot=snapshot,
+                news_items=(),
+            )
+            assessment = SignalAssessmentAssembler().assemble(briefing)
+            obs = next(o for o in assessment.observations if o.source == "overnight_price")
+            return {
+                c.criterion: (c.score, c.passed, c.detail)
+                for c in obs.evidence if c.criterion != "volume_flow"
+            }
+
+        with_snapshot = non_volume_criteria(self._make_briefing().positioning_snapshot)
+        without_snapshot = non_volume_criteria(None)
+        assert with_snapshot == without_snapshot
+        assert set(with_snapshot) == {"persistence", "breadth", "magnitude", "narrative_fit"}
 
 
 # =========================================================================

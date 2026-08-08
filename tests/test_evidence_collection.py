@@ -554,3 +554,67 @@ def test_w5_no_noise_in_evidence():
     assert result.filtered_noise_count == 1
     assert result.filtered_ignore_count == 1
     assert result.evidence_count == 3
+
+
+# =========================================================================
+# Anomaly observation identity: distinct facts must not collide in dedup
+# =========================================================================
+
+
+class TestAnomalyObservationDedup:
+    def _assemble_anomaly_assessment(self, flags):
+        from pre_market.contracts import AnomalyFlag, PreMarketBriefing
+        from signal_assessment.assembler import SignalAssessmentAssembler
+
+        briefing = PreMarketBriefing(
+            briefing_id="integ_anomaly_dedup",
+            timestamp="2026-08-08T00:00:00",
+            regime="INFLATIONARY",
+            regime_confidence=0.6,
+            overnight_changes=(),
+            news_items=(),
+            anomaly_flags=flags,
+        )
+        return SignalAssessmentAssembler(regime="INFLATIONARY").assemble(briefing)
+
+    def test_distinct_template_violations_both_survive_dedup(self):
+        from pre_market.contracts import AnomalyFlag
+        from evidence_reasoning.reasoner import EvidenceReasoner
+
+        flags = (
+            AnomalyFlag(
+                "template_violation", "high", "XAU/USD",
+                "Gold and DXY moving opposite (negative correlation expected)",
+                1.9, 0.0,
+            ),
+            AnomalyFlag(
+                "template_violation", "high", "XAU/USD",
+                "Gold and real yields co-move (negative correlation expected)",
+                1.5, 0.0,
+            ),
+        )
+        assessment = self._assemble_anomaly_assessment(flags)
+        collection = EvidenceCollector().collect(assessment)
+        reasoning = EvidenceReasoner().reason(collection)
+
+        assert len(collection.items) == 2
+        assert len({e.source_kr_id for e in collection.items}) == 2
+        assert len({e.evidence_id for e in collection.items}) == 2
+        assert reasoning.duplicates_removed == 0
+
+    def test_genuinely_identical_anomaly_observations_still_deduplicate(self):
+        from pre_market.contracts import AnomalyFlag
+        from evidence_reasoning.reasoner import EvidenceReasoner
+
+        flag = AnomalyFlag(
+            "template_violation", "high", "XAU/USD",
+            "Gold and DXY moving opposite (negative correlation expected)",
+            1.9, 0.0,
+        )
+        assessment = self._assemble_anomaly_assessment((flag, flag))
+        collection = EvidenceCollector().collect(assessment)
+        reasoning = EvidenceReasoner().reason(collection)
+
+        assert len(collection.items) == 2
+        assert len({e.source_kr_id for e in collection.items}) == 1
+        assert reasoning.duplicates_removed == 1

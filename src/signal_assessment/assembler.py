@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -22,6 +23,12 @@ PERSISTENCE_TYPE_BY_INSTRUMENT = {
     "US10Y Nominal Yield": "gold_real_yield",
     "Breakeven Inflation": "gold_real_yield",
 }
+
+GOLD_CLASS_INSTRUMENTS = frozenset(
+    instrument
+    for instrument, instrument_type in PERSISTENCE_TYPE_BY_INSTRUMENT.items()
+    if instrument_type == "COMEX"
+)
 
 
 class SignalAssessmentAssembler:
@@ -50,6 +57,7 @@ class SignalAssessmentAssembler:
     def assemble(self, briefing: PreMarketBriefing) -> SignalAssessment:
         observations: list[ClassifiedObservation] = []
         news_headlines = [n.headline for n in briefing.news_items]
+        positional = briefing.positioning_snapshot
 
         for change in briefing.overnight_changes:
             changes_dict = {c.instrument: c.change_pct for c in briefing.overnight_changes}
@@ -75,8 +83,16 @@ class SignalAssessmentAssembler:
                 change_pct=change.change_pct,
                 news_headlines=news_headlines,
             )
+            volume_kwargs: dict[str, Any] = {}
+            if positional is not None and change.instrument in GOLD_CLASS_INSTRUMENTS:
+                volume_kwargs = {
+                    "etf_flow_change_pct": positional.etf_flow_change_pct,
+                    "etf_flow_momentum": positional.etf_flow_momentum,
+                    "open_interest_change_pct": positional.open_interest_change_pct,
+                }
             volume = self._volume.evaluate(
                 change_sigma=change.change_sigma,
+                **volume_kwargs,
             )
 
             criteria = {
@@ -105,7 +121,6 @@ class SignalAssessmentAssembler:
                 change_sigma=change.change_sigma,
             ))
 
-        positional = briefing.positioning_snapshot
         if positional is not None:
             pos_criteria = CriterionScore(
                 criterion="persistence",
@@ -162,8 +177,9 @@ class SignalAssessmentAssembler:
                     "volume_flow": anomaly_criteria[4],
                 },
             )
+            slugged_description = re.sub(r"[^a-z0-9]+", "_", flag.description.lower()).strip("_")
             observations.append(ClassifiedObservation(
-                observation_id=f"obs_anomaly_{flag.instrument}_{flag.anomaly_type}",
+                observation_id=f"obs_anomaly_{flag.instrument}_{flag.anomaly_type}_{slugged_description}",
                 source="anomaly_flag",
                 classification=label,
                 confidence=confidence,
