@@ -1,0 +1,18 @@
+{
+  "artifact": "decision_outcome",
+  "asset": "XAU/USD",
+  "decision": "NO_TRADE",
+  "decision_correct": null,
+  "decision_id": "dec_00d58abab2ad",
+  "entry_date": "2026-08-08",
+  "evaluation_timestamp": null,
+  "event_type": "CPI",
+  "gold_path": "data/history/gold/gold.csv",
+  "horizon_days": 12,
+  "institutional_confidence": 0.2494,
+  "notes": [],
+  "realized_gold_return": null,
+  "run_id": "runtime_20260808_225138",
+  "schema_version": "1.0",
+  "status": "pending"
+}
