@@ -27,6 +27,10 @@ Improve reliable market/economic data acquisition, historical archives, news arc
 
 Later funding can support secure deployment, observability, artifact retention, access control, and audit logging.
 
+## Priority 6 — Outcome evaluation and learning
+
+Later funding can wire decision-to-realization outcome evaluation and controlled learning/calibration loops so recorded experiments become feedback evidence. No outcome-evaluation or learning path is wired into the current runtime.
+
 ## Work packages
 
 | WP | Purpose | Acceptance |
@@ -36,5 +40,6 @@ Later funding can support secure deployment, observability, artifact retention, 
 | WP-03 | Controlled AI research | reproducible model comparison |
 | WP-04 | Compute/experiments | retained artifacts |
 | WP-05 | Operations | audited deployment |
+| WP-06 | Outcome evaluation + learning | recorded decision-outcome linkage per experiment |
 
 No package authorizes live trading by itself.

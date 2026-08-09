@@ -403,7 +403,7 @@ Risk Intelligence is an **advisory layer**. It evaluates institutional risk. It 
 ### 20.5 Packaging Hardening — Reproducible Build (Complete)
 | Field | Value |
 |-------|-------|
-| **Purpose** | Audit `pyproject.toml`: removed 3 unused deps (fredapi, python-dotenv, yfinance), added 3 missing deps (statsmodels, statsforecast, feedparser), pinned `requires-python = ">=3.10"`. Verified clean installation in fresh venv. All 27 package imports verified. 1384 tests (zero regressions). |
+| **Purpose** | Audit `pyproject.toml`: identified 3 unused deps (fredapi, python-dotenv, yfinance), added 3 missing deps (statsmodels, statsforecast, feedparser), pinned `requires-python = ">=3.10"`. Verified clean installation in fresh venv. All 27 package imports verified. 1384 tests (zero regressions). Reconciliation note (2026-08-09): the 3 identified deps were never removed from `pyproject.toml` — all 10 deps remain declared today; dependency-tree cleanup is still pending. |
 
 ---
 

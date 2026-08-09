@@ -85,7 +85,7 @@ Integration: Full Forecast Intelligence → Risk Intelligence pipeline
 US10Y Yield Context, DXY Context, Multi-Factor Context Comparison
 
 **Institutional Memory**
-Analogical reasoning, institutional validation (10 scenarios, 8 PASS / 2 WARNING)
+Analogical reasoning, institutional validation (10 scenarios; latest dated report 2026-08-08 records 9 PASS / 1 WARNING — supersedes the earlier 8 PASS / 2 WARNING snapshot; see qualification in `institutional_validation_report.md`)
 
 **Knowledge Expansion Framework**
 EventScaffolder + ExpansionSpec, EventValidator + ValidationReport, ExpansionLifecycle + ExpansionAudit, Onboarding guide
@@ -131,12 +131,12 @@ Backward trace verified: decision→source_data
 
 | Metric | Value |
 |--------|-------|
-| Project Version | 0.9.0 |
+| Project Version | 0.9.0 (pyproject.toml declares 0.0.1 — packaging version lag documented, not yet reconciled) |
 | Python Support | >=3.10 |
-| Total Tests | 1638 |
-| Benchmark Status | 18/18 passing |
+| Total Tests | 1638 (dated milestone snapshot; current dated snapshot = 2759 collected / 0 collection errors, verified 2026-08-09) |
+| Benchmark Status | 18/18 passing (milestone assertion; see `docs/audit/FUNDING_READINESS_AUDIT_001.md` — no stored run artifact found) |
 | Core Status | Frozen v1.0 |
-| Runtime Dependencies | 6 (pandas, numpy, networkx, statsmodels, statsforecast, feedparser) |
+| Runtime Dependencies | 6 named below; pyproject.toml currently declares 10 (fredapi, python-dotenv, requests, yfinance remain declared despite earlier removal intent — reconciliation pending) |
 | Execution Components | VirtualPortfolio, VirtualPosition, VirtualTrade, PortfolioSnapshot, ExecutionEngine, SlippageModel, CommissionModel |
 | Current Phase | Institutional Readiness (Experiment Framework Complete) |
 
@@ -152,7 +152,7 @@ Backward trace verified: decision→source_data
 - Production Hardening Validation: 1584/1584 pass, 0 regressions, READY
 - LINEAGE-PROD-DISCONNECT: LineageRegistry created in `_build_legacy_pipeline`, passed to `pipe.run()`
 - 60/60 orchestrator tests pass; 1537/1537 full suite pass
-- Full Reproducibility Assessment: A — Fully deterministic (all IDs content-derived, RNG seeded, source CSVs in-repo)
+- Full Reproducibility Assessment: A — Fully deterministic (all IDs content-derived, RNG seeded, source CSVs in-repo). Scope qualifier: this assessment covers the frozen legacy core (KnowledgeRecord/evidence/reasoning/decision chain). The institutional W-stage runtime (`pre_market_scan` → `trade_recommendation`) still embeds uuid4/clock-time IDs in several stage objects and was not part of this assessment (see `docs/audit/Architecture-Audit-A2.md` F-10 and `docs/audit/OPERATIONAL_VALIDATION_RUN_002.md`).
 
 | Task | Component | Tests |
 |-------|-----------|-------|
@@ -201,7 +201,11 @@ Backward trace verified: decision→source_data
 
 ## 8. Immediate Next Capability
 
-**Pending**: Experiment 002 — next institutional experiment. Experiment 001 (CPI vs CPI+US10Y) completed with verdict **REJECT US10Y** — zero measurable difference in any OOS metric. Candidate to be determined by engineering lead.
+**Pending**: next institutional experiment to be determined by engineering lead. Recorded experiments (dated artifacts in `data/experiments/`):
+- EXP-001 (CPI vs CPI+US10Y): verdict **REJECT US10Y** — zero measurable difference in any recorded OOS metric; canonical registry entry `exp_c3b433e5606b0d15` remains PENDING approval; note the on-disk `report.txt` is a degraded rerun with missing data files, the registry entry is canonical.
+- EXP-002 (Evidence Isolation): hypothesis falsified — per-condition and merged decisions match (2/2); no regression.
+- EXP-003 (Condition Filtering): evidence set changes with condition filtering; decision unchanged.
+- RI-001 (Weighted vs Unweighted): identical recorded metrics in both arms (note: not registered in the experiment registry).
 
 ## 9. Long-Term Roadmap
 
@@ -225,5 +229,5 @@ Backward trace verified: decision→source_data
 6. **Always search existing OSS before coding.** Reuse → Adapt → Build.
 7. **Prefer extension over replacement.** Add new MacroEvent subclasses, adapters, and connectors against existing contracts.
 8. **Never add complexity without measurable value.** Every feature must pass the question: "Does this make AurumAI smarter or just more complex?"
-9. **Run the full test suite before and after every change.** 1593 tests must pass with zero regressions. Note: 2 legacy scaffolded test files (`test_dummy_event.py`, `test_test_event_event.py`) fail collection due to removed scaffolding modules — exclude with `--ignore` flags.
+9. **Run the full test suite before and after every change.** Dated snapshot (2026-08-09): 2759 tests collected, 0 collection errors. The legacy scaffolded files `test_dummy_event.py` / `test_test_event_event.py` referenced by earlier instructions no longer exist; the former `--ignore` flags are obsolete.
 10. **Keep this file updated.** After every completed capability, update sections 4, 6, 7, and 8.

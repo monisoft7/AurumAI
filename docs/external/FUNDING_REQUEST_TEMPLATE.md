@@ -15,6 +15,7 @@
 | Compute | experiments | batch evaluation | artifact-backed results |
 | AI research | bounded model evaluation | comparison harness | no opaque decision authority |
 | Operations | deployment | observability + audit | operational validation |
+| Outcome evaluation | decision-to-realization linkage | learning/calibration loop | feedback recorded per experiment |
 
 ## Rationale
 
