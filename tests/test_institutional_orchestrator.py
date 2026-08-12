@@ -1171,7 +1171,10 @@ class TestKnowledgeGraphInstitutionalIntegration:
 
         assert collection.evidence_count > 0
         for ev in collection.items:
-            assert ev.source_kr_id.startswith("kr_synthetic_")
+            assert ev.source_kr_id.startswith("no_kr_")
+            assert ev.source_kr_id == ev.source_kr_node_id
+            assert ev.metadata["provenance_type"] == "observation"
+            assert ev.metadata["knowledge_record_id"] is None
 
     def test_params_knowledge_graph_still_honored_as_fallback(self) -> None:
         from orchestration.institutional_orchestrator import _evidence_collection

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
@@ -55,6 +56,16 @@ EVENT_TYPE_TO_EVIDENCE_CLASS: dict[str, str] = {
     "DXY": "USD_FX",
     "ETF": "ETF_FLOW",
 }
+
+
+def _observation_provenance_anchor(observation_id: str) -> str:
+    """Deterministic sentinel for evidence with no valid KnowledgeRecord.
+
+    Explicitly namespaced as a non-knowledge-record anchor (Contract 4 rule 5),
+    derived from the observation identity so dedup semantics stay stable.
+    """
+    digest = hashlib.sha256(observation_id.encode("utf-8")).hexdigest()[:16]
+    return f"no_kr_{digest}"
 
 
 class EvidenceCollector:
@@ -130,8 +141,16 @@ class EvidenceCollector:
         cw = round(base_confidence * regime_weight, 4)
 
         kr_ids, kr_nodes = self._query_knowledge_records(obs, event_type)
-        source_kr_id = kr_ids[0] if kr_ids else f"kr_synthetic_{obs.observation_id}"
-        source_kr_node_id = kr_nodes[0] if kr_nodes else source_kr_id
+        if kr_ids:
+            source_kr_id = kr_ids[0]
+            source_kr_node_id = kr_nodes[0] if kr_nodes else kr_ids[0]
+            knowledge_record_id = source_kr_id
+            provenance_type = "knowledge_record"
+        else:
+            source_kr_id = _observation_provenance_anchor(obs.observation_id)
+            source_kr_node_id = source_kr_id
+            knowledge_record_id = None
+            provenance_type = "observation"
 
         supporting = self._get_supporting_observation_ids(obs)
         contradicting = self._get_contradicting_observation_ids(obs)
@@ -147,6 +166,7 @@ class EvidenceCollector:
             created_at=datetime.now(timezone.utc).isoformat(),
             created_by="W6 EvidenceCollector",
             entity_version="1.0.0",
+            metadata={"knowledge_record_link": knowledge_record_id},
         )
 
         return Evidence(
@@ -173,6 +193,8 @@ class EvidenceCollector:
                 "instrument": obs.instrument,
                 "change_pct": obs.change_pct,
                 "change_sigma": obs.change_sigma,
+                "provenance_type": provenance_type,
+                "knowledge_record_id": knowledge_record_id,
             },
         )
 

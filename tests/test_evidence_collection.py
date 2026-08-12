@@ -462,7 +462,10 @@ class TestKnowledgeRecordEventClassMapping:
 
         ev = collection.items[0]
         assert ev.event_type == "REAL_YIELD"
-        assert ev.source_kr_id.startswith("kr_synthetic_")
+        assert ev.source_kr_id.startswith("no_kr_")
+        assert ev.source_kr_id == ev.source_kr_node_id
+        assert ev.metadata["provenance_type"] == "observation"
+        assert ev.metadata["knowledge_record_id"] is None
 
     def test_general_fallback_unaffected_by_mapping(self):
         kg = self._graph(["CPI"])
@@ -473,7 +476,10 @@ class TestKnowledgeRecordEventClassMapping:
 
         ev = collection.items[0]
         assert ev.event_type == "GENERAL"
-        assert ev.source_kr_id.startswith("kr_synthetic_")
+        assert ev.source_kr_id.startswith("no_kr_")
+        assert ev.source_kr_id == ev.source_kr_node_id
+        assert ev.metadata["provenance_type"] == "observation"
+        assert ev.metadata["knowledge_record_id"] is None
 
 
 # =========================================================================
