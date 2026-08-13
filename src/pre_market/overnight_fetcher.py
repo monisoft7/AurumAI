@@ -1,13 +1,19 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
 from connectors.dxy_fetcher import DXYFetcher
-from connectors.fred_client import FredClient
+from connectors.fred_client import (
+    FRED_DAILY_SERIES_MAX_AGE_DAYS,
+    FredClient,
+)
 from pre_market.contracts import OvernightPriceChange
+
+LOG = logging.getLogger(__name__)
 
 OVERNIGHT_TICKERS: dict[str, dict[str, Any]] = {
     "XAU/USD": {"source": "yfinance", "ticker": "GC=F"},
@@ -30,15 +36,25 @@ class OvernightDataFetcher:
 
     Uses yfinance for price instruments and FRED for yield series.
     Returns empty lists on failure rather than raising.
+
+    The yield freshness policy is enforced at this data boundary by
+    default: ``max_age_days`` defaults to
+    ``FRED_DAILY_SERIES_MAX_AGE_DAYS`` (7) for the FRED daily series
+    (DFII10, DGS10, T5YIE), so a cached observation older than the
+    threshold triggers a live refresh with a stale-cache fallback on
+    network failure. Pass ``max_age_days=None`` explicitly to restore
+    the legacy cache-only behavior (no freshness checks, no refresh).
     """
 
     def __init__(
         self,
         fred_client: FredClient | None = None,
         lookback_days: int = 10,
+        max_age_days: int | None = FRED_DAILY_SERIES_MAX_AGE_DAYS,
     ) -> None:
         self._fred = fred_client or FredClient()
         self._lookback_days = lookback_days
+        self._max_age_days = max_age_days
 
     def fetch_overnight_changes(
         self,
@@ -56,7 +72,9 @@ class OvernightDataFetcher:
 
         for name, series_id in OVERNIGHT_FRED_SERIES.items():
             try:
-                series = self._fred.get_series(series_id, use_cache=True)
+                series = self._fred.get_series(
+                    series_id, use_cache=True, max_age_days=self._max_age_days
+                )
                 if isinstance(series, pd.Series) and len(series) >= 2:
                     prev = float(series.iloc[-2])
                     curr = float(series.iloc[-1])
@@ -77,7 +95,31 @@ class OvernightDataFetcher:
             except Exception:
                 pass
 
+        self._log_freshness()
         return results
+
+    def _log_freshness(self) -> None:
+        report = getattr(self._fred, "freshness_report", lambda: {})()
+        for series_id in OVERNIGHT_FRED_SERIES.values():
+            record = report.get(series_id)
+            if record is None:
+                continue
+            status = record.get("status")
+            if status == "fallback_stale":
+                LOG.warning(
+                    "FRED %s refresh failed; using stale cached data "
+                    "(cache_last_date=%s age_days=%s error=%s)",
+                    series_id, record.get("cache_last_date"),
+                    record.get("cache_age_days"), record.get("error"),
+                )
+            elif status == "refreshed":
+                LOG.info(
+                    "FRED %s refreshed (cache_last_date=%s age_days=%s "
+                    "refreshed_last_date=%s)",
+                    series_id, record.get("cache_last_date"),
+                    record.get("cache_age_days"),
+                    record.get("refreshed_last_date"),
+                )
 
     def _fetch_yfinance_change(
         self,
@@ -137,6 +179,14 @@ class OvernightDataFetcher:
         return float(days)
 
     def fetch_all(self, session: str = "APAC") -> dict[str, Any]:
+        overnight_changes = self.fetch_overnight_changes(session=session)
+        report = getattr(self._fred, "freshness_report", lambda: {})()
+        yield_freshness = {
+            series_id: report[series_id]
+            for series_id in OVERNIGHT_FRED_SERIES.values()
+            if series_id in report
+        }
         return {
-            "overnight_changes": self.fetch_overnight_changes(session=session),
+            "overnight_changes": overnight_changes,
+            "yield_freshness": yield_freshness,
         }

@@ -103,8 +103,42 @@ def _refresh_gold() -> None:
         )
 
 
+def _refresh_yields() -> None:
+    """Warm FRED yield caches before the pipeline (fail-safe, idempotent).
+
+    Mirrors ``run.py``'s pre-run step because ``run.py`` is invoked with
+    ``--no-refresh`` from this scheduler.
+    """
+    try:
+        from connectors.fred_client import (
+            FRED_DAILY_SERIES_MAX_AGE_DAYS,
+            FredClient,
+        )
+
+        client = FredClient()
+        for series_id in ("DFII10", "DGS10", "T5YIE"):
+            client.get_series(
+                series_id, use_cache=True,
+                max_age_days=FRED_DAILY_SERIES_MAX_AGE_DAYS,
+            )
+        for series_id, record in client.freshness_report().items():
+            print(
+                f"run_daily: FRED freshness {series_id}: status="
+                f"{record.get('status')} cache_last_date="
+                f"{record.get('cache_last_date')} cache_age_days="
+                f"{record.get('cache_age_days')}"
+            )
+    except Exception as exc:  # pragma: no cover - defensive
+        print(
+            f"run_daily: FRED yield refresh failed ({exc}); "
+            "proceeding with cached data",
+            file=sys.stderr,
+        )
+
+
 def _run_pipeline() -> int:
     _refresh_gold()
+    _refresh_yields()
     return subprocess.run(
         [sys.executable, str(PIPELINE_SCRIPT), "--no-refresh"],
         cwd=str(ROOT),

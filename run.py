@@ -388,6 +388,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if not args.no_refresh:
         _refresh_gold_before_run(config, run_dir)
+        _refresh_fred_yields_before_run()
 
     checkpoint_dir = config.get("checkpoint_dir")
     if checkpoint_dir is not None:
@@ -544,6 +545,51 @@ def _refresh_gold_before_run(config: dict[str, Any], run_dir: Path) -> None:
             "Gold data refresh failed (%s); proceeding with existing dataset",
             exc,
         )
+
+
+def _refresh_fred_yields_before_run() -> None:
+    """Warm FRED yield caches before a production run (fail-safe).
+
+    Refreshes a series only when its cached last observation is older than
+    ``FRED_DAILY_SERIES_MAX_AGE_DAYS``; fresh caches are used without any
+    network call. On refresh failure the stale cache is kept and recorded
+    as ``fallback_stale`` so it is never presented as current data.
+    """
+    from connectors.fred_client import (
+        FRED_DAILY_SERIES_MAX_AGE_DAYS,
+        FredClient,
+    )
+
+    series_ids = ("DFII10", "DGS10", "T5YIE")
+    client = FredClient()
+    for series_id in series_ids:
+        try:
+            client.get_series(
+                series_id, use_cache=True,
+                max_age_days=FRED_DAILY_SERIES_MAX_AGE_DAYS,
+            )
+        except Exception as exc:  # pragma: no cover - defensive
+            LOG.error(
+                "FRED %s fetch failed (%s); proceeding with cached data",
+                series_id, exc,
+            )
+    for series_id, record in client.freshness_report().items():
+        status = record.get("status")
+        if status == "fallback_stale":
+            LOG.warning(
+                "FRED freshness %s: status=fallback_stale "
+                "cache_last_date=%s cache_age_days=%s error=%s",
+                series_id, record.get("cache_last_date"),
+                record.get("cache_age_days"), record.get("error"),
+            )
+        else:
+            LOG.info(
+                "FRED freshness %s: status=%s cache_last_date=%s "
+                "cache_age_days=%s refreshed_last_date=%s",
+                series_id, status, record.get("cache_last_date"),
+                record.get("cache_age_days"),
+                record.get("refreshed_last_date"),
+            )
 
 
 if __name__ == "__main__":
