@@ -409,6 +409,72 @@ class TestEvidenceCollector:
         assert INSTRUMENT_TO_REGIME_BIAS["USD/JPY"] == "bullish"
 
 
+class TestEtfFlowDirectionSemantics:
+    """Correction 006: Gold Positioning/ETF proxy bias follows direction."""
+
+    def _collect_bias(self, change_pct: float, instrument: str = "Gold Positioning") -> str:
+        obs = _make_observation(
+            obs_id="obs_positioning_test",
+            source="positioning",
+            classification="Weak Signal",
+            confidence=0.5,
+            instrument=instrument,
+            change_pct=change_pct,
+            evidence_count=2,
+        )
+        assessment = _make_assessment([obs])
+        collection = EvidenceCollector().collect(assessment)
+        return collection.items[0].bias
+
+    def test_distributing_negative_flow_is_bearish(self):
+        assert self._collect_bias(-1.18) == "bearish"
+
+    def test_accumulating_positive_flow_is_bullish(self):
+        assert self._collect_bias(2.3) == "bullish"
+
+    def test_stable_positive_subthreshold_is_neutral(self):
+        assert self._collect_bias(0.5) == "neutral"
+
+    def test_stable_negative_subthreshold_is_neutral(self):
+        assert self._collect_bias(-0.5) == "neutral"
+
+    def test_zero_flow_is_neutral(self):
+        assert self._collect_bias(0.0) == "neutral"
+
+    def test_etf_flow_evidence_event_type_unchanged(self):
+        obs = _make_observation(
+            obs_id="obs_positioning_type",
+            source="positioning",
+            classification="Watch",
+            confidence=0.3,
+            instrument="Gold Positioning",
+            change_pct=-1.18,
+            evidence_count=2,
+        )
+        assessment = _make_assessment([obs])
+        collection = EvidenceCollector().collect(assessment)
+        assert collection.items[0].event_type == "ETF_FLOW"
+
+    def test_xau_usd_static_bias_unchanged_on_down_day(self):
+        assert self._collect_bias(-2.0, instrument="XAU/USD") == "bullish"
+
+    def test_weight_formula_unchanged(self):
+        obs = _make_observation(
+            obs_id="obs_positioning_weight",
+            source="positioning",
+            classification="Weak Signal",
+            confidence=0.5,
+            instrument="Gold Positioning",
+            change_pct=-1.18,
+            evidence_count=2,
+        )
+        assessment = _make_assessment([obs])
+        collection = EvidenceCollector().collect(assessment, regime_weight=0.8)
+        ev = collection.items[0]
+        assert ev.base_confidence == 0.5
+        assert ev.composite_weight == pytest.approx(0.5 * 0.8, abs=1e-9)
+
+
 class TestKnowledgeRecordEventClassMapping:
     """Regression tests for the EVENT_TYPE_TO_EVIDENCE_CLASS mapping:
 

@@ -10,6 +10,7 @@ from evidence_collection.contracts import Evidence, EvidenceCollection
 from evidence_collection.strength import EvidenceStrengthComputer
 from knowledge.graph.graph import KnowledgeGraph
 from knowledge.integrity.provenance import Provenance
+from signal_assessment.volume import ETF_FLOW_THRESHOLD_PCT
 from signal_assessment.contracts import (
     ClassificationLabel,
     ClassifiedObservation,
@@ -223,7 +224,18 @@ class EvidenceCollector:
 
     @staticmethod
     def _resolve_bias(obs: ClassifiedObservation, regime: str) -> str:
-        return INSTRUMENT_TO_REGIME_BIAS.get(obs.instrument, "neutral")
+        base = INSTRUMENT_TO_REGIME_BIAS.get(obs.instrument, "neutral")
+        if (
+            obs.instrument == "Gold Positioning"
+            and obs.change_pct is not None
+            and math.isfinite(obs.change_pct)
+        ):
+            # ETF proxy direction semantics: same +/-1.0% boundary as the
+            # accumulating/distributing momentum label in pre_market.positioning.
+            if abs(obs.change_pct) > ETF_FLOW_THRESHOLD_PCT:
+                return "bullish" if obs.change_pct > 0 else "bearish"
+            return "neutral"
+        return base
 
     @staticmethod
     def _get_supporting_observation_ids(obs: ClassifiedObservation) -> list[str]:
