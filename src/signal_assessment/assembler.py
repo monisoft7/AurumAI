@@ -219,6 +219,44 @@ class SignalAssessmentAssembler:
                 instrument=news.source,
             ))
 
+        cpi_release = briefing.metadata.get("cpi_release")
+        if (
+            isinstance(cpi_release, dict)
+            and cpi_release.get("event_type") == "CPI"
+            and cpi_release.get("reference_period")
+        ):
+            impact = str(cpi_release.get("expected_impact", "medium")).lower()
+            impact_score = {"high": 0.9, "medium": 0.5, "low": 0.2}.get(impact, 0.5)
+            cpi_criteria = [
+                CriterionScore("persistence", 0.0, 0.5, False, "macro release, no persistence series"),
+                CriterionScore("breadth", 0.0, 0.5, False, "macro release, no breadth series"),
+                CriterionScore("magnitude", 0.0, 2.0, False, "no volatility z-score for macro release"),
+                CriterionScore("narrative_fit", impact_score, 0.3, impact_score >= 0.3, detail=f"expected_impact={impact}"),
+                CriterionScore("volume_flow", 0.0, 0.5, False, "macro release, no volume flow"),
+            ]
+            label, confidence, reason = self._classifier.classify(
+                criteria_scores={
+                    "persistence": cpi_criteria[0],
+                    "breadth": cpi_criteria[1],
+                    "magnitude": cpi_criteria[2],
+                    "narrative_fit": cpi_criteria[3],
+                    "volume_flow": cpi_criteria[4],
+                },
+            )
+            observations.append(ClassifiedObservation(
+                observation_id=f"obs_cpi_release_{cpi_release['reference_period']}",
+                source="cpi_release",
+                classification=label,
+                confidence=confidence,
+                regime=self._regime,
+                reason=reason,
+                evidence=tuple(cpi_criteria),
+                instrument="CPI Release",
+                value=float(cpi_release.get("value", 0.0)),
+                change_pct=float(cpi_release.get("cpi_change_pct", 0.0)),
+                change_sigma=0.0,
+            ))
+
         assessment_id = f"sa_{briefing.briefing_id.replace('premarket_', '')}"
         return SignalAssessment(
             assessment_id=assessment_id,

@@ -610,6 +610,8 @@ def _regime_diagnosis(params: dict[str, Any], results: dict[str, Any]) -> Any:
 
 
 def _pre_market_scan(params: dict[str, Any], results: dict[str, Any]) -> Any:
+    from dataclasses import replace
+
     from pre_market.briefing_assembler import PreMarketBriefingAssembler
 
     diagnosis = results.get("regime_diagnosis")
@@ -632,9 +634,70 @@ def _pre_market_scan(params: dict[str, Any], results: dict[str, Any]) -> Any:
         unrealized_pnl=params.get("unrealized_pnl", 0.0),
         exposure=params.get("exposure", 0.0),
         var_utilization_pct=params.get("var_utilization_pct", 0.0),
+        calendar_csv=params.get("release_calendar_path"),
         briefing_id=params.get("briefing_id"),
     )
+    cpi_release = _cpi_release_snapshot(params, results)
+    if cpi_release is not None:
+        briefing = replace(
+            briefing,
+            metadata={
+                **dict(briefing.metadata),
+                "cpi_release": cpi_release,
+            },
+        )
     return briefing
+
+
+def _cpi_release_snapshot(
+    params: dict[str, Any], results: dict[str, Any]
+) -> dict[str, Any] | None:
+    """Snapshot the current CPI release onto the briefing boundary.
+
+    Correction 009: mirrors the already-computed current CPI release (the same
+    CPIEvent/CPIFeatureExtractor extraction used upstream, and the same
+    ReleaseCalendar source) into ``PreMarketBriefing.metadata`` so W5 can map
+    it to a ClassifiedObservation.  No new calendar source and no second
+    condition rule: the pressure value is the extractor's column and W6 keeps
+    using ``reasoning_condition`` from W4.
+    """
+    from pathlib import Path
+
+    event_data = results.get("ingest_event")
+    if not isinstance(event_data, dict):
+        return None
+    event = event_data.get("event")
+    data_path = params.get("data_path")
+    if event is None or not data_path:
+        return None
+    try:
+        extracted = event.load_and_extract(Path(data_path))
+        row = extracted.iloc[-1]
+        reference_period = str(row["Date"])[:10]
+        snapshot = {
+            "event_type": "CPI",
+            "reference_period": reference_period,
+            "value": float(row["Value"]),
+            "cpi_change_pct": float(row["cpi_change_pct"]),
+            "cpi_pressure": str(row["cpi_pressure"]),
+            "priority": "Tier 1",
+            "expected_impact": "high",
+        }
+        release_calendar_path = params.get("release_calendar_path")
+        if release_calendar_path:
+            try:
+                from knowledge.events.release_calendar import ReleaseCalendar
+
+                release = ReleaseCalendar.from_csv(release_calendar_path).get(
+                    reference_period
+                )
+                if release is not None:
+                    snapshot["release_date"] = release.release_date
+            except Exception:
+                pass
+        return snapshot
+    except Exception:
+        return None
 
 
 def _evidence_reasoning(params: dict[str, Any], results: dict[str, Any]) -> Any:

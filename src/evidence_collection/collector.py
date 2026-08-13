@@ -31,6 +31,7 @@ INSTRUMENT_TO_EVENT_TYPE: dict[str, str] = {
     "US10Y Real Yield": "REAL_YIELD",
     "US10Y Nominal Yield": "REAL_YIELD",
     "Breakeven Inflation": "INFLATION",
+    "CPI Release": "INFLATION",
     "S&P 500 Futures": "GENERAL",
     "Brent Crude": "GENERAL",
     "EUR/USD": "USD_FX",
