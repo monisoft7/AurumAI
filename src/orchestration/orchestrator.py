@@ -306,7 +306,7 @@ class InstitutionalOrchestrator:
 
         orch.register(PipelineJob(
             job_id="scenario_generation",
-            dependencies=("thesis_construction",),
+            dependencies=("thesis_construction", "thesis_update"),
             fn=orch._bind(_scenario_generation),
             cache_ttl=600,
             checkpoint=True,
