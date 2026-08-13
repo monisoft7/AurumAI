@@ -257,10 +257,10 @@ class TestOvernightDataFetcher:
         sigma = OvernightDataFetcher._compute_sigma(series, 103.0, 105.0)
         assert sigma > 0.0
 
-    def test_four_bar_window_sigma_still_zero(self):
+    def test_four_bar_window_sigma_unavailable(self):
         series = pd.Series([100.0, 101.0, 102.0, 103.0])
         sigma = OvernightDataFetcher._compute_sigma(series, 102.0, 103.0)
-        assert sigma == 0.0
+        assert np.isnan(sigma)
 
     def test_persistence_days_consecutive_direction(self):
         series = pd.Series([100.0, 101.0, 102.5, 103.0, 105.0])

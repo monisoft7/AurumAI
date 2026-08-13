@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from collections import Counter
 from typing import Any
 
@@ -40,7 +41,14 @@ class EvidenceWeighter:
 
         raw = sum(e.composite_weight for e in evidence_group) / len(evidence_group)
 
-        avg_recency = sum(e.temporal_recency for e in evidence_group) / len(evidence_group)
+        finite_recencies = [
+            e.temporal_recency for e in evidence_group
+            if math.isfinite(e.temporal_recency)
+        ]
+        if finite_recencies:
+            avg_recency = sum(finite_recencies) / len(finite_recencies)
+        else:
+            avg_recency = 0.0
         recency_boost = avg_recency * self.WEIGHT_RECENCY_FACTOR
 
         has_provenance = sum(1 for e in evidence_group if e.provenance is not None)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
@@ -186,7 +187,7 @@ class EvidenceCollector:
             contradicting_observation_ids=tuple(contradicting),
             mechanism=self._resolve_mechanism(obs.instrument),
             provenance=provenance,
-            temporal_recency=min(max(1.0 / (1.0 + abs(obs.change_sigma)), 0.1), 1.0),
+            temporal_recency=(min(max(1.0 / (1.0 + abs(obs.change_sigma)), 0.1), 1.0) if obs.change_sigma is not None and math.isfinite(obs.change_sigma) else float('nan')),
             metadata={
                 "classification": obs.classification,
                 "criteria_count": len(obs.evidence),

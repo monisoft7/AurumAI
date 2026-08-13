@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import math
 from datetime import datetime, timezone
 from typing import Any
 
@@ -73,9 +74,9 @@ class SignalAssessmentAssembler:
             )
             magnitude_criteria = CriterionScore(
                 criterion="magnitude",
-                score=min(abs(change.change_sigma) / 3.0, 1.0),
+                score=min(abs(change.change_sigma) / 3.0, 1.0) if math.isfinite(change.change_sigma) else 0.0,
                 threshold=2.0,
-                passed=abs(change.change_sigma) >= 2.0,
+                passed=math.isfinite(change.change_sigma) and abs(change.change_sigma) >= 2.0,
                 detail=f"z-score={change.change_sigma:.2f}",
             )
             narrative = self._narrative.evaluate(

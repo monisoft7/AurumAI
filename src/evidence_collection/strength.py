@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from evidence_collection.contracts import Evidence, EvidenceCollection
@@ -16,7 +17,8 @@ class EvidenceStrengthComputer:
     def compute_strength(evidence: Evidence) -> float:
         """Individual evidence strength score 0.0–1.0."""
         score = evidence.composite_weight * 0.5
-        score += evidence.temporal_recency * 0.2
+        if math.isfinite(evidence.temporal_recency):
+            score += evidence.temporal_recency * 0.2
         if evidence.supporting_observation_ids:
             score += 0.15 * min(len(evidence.supporting_observation_ids) / 3.0, 1.0)
         if evidence.contradicting_observation_ids:

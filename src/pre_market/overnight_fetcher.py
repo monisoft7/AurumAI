@@ -155,11 +155,14 @@ class OvernightDataFetcher:
     @staticmethod
     def _compute_sigma(series: pd.Series, prev: float, curr: float) -> float:
         if len(series) < 5:
-            return 0.0
-        returns = series.pct_change().dropna()
+            return float('nan')
+        returns = series.pct_change()
+        returns = returns[np.isfinite(returns)]
         if len(returns) < 4 or returns.std() < 1e-12:
-            return 0.0
+            return float('nan')
         single_return = (curr - prev) / abs(prev) if abs(prev) > 1e-12 else 0.0
+        if not np.isfinite(single_return):
+            return float('nan')
         return float(single_return / returns.std())
 
     @staticmethod
