@@ -184,6 +184,7 @@ def _build_legacy_pipeline(params: dict[str, Any], results: dict[str, Any]) -> A
         "reasoning_chain": result.reasoning_chain,
         "evidence": result.evidence,
         "knowledge_graph": result.knowledge_graph,
+        "reasoning_condition": reasoning_condition,
         "stages_completed": result.stages_completed,
     }
 
@@ -507,6 +508,16 @@ def _evidence_collection(params: dict[str, Any], results: dict[str, Any]) -> Any
     if kg is None:
         kg = params.get("knowledge_graph")
 
+    cpi_condition = results.get("build_legacy_pipeline", {}).get(
+        "reasoning_condition"
+    )
+    if not (
+        isinstance(cpi_condition, dict)
+        and cpi_condition.get("cpi_pressure")
+        in ("inflation_pressure_up", "inflation_pressure_down")
+    ):
+        cpi_condition = None
+
     diagnosis = results.get("regime_diagnosis")
     if isinstance(diagnosis, dict) and isinstance(
         diagnosis.get("confidence"), (int, float)
@@ -516,7 +527,11 @@ def _evidence_collection(params: dict[str, Any], results: dict[str, Any]) -> Any
         regime_weight = params.get("regime_weight", 0.8)
 
     collector = EvidenceCollector(knowledge_graph=kg)
-    collection = collector.collect(assessment, regime_weight=regime_weight)
+    collection = collector.collect(
+        assessment,
+        regime_weight=regime_weight,
+        cpi_condition=cpi_condition,
+    )
 
     tiering_data = results.get("event_triage")
     if tiering_data is not None:

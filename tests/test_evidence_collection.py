@@ -549,6 +549,204 @@ class TestKnowledgeRecordEventClassMapping:
 
 
 # =========================================================================
+# Correction 007: current CPI condition -> CPI KnowledgeRecords
+# =========================================================================
+
+
+def _cpi_knowledge_records() -> list[dict]:
+    """Realistic CPI KR records (mirrors runtime knowledge.json shape).
+
+    Down-condition records are listed first to prove selection is
+    condition-correct and not insertion-order-based.
+    """
+    records: list[dict] = []
+    for pressure, horizons in (
+        ("inflation_pressure_down", (1, 5, 20)),
+        ("inflation_pressure_up", (1, 5, 20)),
+    ):
+        for horizon in horizons:
+            records.append({
+                "knowledge_id": (
+                    f"CPI_XAU/USD_{pressure}_{horizon}D"
+                ),
+                "event_type": "CPI",
+                "condition": {"cpi_pressure": pressure},
+                "horizon_days": horizon,
+                "sample_count": 17,
+                "bias": "gold_positive_bias",
+            })
+    return records
+
+
+class TestCpiConditionMatching:
+    """Correction 007: current CPI condition selects the correct CPI KR family."""
+
+    def _collect(self, instrument: str, cpi_condition: dict | None = None):
+        obs = _make_observation(
+            obs_id=f"obs_{instrument}",
+            classification="Signal",
+            confidence=0.8,
+            instrument=instrument,
+            evidence_count=3,
+        )
+        assessment = _make_assessment([obs])
+        from knowledge.graph.builder import GraphBuilder
+
+        kg = GraphBuilder().build(_cpi_knowledge_records())
+        collector = EvidenceCollector(knowledge_graph=kg)
+        return collector.collect(
+            assessment, regime_weight=0.8, cpi_condition=cpi_condition
+        )
+
+    def test_up_condition_selects_only_up_cpi_krs(self):
+        collection = self._collect(
+            "Breakeven Inflation",
+            {"cpi_pressure": "inflation_pressure_up"},
+        )
+        assert collection.evidence_count == 1
+        ev = collection.items[0]
+        assert ev.source_kr_id == "CPI_XAU/USD_inflation_pressure_up_1D"
+        assert ev.event_type == "INFLATION"
+
+    def test_down_condition_selects_only_down_cpi_krs(self):
+        collection = self._collect(
+            "Breakeven Inflation",
+            {"cpi_pressure": "inflation_pressure_down"},
+        )
+        ev = collection.items[0]
+        assert ev.source_kr_id == "CPI_XAU/USD_inflation_pressure_down_1D"
+
+    def test_no_arbitrary_top3_cpi_selection(self):
+        collection = self._collect(
+            "Breakeven Inflation",
+            {"cpi_pressure": "inflation_pressure_up"},
+        )
+        ev = collection.items[0]
+        assert "inflation_pressure_down" not in ev.source_kr_id
+
+    def test_real_kr_provenance_fields(self):
+        collection = self._collect(
+            "Breakeven Inflation",
+            {"cpi_pressure": "inflation_pressure_up"},
+        )
+        ev = collection.items[0]
+        kr_id = "CPI_XAU/USD_inflation_pressure_up_1D"
+        assert ev.source_kr_id == kr_id
+        assert ev.source_kr_node_id == kr_id
+        assert ev.metadata["knowledge_record_id"] == kr_id
+        assert ev.metadata["provenance_type"] == "knowledge_record"
+        assert ev.provenance.metadata["knowledge_record_link"] == kr_id
+        assert not ev.source_kr_id.startswith(("kr_synthetic_", "no_kr_"))
+
+    def test_unrelated_event_types_unchanged_with_cpi_condition(self):
+        collection = self._collect(
+            "XAU/USD", {"cpi_pressure": "inflation_pressure_up"}
+        )
+        ev = collection.items[0]
+        assert ev.event_type == "GENERAL"
+        assert ev.source_kr_id.startswith("no_kr_")
+        assert ev.metadata["provenance_type"] == "observation"
+
+    def test_non_cpi_fallback_unchanged_without_condition(self):
+        collection = self._collect("Breakeven Inflation")
+        ev = collection.items[0]
+        assert ev.event_type == "INFLATION"
+        assert ev.source_kr_id.startswith("CPI_XAU/USD_")
+        assert ev.source_kr_node_id == ev.source_kr_id
+
+    def test_no_matching_cpi_kr_no_fabrication(self):
+        obs = _make_observation(
+            obs_id="obs_breakeven_flat",
+            classification="Signal",
+            confidence=0.8,
+            instrument="Breakeven Inflation",
+            evidence_count=3,
+        )
+        assessment = _make_assessment([obs])
+        from knowledge.graph.builder import GraphBuilder
+
+        records = [
+            r for r in _cpi_knowledge_records()
+            if r["condition"]["cpi_pressure"] == "inflation_pressure_up"
+        ]
+        kg = GraphBuilder().build(records)
+        collection = EvidenceCollector(knowledge_graph=kg).collect(
+            assessment,
+            cpi_condition={"cpi_pressure": "inflation_pressure_down"},
+        )
+        ev = collection.items[0]
+        assert ev.source_kr_id.startswith("no_kr_")
+        assert ev.source_kr_id == ev.source_kr_node_id
+        assert ev.metadata["provenance_type"] == "observation"
+        assert ev.metadata["knowledge_record_id"] is None
+
+    def test_evidence_contract_unchanged(self):
+        collection = self._collect(
+            "Breakeven Inflation",
+            {"cpi_pressure": "inflation_pressure_up"},
+        )
+        ev = collection.items[0]
+        assert not ev.validate()
+        assert ev.metadata["provenance_type"] == "knowledge_record"
+        assert ev.metadata["knowledge_record_id"].startswith("CPI_")
+        assert ev.metadata["instrument"] == "Breakeven Inflation"
+        assert collection.assessment_id == "sa_w5_test"
+        restored = Evidence.from_dict(json.loads(json.dumps(ev.to_dict())))
+        assert restored.source_kr_id == ev.source_kr_id
+        assert restored.composite_weight == ev.composite_weight
+
+
+class TestEvidenceCollectionCpiConditionStage:
+    """Correction 007: orchestration boundary passes only valid conditions."""
+
+    def _stage_collect(self, reasoning_condition):
+        from orchestration.stages import _evidence_collection
+        from knowledge.graph.builder import GraphBuilder
+
+        kg = GraphBuilder().build(_cpi_knowledge_records())
+        obs = _make_observation(
+            obs_id="obs_stage_cpi",
+            classification="Signal",
+            confidence=0.8,
+            instrument="Breakeven Inflation",
+            evidence_count=3,
+        )
+        assessment = _make_assessment([obs])
+        results = {
+            "signal_assessment": assessment.to_dict(),
+            "build_legacy_pipeline": {
+                "knowledge_graph": kg,
+                "reasoning_condition": reasoning_condition,
+            },
+        }
+        return _evidence_collection({}, results)
+
+    def test_valid_up_condition_reaches_collector(self):
+        collection = self._stage_collect(
+            {"cpi_pressure": "inflation_pressure_up"}
+        )
+        ev = collection.items[0]
+        assert ev.metadata["knowledge_record_id"] == (
+            "CPI_XAU/USD_inflation_pressure_up_1D"
+        )
+        assert ev.metadata["provenance_type"] == "knowledge_record"
+
+    def test_invalid_condition_ignored_at_boundary(self):
+        collection = self._stage_collect(
+            {"cpi_pressure": "inflation_pressure_flat"}
+        )
+        ev = collection.items[0]
+        assert ev.metadata["provenance_type"] == "knowledge_record"
+        assert "inflation_pressure" in ev.source_kr_id
+
+    def test_missing_condition_keeps_fallback(self):
+        collection = self._stage_collect(None)
+        ev = collection.items[0]
+        assert ev.metadata["provenance_type"] == "knowledge_record"
+        assert ev.source_kr_id.startswith("CPI_XAU/USD_inflation_pressure")
+
+
+# =========================================================================
 # Integration tests: W5 -> W6
 # =========================================================================
 

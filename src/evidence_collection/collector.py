@@ -8,7 +8,8 @@ from uuid import uuid4
 
 from evidence_collection.contracts import Evidence, EvidenceCollection
 from evidence_collection.strength import EvidenceStrengthComputer
-from knowledge.graph.graph import KnowledgeGraph
+from knowledge.evidence.query import EvidenceQuery
+from knowledge.graph.graph import KnowledgeGraph, GraphNode
 from knowledge.integrity.provenance import Provenance
 from signal_assessment.volume import ETF_FLOW_THRESHOLD_PCT
 from signal_assessment.contracts import (
@@ -90,6 +91,7 @@ class EvidenceCollector:
         self,
         assessment: SignalAssessment,
         regime_weight: float = 0.8,
+        cpi_condition: dict[str, str] | None = None,
     ) -> EvidenceCollection:
         evidence_items: list[Evidence] = []
         filtered_noise = 0
@@ -97,6 +99,9 @@ class EvidenceCollector:
         signals = 0
         weak_signals = 0
         watch = 0
+
+        if not (isinstance(cpi_condition, dict) and cpi_condition):
+            cpi_condition = None
 
         for obs in assessment.observations:
             if obs.classification == ClassificationLabel.NOISE.value:
@@ -113,7 +118,9 @@ class EvidenceCollector:
             elif obs.classification == ClassificationLabel.WATCH.value:
                 watch += 1
 
-            evidence = self._build_evidence(obs, assessment, regime_weight)
+            evidence = self._build_evidence(
+                obs, assessment, regime_weight, cpi_condition
+            )
             evidence_items.append(evidence)
 
         collection_id = f"ec_{uuid4().hex[:12]}"
@@ -136,13 +143,16 @@ class EvidenceCollector:
         obs: ClassifiedObservation,
         assessment: SignalAssessment,
         regime_weight: float,
+        cpi_condition: dict[str, str] | None = None,
     ) -> Evidence:
         event_type = INSTRUMENT_TO_EVENT_TYPE.get(obs.instrument, "GENERAL")
         bias = self._resolve_bias(obs, assessment.regime)
         base_confidence = obs.confidence
         cw = round(base_confidence * regime_weight, 4)
 
-        kr_ids, kr_nodes = self._query_knowledge_records(obs, event_type)
+        kr_ids, kr_nodes = self._query_knowledge_records(
+            obs, event_type, cpi_condition
+        )
         if kr_ids:
             source_kr_id = kr_ids[0]
             source_kr_node_id = kr_nodes[0] if kr_nodes else kr_ids[0]
@@ -204,7 +214,16 @@ class EvidenceCollector:
         self,
         obs: ClassifiedObservation,
         event_type: str,
+        cpi_condition: dict[str, str] | None = None,
     ) -> tuple[list[str], list[str]]:
+        """Resolve KnowledgeRecord IDs linked to an observation.
+
+        When a valid current CPI condition is supplied and the lookup falls
+        back onto the CPI event class, the Legacy EvidenceQuery (exact
+        condition matching) is used instead of any condition-blind
+        ``nodes[:3]`` / insertion-order selection.  When no condition is
+        supplied the historical fallback behaviour is preserved unchanged.
+        """
         if self._kg is None:
             return [], []
         nodes = self._kg.filter_nodes(event_type=event_type)
@@ -214,6 +233,13 @@ class EvidenceCollector:
                 if cls == event_type
             ]
             for mapped_type in mapped_types:
+                if mapped_type == "CPI" and cpi_condition:
+                    nodes = self._filter_nodes_by_condition(
+                        "CPI", cpi_condition, self._kg
+                    )
+                    if nodes:
+                        break
+                    continue
                 nodes = self._kg.filter_nodes(event_type=mapped_type)
                 if nodes:
                     break
@@ -221,6 +247,23 @@ class EvidenceCollector:
             nodes = self._kg.filter_nodes(event_type="GENERAL")
         kr_ids = [n.node_id for n in nodes[:3]] if nodes else []
         return kr_ids, kr_ids
+
+    @staticmethod
+    def _filter_nodes_by_condition(
+        event_type: str,
+        condition: dict[str, str],
+        graph: KnowledgeGraph,
+    ) -> list[GraphNode]:
+        matched = EvidenceQuery(graph).matching(
+            event_type=event_type,
+            condition=condition,
+        )
+        nodes: list[GraphNode] = []
+        for item in matched:
+            node = graph.get_node(item.source_node_id)
+            if node is not None:
+                nodes.append(node)
+        return nodes
 
     @staticmethod
     def _resolve_bias(obs: ClassifiedObservation, regime: str) -> str:
