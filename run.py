@@ -389,6 +389,7 @@ def main(argv: list[str] | None = None) -> int:
     if not args.no_refresh:
         _refresh_gold_before_run(config, run_dir)
         _refresh_fred_yields_before_run()
+        _refresh_dxy_before_run()
 
     checkpoint_dir = config.get("checkpoint_dir")
     if checkpoint_dir is not None:
@@ -585,6 +586,48 @@ def _refresh_fred_yields_before_run() -> None:
         else:
             LOG.info(
                 "FRED freshness %s: status=%s cache_last_date=%s "
+                "cache_age_days=%s refreshed_last_date=%s",
+                series_id, status, record.get("cache_last_date"),
+                record.get("cache_age_days"),
+                record.get("refreshed_last_date"),
+            )
+
+
+def _refresh_dxy_before_run() -> None:
+    """Warm the DXY cache before a production run (fail-safe).
+
+    Follows the same freshness contract as FRED yields: a fresh cache is
+    used unchanged; a stale cache triggers a refresh; on refresh failure the
+    stale cache is kept and recorded as ``fallback_stale`` so it is never
+    presented as current data.
+    """
+    from connectors.dxy_fetcher import (
+        DXY_DAILY_SERIES_MAX_AGE_DAYS,
+        DXYFetcher,
+    )
+
+    fetcher = DXYFetcher()
+    try:
+        fetcher.get_series(
+            use_cache=True,
+            max_age_days=DXY_DAILY_SERIES_MAX_AGE_DAYS,
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        LOG.error(
+            "DXY fetch failed (%s); proceeding with cached data", exc,
+        )
+    for series_id, record in fetcher.freshness_report().items():
+        status = record.get("status")
+        if status == "fallback_stale":
+            LOG.warning(
+                "DXY freshness %s: status=fallback_stale "
+                "cache_last_date=%s cache_age_days=%s error=%s",
+                series_id, record.get("cache_last_date"),
+                record.get("cache_age_days"), record.get("error"),
+            )
+        else:
+            LOG.info(
+                "DXY freshness %s: status=%s cache_last_date=%s "
                 "cache_age_days=%s refreshed_last_date=%s",
                 series_id, status, record.get("cache_last_date"),
                 record.get("cache_age_days"),

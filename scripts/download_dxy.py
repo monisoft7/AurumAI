@@ -9,7 +9,7 @@ def download_dxy(output_path: Path | None = None) -> pd.DataFrame:
         output_path = Path("data/context/dxy/dxy.csv")
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    df = yf.download("DX-Y.NYB", start="2014-12-01", end="2026-01-10", auto_adjust=True, progress=False)
+    df = yf.download("DX-Y.NYB", start="2014-12-01", auto_adjust=True, progress=False)
     if hasattr(df.columns, "droplevel"):
         try:
             df = df.droplevel(1, axis=1)
