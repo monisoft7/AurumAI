@@ -28,6 +28,16 @@ from knowledge.regime.macro_regime_detector import (
     MacroRegimeDetector,
 )
 
+# Correction 025: the deterministic four-state -> six-state mapping is
+# hoisted as module data (behavior unchanged) so the derived lesson episode
+# index can reuse the exact same mapping without recomputation.
+ECONOMIC_REGIME_LABELS: dict[str, str] = {
+    EXPANSION: NORMAL_GROWTH,
+    LATE_CYCLE: INFLATIONARY,
+    RECOVERY: STAGFLATIONARY,
+    CONTRACTION: DEFLATIONARY_CRISIS,
+}
+
 
 class InstitutionalRegimeDetector:
     """6-regime classifier matching Meth. §9 taxonomy.
@@ -70,12 +80,7 @@ class InstitutionalRegimeDetector:
         composite_values = regime_df.copy()
         composite_values["composite_score"] = composite_data.set_index("Date")["composite_score"]
 
-        economic_labels: dict[str, str] = {
-            EXPANSION: NORMAL_GROWTH,
-            LATE_CYCLE: INFLATIONARY,
-            RECOVERY: STAGFLATIONARY,
-            CONTRACTION: DEFLATIONARY_CRISIS,
-        }
+        economic_labels = ECONOMIC_REGIME_LABELS
 
         labels: list[str] = []
         probs_list: list[dict[str, float]] = []

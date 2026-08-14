@@ -1,13 +1,31 @@
 from datetime import date as date_type
+from typing import Any
 
-from knowledge.temporal.state import TemporalState
+from knowledge.temporal.state import (
+    TemporalState,
+    SOURCE_TYPE_LESSON,
+)
 from knowledge.temporal.indexer import TemporalIndexer
 from knowledge.temporal.period import TimePeriod
 from knowledge.evidence.evidence import Evidence
 
+# Correction 025: bounded episode condition keys mandated for the first gold
+# analogue capability.  Historical trend states only -- no derived factor
+# semantics, no ETF/COT/OI linkage.
+EPISODE_CONDITION_KEYS: tuple[str, ...] = (
+    "cpi_pressure",
+    "us10y_trend",
+    "dxy_trend",
+)
+
 
 class TemporalEvidenceAdapter:
     def state_to_evidence(self, state: TemporalState) -> Evidence:
+        if state.source_type == SOURCE_TYPE_LESSON:
+            return self._lesson_state_to_evidence(state)
+        return self._generic_state_to_evidence(state)
+
+    def _generic_state_to_evidence(self, state: TemporalState) -> Evidence:
         return Evidence(
             evidence_id=f"tmp_{state.state_id}",
             source_node_id=f"temporal_{state.source_type}_{state.source_id}",
@@ -30,6 +48,70 @@ class TemporalEvidenceAdapter:
                 "tags": list(state.tags),
                 "original_metadata": dict(state.metadata),
             },
+        )
+
+    def _lesson_state_to_evidence(self, state: TemporalState) -> Evidence:
+        """Map a SOURCE_TYPE_LESSON episode state to retriever-consumable Evidence.
+
+        Correction 025: the lesson episode is exposed with
+        ``event_type="CPI"`` and the multi-key condition
+        ``{cpi_pressure, us10y_trend, dxy_trend}`` (present keys only -- no
+        fabricated values), and ``metadata.institutional_context={"regime": ...}``
+        so ``HistoricalSituationRetriever`` can score episode matching.
+        Identity is preserved: ``evidence_id == state_id == lesson_id``.
+        """
+        meta = dict(state.metadata)
+
+        condition: dict[str, str] = {}
+        for key in EPISODE_CONDITION_KEYS:
+            value = meta.get(key)
+            if value:
+                condition[key] = str(value)
+
+        institutional_context: dict[str, str] = {}
+        regime = meta.get("regime")
+        if regime:
+            institutional_context["regime"] = str(regime)
+
+        metadata: dict[str, Any] = {
+            "institutional_context": institutional_context,
+            "lesson_id": state.state_id,
+        }
+        for key in ("source_artifact_path", "source_artifact_sha256"):
+            value = meta.get(key)
+            if value:
+                metadata[key] = str(value)
+
+        horizon = meta.get("primary_horizon_days")
+        try:
+            horizon_days = int(horizon) if horizon is not None else 0
+        except (TypeError, ValueError):
+            horizon_days = 0
+
+        gold_return = meta.get("gold_return_1d_pct")
+        if gold_return is not None:
+            try:
+                average_return_pct = float(gold_return)
+            except (TypeError, ValueError):
+                average_return_pct = 0.0
+        else:
+            average_return_pct = 0.0
+
+        return Evidence(
+            evidence_id=state.state_id,
+            source_node_id=f"temporal_{SOURCE_TYPE_LESSON}_{state.state_id}",
+            event_type="CPI",
+            condition=condition,
+            horizon_days=horizon_days,
+            sample_count=1,
+            average_return_pct=average_return_pct,
+            confidence=1.0,
+            bias="neutral",
+            explanation=(
+                f"Lesson episode '{state.state_id}' at {state.date} with "
+                f"condition {condition} (regime {regime or 'unknown'})"
+            ),
+            metadata=metadata,
         )
 
     def indexer_to_evidence(

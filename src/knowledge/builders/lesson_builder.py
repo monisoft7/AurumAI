@@ -1,16 +1,27 @@
 from __future__ import annotations
 
+import dataclasses
 import hashlib
+import shutil
 import pandas as pd
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
+from knowledge.context.dxy import DXYContextConfig, DXYContextEnricher
+from knowledge.context.yields import YieldContextConfig, YieldContextEnricher
 from knowledge.events.base import MacroEvent, ReleaseCalendar
 from knowledge.events.cpi import CPIEvent, DEFAULT_CPI_RELEASE_CALENDAR
 
 
 DEFAULT_HORIZONS = (1, 5, 20)
+
+# Correction 026: canonical enrichment defaults mirroring the runtime
+# configuration (run.py DEFAULT_CONFIG) used by
+# ``InferencePipeline._stage_build_lessons``.
+DEFAULT_YIELD_DATA_PATH = Path("data/economic/DFII10.csv")
+DEFAULT_DXY_DATA_PATH = Path("data/context/dxy/dxy.csv")
+DEFAULT_CONTEXT_LOOKBACK_DAYS = 30
 
 
 @dataclass(frozen=True)
@@ -190,6 +201,157 @@ class LessonBuilder:
 
 
 # ---------------------------------------------------------------------------
+# Correction 026: canonical enriched lesson artifact
+# ---------------------------------------------------------------------------
+
+
+def _register_macro_regime_extractor() -> None:
+    """Idempotently register the existing global MacroRegimeFeatureExtractor.
+
+    Mirrors ``stages._ensure_macro_regime_initialized``: the detector is fit
+    once per process with the existing deterministic ``random_state=42`` and
+    registered through the existing ``FeatureExtractionEngine.register_global``
+    mechanism, so ``CPIEvent`` extraction attaches ``macro_regime`` to every
+    event row before ``LessonBuilder`` copies it into the lesson.
+    """
+    from knowledge.features.engine import FeatureExtractionEngine
+    from knowledge.features.extractors.macro_regime import (
+        MacroRegimeFeatureExtractor,
+    )
+    from knowledge.regime.composite_score import CompositeScoreBuilder
+    from knowledge.regime.macro_regime_detector import MacroRegimeDetector
+
+    if any(
+        isinstance(extractor, MacroRegimeFeatureExtractor)
+        for extractor in FeatureExtractionEngine._global_extractors
+    ):
+        return
+
+    composite_data = CompositeScoreBuilder().build()
+    detector = MacroRegimeDetector(random_state=42).fit(composite_data)
+    FeatureExtractionEngine.register_global(MacroRegimeFeatureExtractor(detector))
+
+
+def build_canonical_lesson_artifact(
+    config: LessonBuilderConfig,
+    yield_data_path: str | Path | None = None,
+    dxy_data_path: str | Path | None = None,
+    yield_context_lookback_days: int = DEFAULT_CONTEXT_LOOKBACK_DAYS,
+    dxy_context_lookback_days: int = DEFAULT_CONTEXT_LOOKBACK_DAYS,
+) -> pd.DataFrame:
+    """Build the canonical lesson artifact with full context enrichment.
+
+    Correction 026: the canonical ``data/lessons/cpi_gold_lessons.csv``
+    regenerates through the exact same enrichment composition already proven
+    in ``InferencePipeline._stage_build_lessons``:
+
+        LessonBuilder
+        -> YieldContextEnricher (us10y_level / us10y_trend)
+        -> DXYContextEnricher (dxy_level / dxy_trend)
+
+    with the existing global ``MacroRegimeFeatureExtractor`` registered so
+    each lesson row also carries ``macro_regime``.  The enrichers are invoked
+    in their output-path-safe form (explicit ``output_path``), never with the
+    destructive in-place default.  Every reused component is existing; no
+    provider, subsystem, aggregation, or lesson identity semantics change.
+    """
+    _register_macro_regime_extractor()
+
+    lessons = LessonBuilder(config).build_and_save()
+    output = Path(config.output_path)
+
+    if yield_data_path is not None:
+        lessons = YieldContextEnricher(
+            YieldContextConfig(
+                yield_path=Path(yield_data_path),
+                lookback_days=yield_context_lookback_days,
+            )
+        ).enrich_csv(output, output)
+    if dxy_data_path is not None:
+        lessons = DXYContextEnricher(
+            DXYContextConfig(
+                dxy_path=Path(dxy_data_path),
+                lookback_days=dxy_context_lookback_days,
+            )
+        ).enrich_csv(output, output)
+
+    return lessons
+
+
+def compare_lesson_identity_sets(
+    current_path: str | Path,
+    candidate_path: str | Path,
+) -> dict[str, Any]:
+    """Compare lesson identity sets between two artifacts.
+
+    Identities are ``(lesson_id, event_date)``; per-id event dates must also
+    be unchanged, since ``event_date`` is part of the lesson identity.
+    """
+    def load(path: Path) -> pd.DataFrame:
+        df = pd.read_csv(path)
+        required = {"lesson_id", "event_date"}
+        missing = required.difference(df.columns)
+        if missing:
+            raise ValueError(
+                f"{path} is missing identity columns: {sorted(missing)}"
+            )
+        return df
+
+    current = load(Path(current_path))
+    candidate = load(Path(candidate_path))
+
+    current_map: dict[str, str] = dict(
+        zip(current["lesson_id"], current["event_date"].astype(str))
+    )
+    candidate_map: dict[str, str] = dict(
+        zip(candidate["lesson_id"], candidate["event_date"].astype(str))
+    )
+    current_ids = set(current_map)
+    candidate_ids = set(candidate_map)
+
+    added = sorted(candidate_ids - current_ids)
+    removed = sorted(current_ids - candidate_ids)
+    unchanged = sorted(current_ids & candidate_ids)
+    date_drift = sorted(
+        lesson_id
+        for lesson_id in unchanged
+        if current_map[lesson_id] != candidate_map[lesson_id]
+    )
+
+    return {
+        "current_count": len(current_ids),
+        "candidate_count": len(candidate_ids),
+        "added_lesson_ids": added,
+        "removed_lesson_ids": removed,
+        "unchanged_lesson_ids": unchanged,
+        "event_date_drift_lesson_ids": date_drift,
+        "identity_set_match": not added and not removed and not date_drift,
+    }
+
+
+def replace_canonical_after_gate(
+    current_path: str | Path,
+    candidate_path: str | Path,
+) -> dict[str, Any]:
+    """Replace the canonical artifact only when identity sets match exactly.
+
+    Correction 026 safety gate: the enriched candidate may only overwrite the
+    canonical ``cpi_gold_lessons.csv`` when the ``(lesson_id, event_date)``
+    identity sets are identical.  Any added/removed lesson or per-id event
+    date drift blocks replacement -- canonical history is never silently
+    rewritten.
+    """
+    report = compare_lesson_identity_sets(current_path, candidate_path)
+    current = Path(current_path)
+    candidate = Path(candidate_path)
+    report["replaced"] = False
+    if report["identity_set_match"]:
+        shutil.copy2(candidate, current)
+        report["replaced"] = True
+    return report
+
+
+# ---------------------------------------------------------------------------
 # Legacy (non-institutional) path
 # ---------------------------------------------------------------------------
 
@@ -284,11 +446,34 @@ class LegacyLessonBuilder(LessonBuilder):
 
 if __name__ == "__main__":
 
-    output = LessonBuilder(
-        LessonBuilderConfig(
-            release_calendar_path=DEFAULT_CPI_RELEASE_CALENDAR,
+    import tempfile
+
+    config = LessonBuilderConfig(
+        release_calendar_path=DEFAULT_CPI_RELEASE_CALENDAR,
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        candidate_path = Path(tmp) / "cpi_gold_lessons_enriched.csv"
+        candidate_config = dataclasses.replace(config, output_path=candidate_path)
+        enriched = build_canonical_lesson_artifact(
+            candidate_config,
+            yield_data_path=DEFAULT_YIELD_DATA_PATH,
+            dxy_data_path=DEFAULT_DXY_DATA_PATH,
         )
-    ).build_and_save()
-    print(output.head())
-    print()
-    print("Lessons:", len(output))
+        print(enriched.head())
+        print()
+        print("Lessons:", len(enriched))
+
+        gate = replace_canonical_after_gate(
+            config.output_path, candidate_path
+        )
+        print()
+        print("Canonical replacement gate:")
+        print("  current rows:", gate["current_count"])
+        print("  candidate rows:", gate["candidate_count"])
+        print("  added lesson_ids:", gate["added_lesson_ids"])
+        print("  removed lesson_ids:", gate["removed_lesson_ids"])
+        print("  event_date drift:", gate["event_date_drift_lesson_ids"])
+        if gate["replaced"]:
+            print("  -> candidate adopted (identity sets identical)")
+        else:
+            print("  -> NOT replaced: identity drift blocks replacement")
