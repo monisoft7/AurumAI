@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 _regime_initialized: bool = False
@@ -177,6 +178,8 @@ def _build_legacy_pipeline(params: dict[str, Any], results: dict[str, Any]) -> A
     reg = LineageRegistry()
     result = pipe.run(ctx, lineage_registry=reg)
 
+    episodes_index_path = _build_run_local_episode_index(params)
+
     return {
         "pipeline_result": result,
         "lineage_registry": reg,
@@ -186,7 +189,43 @@ def _build_legacy_pipeline(params: dict[str, Any], results: dict[str, Any]) -> A
         "knowledge_graph": result.knowledge_graph,
         "reasoning_condition": reasoning_condition,
         "stages_completed": result.stages_completed,
+        "lesson_episodes_index_path": episodes_index_path,
     }
+
+
+def _build_run_local_episode_index(params: dict[str, Any]) -> str | None:
+    """Derive the run-local episode index from the enriched lesson artifact
+    emitted by ``build_legacy_pipeline`` (Correction 027).
+
+    The enriched ``output_dir/lessons.csv`` remains the single source of
+    truth; the episode index is a deterministic, disposable projection of it,
+    saved beside it as ``output_dir/lesson_episodes.json`` and published
+    through the existing ``lesson_episodes_index_path`` parameter that W6
+    (``_evidence_reasoning``) already passes to ``build_historical_analogue``.
+    Only rows actually present in the enriched artifact are indexed; nothing
+    is fabricated or reinserted.  Missing/unreadable artifacts degrade
+    safely: no index is written, no parameter is set, and the W-path keeps
+    its existing no-analogue behaviour.
+    """
+    output_dir = params.get("output_dir")
+    if not output_dir:
+        return None
+    lessons_path = Path(output_dir) / "lessons.csv"
+    if not lessons_path.is_file():
+        return None
+    episodes_json = Path(output_dir) / "lesson_episodes.json"
+    try:
+        from knowledge.temporal.lesson_index import (
+            build_lesson_episode_index,
+            save_lesson_episode_index,
+        )
+
+        indexer = build_lesson_episode_index(lessons_path)
+        save_lesson_episode_index(indexer, episodes_json)
+    except Exception:
+        return None
+    params["lesson_episodes_index_path"] = str(episodes_json)
+    return str(episodes_json)
 
 
 def _forecast(params: dict[str, Any], results: dict[str, Any]) -> Any:
@@ -712,6 +751,18 @@ def _evidence_reasoning(params: dict[str, Any], results: dict[str, Any]) -> Any:
         collection = EvidenceCollection.from_dict(collection_data)
     else:
         collection = collection_data
+
+    # Correction 027: W6 consumes the run-local episode index derived from
+    # the enriched lesson artifact at the build_legacy_pipeline boundary.
+    # Resolve the run-local path first (published by the boundary build);
+    # fall back to the same run-local location when the stage did not run
+    # (e.g., checkpoint-resumed runs); the global data/state index is never
+    # required for runtime correctness.
+    episodes_index_path = params.get("lesson_episodes_index_path")
+    if not episodes_index_path and params.get("output_dir"):
+        run_local_index = Path(params["output_dir"]) / "lesson_episodes.json"
+        if run_local_index.is_file():
+            episodes_index_path = str(run_local_index)
 
     reasoner = EvidenceReasoner()
     reasoning = reasoner.reason(collection, regime=params.get("regime"))
