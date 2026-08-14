@@ -223,4 +223,17 @@ class ThesisBuilder:
         summary = "; ".join(parts)
         if rationale.get("freshness_note"):
             summary += f" | {rationale['freshness_note']}"
+        adjudicated = [
+            f"{key}={rationale[key]}"
+            for key in (
+                "regime",
+                "dominant_factor",
+                "weaker_factor",
+                "precedence_reason",
+                "adjudicated_interpretation",
+            )
+            if rationale.get(key)
+        ]
+        if adjudicated:
+            summary += " | " + " | ".join(adjudicated)
         return "factor: " + summary

@@ -52,7 +52,7 @@ class EvidenceReasoner:
             "collection_items": len(evidence_items),
             "groups_formed": len(evidence_sets),
         }
-        factor_rationale = build_cross_factor_rationale()
+        factor_rationale = build_cross_factor_rationale(regime=regime)
         if factor_rationale is not None:
             metadata["factor_rationale"] = factor_rationale
 
