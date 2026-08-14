@@ -45,6 +45,12 @@ class ThesisBuilder:
             direction, len(supporting_set_ids), len(counter_set_ids),
             support, assessment,
         )
+        knowledge_chunk = self._compose_knowledge_rationale(supporting_sets)
+        if knowledge_chunk:
+            explanation += f" | {knowledge_chunk}"
+        factor_chunk = self._compose_factor_rationale(reasoning)
+        if factor_chunk:
+            explanation += f" | {factor_chunk}"
         prov = Provenance(
             created_at=assessment.timestamp,
             created_by="W8 ThesisBuilder",
@@ -154,3 +160,67 @@ class ThesisBuilder:
             f"regime_conflict={assessment.regime_conflict} | "
             f"bias_flags={list(assessment.bias_flags)}"
         )
+
+    @staticmethod
+    def _compose_knowledge_rationale(supporting_sets: list[EvidenceSet]) -> str:
+        """Compose the explanation-only KR rationale chunk (Correction 008-B).
+
+        Mirrors the deterministic per-evidence rationale carried in
+        ``set.metadata["knowledge_rationale"]`` into a single ``knowledge:``
+        suffix.  Returns "" when no supporting set carries a rationale, so
+        explanations for non-KR pipelines are byte-identical to before.
+        """
+        lines: list[str] = []
+        for s in supporting_sets:
+            for entry in s.metadata.get("knowledge_rationale") or []:
+                condition = entry.get("condition") or {}
+                cond_str = "; ".join(f"{k}={v}" for k, v in condition.items()) or "any"
+                parts = [
+                    f"{entry.get('family', '')} {cond_str}: "
+                    f"avg {entry.get('average_return_pct', 0.0):+.3f}% "
+                    f"over {entry.get('horizon_days', 0)}d | "
+                    f"conf {entry.get('confidence', 0.0):.3f} | "
+                    f"{entry.get('sample_count', 0)} samples",
+                ]
+                if "positive_return_rate_pct" in entry:
+                    parts.append(
+                        f"{entry['positive_return_rate_pct']:.1f}% positive-rate"
+                    )
+                lines.append(" | ".join(parts))
+        if not lines:
+            return ""
+        return "knowledge: " + "; ".join(lines)
+
+    @staticmethod
+    def _compose_factor_rationale(reasoning: EvidenceReasoning) -> str:
+        """Compose the explanation-only cross-factor rationale chunk.
+
+        Trace 016-B: mirrors the deterministic gold_rule_001 rationale carried
+        in ``reasoning.metadata["factor_rationale"]`` into a single
+        ``factor:`` suffix.  Returns "" when no factor rationale is present
+        (e.g. inputs unavailable), so explanations are byte-identical to
+        before.  Stale inputs are annotated explicitly and never presented as
+        current observations.
+        """
+        rationale = reasoning.metadata.get("factor_rationale")
+        if not isinstance(rationale, dict) or not rationale:
+            return ""
+        parts = [
+            f"{rationale.get('rule_id', 'gold_rule_001')} "
+            f"bias={rationale.get('composite_bias', '')} "
+            f"strength={rationale.get('composite_strength', 0.0):+.4f} "
+            f"confidence={rationale.get('composite_confidence', 0.0):.4f} "
+            f"dispersion={rationale.get('signal_dispersion', 0.0):.4f}",
+        ]
+        for f in rationale.get("factors") or []:
+            parts.append(
+                f"{f.get('factor_id', '')}: obs={f.get('observation_date', '')} "
+                f"bias={f.get('influence_bias', '')} "
+                f"strength={f.get('influence_strength', 0.0):+.4f} "
+                f"conf={f.get('confidence', 0.0):.4f} "
+                f"quality={f.get('data_quality', '')} ({f.get('status', '')})"
+            )
+        summary = "; ".join(parts)
+        if rationale.get("freshness_note"):
+            summary += f" | {rationale['freshness_note']}"
+        return "factor: " + summary

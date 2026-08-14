@@ -224,6 +224,12 @@ class ThesisUpdater:
             support_new,
             assessment,
         )
+        knowledge_chunk = ThesisBuilder._compose_knowledge_rationale(supporting_sets)
+        if knowledge_chunk:
+            explanation += f" | {knowledge_chunk}"
+        factor_chunk = ThesisBuilder._compose_factor_rationale(reasoning)
+        if factor_chunk:
+            explanation += f" | {factor_chunk}"
         explanation += (
             f" | UPDATED v{new_version_number}: "
             f"evidence={len(updated_evidence)} | "
