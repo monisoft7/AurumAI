@@ -182,6 +182,21 @@ class EvidenceCollector:
             metadata={"knowledge_record_link": knowledge_record_id},
         )
 
+        metadata: dict[str, Any] = {
+            "classification": obs.classification,
+            "criteria_count": len(obs.evidence),
+            "instrument": obs.instrument,
+            "change_pct": obs.change_pct,
+            "change_sigma": obs.change_sigma,
+            "provenance_type": provenance_type,
+            "knowledge_record_id": knowledge_record_id,
+        }
+        knowledge_semantics = self._knowledge_semantics_payload(
+            source_kr_node_id
+        )
+        if knowledge_semantics is not None:
+            metadata["knowledge_semantics"] = knowledge_semantics
+
         return Evidence(
             evidence_id=f"ev_{source_kr_id}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}",
             source_kr_id=source_kr_id,
@@ -200,16 +215,55 @@ class EvidenceCollector:
             mechanism=self._resolve_mechanism(obs.instrument),
             provenance=provenance,
             temporal_recency=(min(max(1.0 / (1.0 + abs(obs.change_sigma)), 0.1), 1.0) if obs.change_sigma is not None and math.isfinite(obs.change_sigma) else float('nan')),
-            metadata={
-                "classification": obs.classification,
-                "criteria_count": len(obs.evidence),
-                "instrument": obs.instrument,
-                "change_pct": obs.change_pct,
-                "change_sigma": obs.change_sigma,
-                "provenance_type": provenance_type,
-                "knowledge_record_id": knowledge_record_id,
-            },
+            metadata=metadata,
         )
+
+    KNOWLEDGE_SEMANTICS_FIELDS: tuple[str, ...] = (
+        "horizon_days",
+        "sample_count",
+        "average_return_pct",
+        "confidence",
+        "positive_return_rate_pct",
+    )
+
+    KNOWLEDGE_SEMANTICS_OPTIONAL_FIELDS: tuple[str, ...] = (
+        "bias",
+        "last_event_date",
+        "institutional_context",
+    )
+
+    def _knowledge_semantics_payload(
+        self, source_kr_node_id: str
+    ) -> dict[str, Any] | None:
+        """Copy the minimum KnowledgeRecord semantics into Evidence.metadata.
+
+        Read-only preservation (Correction 008-A): the payload is carried for
+        downstream reasoning but never used for scoring here.  It is returned
+        only when the resolved node is a real KnowledgeRecord node; otherwise
+        None so no historical values are fabricated for observation-anchored
+        evidence.  The KnowledgeRecord condition is kept distinct from the
+        Evidence.condition contract field (which remains the observation
+        instrument condition).
+        """
+        if self._kg is None or not source_kr_node_id:
+            return None
+        node = self._kg.get_node(source_kr_node_id)
+        if node is None or node.node_type != "knowledge_record":
+            return None
+        props = node.properties or {}
+        if "knowledge_id" not in props:
+            return None
+        semantics: dict[str, Any] = {}
+        condition = props.get("condition")
+        if isinstance(condition, dict) and condition:
+            semantics["condition"] = dict(condition)
+        for field in self.KNOWLEDGE_SEMANTICS_FIELDS:
+            if field in props and props[field] is not None:
+                semantics[field] = props[field]
+        for field in self.KNOWLEDGE_SEMANTICS_OPTIONAL_FIELDS:
+            if field in props and props[field] not in (None, "", {}):
+                semantics[field] = props[field]
+        return semantics or None
 
     def _query_knowledge_records(
         self,

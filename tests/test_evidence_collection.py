@@ -888,3 +888,243 @@ class TestAnomalyObservationDedup:
         assert len(collection.items) == 2
         assert len({e.source_kr_id for e in collection.items}) == 1
         assert reasoning.duplicates_removed == 1
+
+# =========================================================================
+# Correction 008-A: preserve minimum KnowledgeRecord semantics in Evidence
+# =========================================================================
+
+
+def _cpi_semantics_records() -> list[dict]:
+    """Full-fidelity CPI KR records (mirrors runtime knowledge.json shape).
+
+    Each family carries the approved minimum semantic payload with distinct
+    values so preservation can be asserted field-by-field.
+    """
+    base = {
+        "event_type": "CPI",
+        "asset": "XAU/USD",
+        "source_lesson_ids": ["CPI_GOLD_2015-03-01", "CPI_GOLD_2015-04-01"],
+        "source_artifact_path": "artifacts/lessons.csv",
+        "source_artifact_sha256": "cc450ddd8ad3067ad236c1a036c1df159e760a847425feca8c51061aa9f42694",
+        "median_return_pct": 0.3,
+        "min_return_pct": -3.2,
+        "max_return_pct": 2.9,
+        "negative_return_rate_pct": 38.0,
+        "first_event_date": "2015-03-01",
+    }
+    flavors = {
+        "inflation_pressure_down": {
+            "sample_count": 17,
+            "positive_return_rate_pct": 70.588235,
+            "average_return_pct": 0.706768,
+            "confidence": 0.545918,
+            "bias": "gold_positive_bias",
+            "last_event_date": "2026-06-01",
+            "institutional_context": {
+                "us10y_level": "low_yield_regime",
+                "dxy_level": "normal_dxy_regime",
+            },
+        },
+        "inflation_pressure_up": {
+            "sample_count": 118,
+            "positive_return_rate_pct": 51.694915,
+            "average_return_pct": -0.033338,
+            "confidence": 0.511503,
+            "bias": "mixed_or_context_dependent",
+            "last_event_date": "2026-05-01",
+            "institutional_context": {
+                "us10y_level": "low_yield_regime",
+                "t5yie_level": "normal_breakeven_regime",
+            },
+        },
+    }
+    records: list[dict] = []
+    for pressure, horizon in (
+        ("inflation_pressure_down", 1),
+        ("inflation_pressure_down", 5),
+        ("inflation_pressure_down", 20),
+        ("inflation_pressure_up", 1),
+    ):
+        record = dict(base)
+        record.update(flavors[pressure])
+        record.update({
+            "knowledge_id": f"CPI_XAU/USD_{pressure}_{horizon}D",
+            "condition": {"cpi_pressure": pressure},
+            "horizon_days": horizon,
+        })
+        records.append(record)
+    return records
+
+
+class TestKnowledgeSemanticsPreservation:
+    """Correction 008-A: minimum KR semantics preserved, nothing active yet."""
+
+    def _collect_cpi(self):
+        from knowledge.graph.builder import GraphBuilder
+
+        obs = _make_observation(
+            obs_id="obs_semantics_cpi",
+            classification="Signal",
+            confidence=0.8,
+            instrument="Breakeven Inflation",
+            evidence_count=3,
+        )
+        assessment = _make_assessment([obs])
+        kg = GraphBuilder().build(_cpi_semantics_records())
+        collector = EvidenceCollector(knowledge_graph=kg)
+        return collector.collect(
+            assessment,
+            regime_weight=0.8,
+            cpi_condition={"cpi_pressure": "inflation_pressure_up"},
+        )
+
+    def test_real_cpi_kr_produces_all_six_semantic_fields(self):
+        collection = self._collect_cpi()
+        ev = collection.items[0]
+        semantics = ev.metadata["knowledge_semantics"]
+        assert set(semantics) >= {
+            "condition",
+            "horizon_days",
+            "sample_count",
+            "average_return_pct",
+            "confidence",
+            "positive_return_rate_pct",
+        }
+        assert semantics["sample_count"] == 118
+        assert semantics["average_return_pct"] == -0.033338
+        assert semantics["positive_return_rate_pct"] == 51.694915
+
+    def test_values_match_knowledge_record_node_exactly(self):
+        from knowledge.graph.builder import GraphBuilder
+
+        records = _cpi_semantics_records()
+        graph = GraphBuilder().build(records)
+        selected_id = "CPI_XAU/USD_inflation_pressure_up_1D"
+        node_props = graph.get_node(selected_id).properties
+
+        collection = self._collect_cpi()
+        ev = collection.items[0]
+        semantics = ev.metadata["knowledge_semantics"]
+        assert ev.source_kr_node_id == selected_id
+        for field in (
+            "condition",
+            "horizon_days",
+            "sample_count",
+            "average_return_pct",
+            "confidence",
+            "positive_return_rate_pct",
+            "bias",
+            "last_event_date",
+            "institutional_context",
+        ):
+            assert semantics[field] == node_props[field]
+
+    def test_wrong_condition_kr_not_selected(self):
+        collection = self._collect_cpi()
+        ev = collection.items[0]
+        semantics = ev.metadata["knowledge_semantics"]
+        assert semantics["condition"] == {"cpi_pressure": "inflation_pressure_up"}
+        assert "inflation_pressure_down" not in ev.source_kr_id
+        assert semantics["sample_count"] != 17
+
+    def test_no_kr_evidence_does_not_fabricate_semantics(self):
+        assessment = _make_assessment()
+        collection = EvidenceCollector().collect(assessment)
+        for ev in collection.items:
+            assert ev.metadata["provenance_type"] == "observation"
+            assert "knowledge_semantics" not in ev.metadata
+
+        kg = KnowledgeGraph()
+        kg.add_node(GraphNode(
+            node_id="KR-plain", node_type="knowledge_record",
+            properties={"event_type": "REAL_YIELD", "title": "no knowledge_id"},
+        ))
+        obs = _make_observation(instrument="US10Y Real Yield")
+        collection = EvidenceCollector(knowledge_graph=kg).collect(
+            _make_assessment([obs])
+        )
+        ev = collection.items[0]
+        assert "knowledge_semantics" not in ev.metadata
+
+    def test_serialization_roundtrip_preserves_semantics(self):
+        collection = self._collect_cpi()
+        ev = collection.items[0]
+        raw = json.dumps(collection.to_dict())
+        restored = EvidenceCollection.from_dict(json.loads(raw))
+        restored_ev = restored.items[0]
+        assert (
+            restored_ev.metadata["knowledge_semantics"]
+            == ev.metadata["knowledge_semantics"]
+        )
+        assert restored_ev.source_kr_id == ev.source_kr_id
+        assert restored_ev.source_kr_node_id == ev.source_kr_node_id
+
+    def test_evidence_scoring_behaviorally_unchanged(self):
+        obs = _make_observation(
+            obs_id="obs_scoring_cpi",
+            classification="Signal",
+            confidence=0.8,
+            instrument="Breakeven Inflation",
+            evidence_count=3,
+        )
+        assessment = _make_assessment([obs])
+
+        from knowledge.graph.builder import GraphBuilder
+
+        kg = GraphBuilder().build(_cpi_semantics_records())
+        with_graph = EvidenceCollector(knowledge_graph=kg).collect(
+            assessment,
+            regime_weight=0.8,
+            cpi_condition={"cpi_pressure": "inflation_pressure_up"},
+        ).items[0]
+        without_graph = EvidenceCollector().collect(assessment).items[0]
+
+        assert with_graph.base_confidence == without_graph.base_confidence
+        assert with_graph.composite_weight == without_graph.composite_weight
+        assert with_graph.temporal_recency == without_graph.temporal_recency
+        assert with_graph.bias == without_graph.bias
+        assert with_graph.event_type == without_graph.event_type
+        assert with_graph.condition == without_graph.condition
+        assert with_graph.mechanism == without_graph.mechanism
+
+    def test_reasoning_consumption_neutral_to_payload(self):
+        from evidence_reasoning.reasoner import EvidenceReasoner
+
+        collection = self._collect_cpi()
+        ev = collection.items[0]
+        plain = Evidence(
+            evidence_id=ev.evidence_id,
+            source_kr_id=ev.source_kr_id,
+            source_kr_node_id=ev.source_kr_node_id,
+            event_type=ev.event_type,
+            condition={"instrument": ev.condition["instrument"]},
+            bias=ev.bias,
+            base_confidence=ev.base_confidence,
+            regime_weight=ev.regime_weight,
+            composite_weight=ev.composite_weight,
+explanation=ev.explanation,
+            regime=ev.regime,
+            source_label=ev.source_label,
+            mechanism=ev.mechanism,
+            provenance=ev.provenance,
+            temporal_recency=ev.temporal_recency,
+            metadata={k: v for k, v in ev.metadata.items()
+                      if k != "knowledge_semantics"},
+        )
+        rich_set = EvidenceReasoner().reason(
+            EvidenceCollection.from_dict(collection.to_dict())
+        ).evidence_sets[0]
+        plain_set = EvidenceReasoner().reason(
+            EvidenceCollection(
+                collection_id="ec_neutral",
+                assessment_id=collection.assessment_id,
+                timestamp=collection.timestamp,
+                regime=collection.regime,
+                items=(plain,),
+            )
+        ).evidence_sets[0]
+        assert rich_set.set_id == plain_set.set_id
+        assert rich_set.bias == plain_set.bias
+        assert rich_set.net_institutional_weight == plain_set.net_institutional_weight
+        assert rich_set.consensus_score == plain_set.consensus_score
+        assert rich_set.confidence_contribution == plain_set.confidence_contribution
