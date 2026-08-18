@@ -742,6 +742,7 @@ def _cpi_release_snapshot(
 def _evidence_reasoning(params: dict[str, Any], results: dict[str, Any]) -> Any:
     from evidence_collection.contracts import EvidenceCollection
     from evidence_reasoning.reasoner import EvidenceReasoner
+    from evidence_reasoning.historical_analogue import build_historical_analogue
 
     collection_data = results.get("evidence_collection")
     if collection_data is None:
@@ -764,8 +765,27 @@ def _evidence_reasoning(params: dict[str, Any], results: dict[str, Any]) -> Any:
         if run_local_index.is_file():
             episodes_index_path = str(run_local_index)
 
+    # Correction 025-B: explanation-only historical gold analogue built from
+    # the existing current configuration.  None on missing/empty index or no
+    # passing match -> reasoning metadata is unchanged and the pipeline
+    # continues normally.
+    analogue = build_historical_analogue(
+        cpi_condition=results.get("build_legacy_pipeline", {}).get(
+            "reasoning_condition"
+        ),
+        regime=(params.get("regime") or (results.get("regime_diagnosis") or {}).get("regime")),
+        real_yield_path=params.get("yield_data_path"),
+        dxy_path=params.get("dxy_data_path"),
+        lookback_days=int(params.get("yield_context_lookback_days", 30)),
+        episodes_index_path=episodes_index_path,
+    )
+
     reasoner = EvidenceReasoner()
-    reasoning = reasoner.reason(collection, regime=params.get("regime"))
+    reasoning = reasoner.reason(
+        collection,
+        regime=params.get("regime"),
+        historical_analogue=analogue,
+    )
     return reasoning
 
 
