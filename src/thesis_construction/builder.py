@@ -51,6 +51,9 @@ class ThesisBuilder:
         factor_chunk = self._compose_factor_rationale(reasoning)
         if factor_chunk:
             explanation += f" | {factor_chunk}"
+        analogue_chunk = self._compose_historical_analogue(reasoning)
+        if analogue_chunk:
+            explanation += f" | {analogue_chunk}"
         prov = Provenance(
             created_at=assessment.timestamp,
             created_by="W8 ThesisBuilder",
@@ -237,3 +240,40 @@ class ThesisBuilder:
         if adjudicated:
             summary += " | " + " | ".join(adjudicated)
         return "factor: " + summary
+
+    @staticmethod
+    def _compose_historical_analogue(reasoning: EvidenceReasoning) -> str:
+        """Compose the explanation-only historical analogue chunk.
+
+        Correction 025-B: mirrors the deterministic payload carried in
+        ``reasoning.metadata["historical_analogue"]`` into a single
+        ``historical_analogue:`` suffix.  Uses only the retrieved fields and
+        the existing ``EvidenceCollection.aggregate()`` values already present
+        in the payload -- no new statistic is invented.  Returns "" when no
+        payload is present (e.g. index unavailable), so explanations are
+        byte-identical to before.
+        """
+        payload = reasoning.metadata.get("historical_analogue")
+        if not isinstance(payload, dict) or not payload:
+            return ""
+        count = int(payload.get("match_count", 0))
+        if count <= 0:
+            return ""
+        noun = "episode" if count == 1 else "episodes"
+        parts = [
+            f"historical_analogue: {count} comparable CPI {noun} "
+            "matched the current configuration"
+        ]
+        aggregate = payload.get("aggregate")
+        if isinstance(aggregate, dict) and aggregate.get("count"):
+            parts.append(
+                f"aggregate gold outcome avg "
+                f"{float(aggregate.get('avg_return_pct', 0.0)):+.3f}% (1d)"
+            )
+        top_ids = [
+            m.get("lesson_id") for m in payload.get("matches") or []
+            if m.get("lesson_id")
+        ]
+        if top_ids:
+            parts.append(f"top={','.join(top_ids)}")
+        return " | ".join(parts)

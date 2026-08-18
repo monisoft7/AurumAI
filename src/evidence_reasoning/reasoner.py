@@ -30,6 +30,7 @@ class EvidenceReasoner:
         self,
         collection: EvidenceCollection,
         regime: str | None = None,
+        historical_analogue: Any | None = None,
     ) -> EvidenceReasoning:
         evidence_items = list(collection.items)
         regime = regime or collection.regime
@@ -55,6 +56,12 @@ class EvidenceReasoner:
         factor_rationale = build_cross_factor_rationale(regime=regime)
         if factor_rationale is not None:
             metadata["factor_rationale"] = factor_rationale
+
+        # Correction 025-B: explanation-only historical gold analogue.  The
+        # payload is carried verbatim and feeds no scoring field; when absent
+        # the reasoning is byte-identical to before.
+        if historical_analogue is not None:
+            metadata["historical_analogue"] = historical_analogue
 
         reasoning = EvidenceReasoning(
             reasoning_id=f"er_{uuid4().hex[:12]}",

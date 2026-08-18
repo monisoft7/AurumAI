@@ -230,6 +230,9 @@ class ThesisUpdater:
         factor_chunk = ThesisBuilder._compose_factor_rationale(reasoning)
         if factor_chunk:
             explanation += f" | {factor_chunk}"
+        analogue_chunk = ThesisBuilder._compose_historical_analogue(reasoning)
+        if analogue_chunk:
+            explanation += f" | {analogue_chunk}"
         explanation += (
             f" | UPDATED v{new_version_number}: "
             f"evidence={len(updated_evidence)} | "
