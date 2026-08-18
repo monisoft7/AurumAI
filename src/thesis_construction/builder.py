@@ -54,6 +54,9 @@ class ThesisBuilder:
         analogue_chunk = self._compose_historical_analogue(reasoning)
         if analogue_chunk:
             explanation += f" | {analogue_chunk}"
+        adjudication_chunk = self._compose_historical_adjudication(reasoning)
+        if adjudication_chunk:
+            explanation += f" | {adjudication_chunk}"
         prov = Provenance(
             created_at=assessment.timestamp,
             created_by="W8 ThesisBuilder",
@@ -276,4 +279,44 @@ class ThesisBuilder:
         ]
         if top_ids:
             parts.append(f"top={','.join(top_ids)}")
+        return " | ".join(parts)
+
+    @staticmethod
+    def _compose_historical_adjudication(reasoning: EvidenceReasoning) -> str:
+        """Compose the explanation-only historical adjudication chunk.
+
+        Correction 028: mirrors the deterministic adjudication carried in
+        ``reasoning.metadata["historical_adjudication"]`` into a single
+        ``historical_adjudication:`` suffix following the analogue chunk.
+        Uses only the engine-produced conclusion and the record-derived
+        horizon statuses already present in the payload -- no new statistic is
+        invented.  Returns "" when no adjudication is present, so
+        explanations are byte-identical to before.
+        """
+        payload = reasoning.metadata.get("historical_adjudication")
+        if not isinstance(payload, dict) or not payload:
+            return ""
+        results = payload.get("horizon_results")
+        if not isinstance(results, dict) or not results:
+            return ""
+        statuses: list[str] = []
+        for key in ("1d", "5d", "20d"):
+            result = results.get(key)
+            if not isinstance(result, dict):
+                continue
+            agg = result.get("aggregation")
+            avg = 0.0
+            if isinstance(agg, dict) and isinstance(
+                agg.get("avg_return_pct"), (int, float)
+            ):
+                avg = float(agg["avg_return_pct"])
+            statuses.append(
+                f"{key}={result.get('status', 'n/a')} ({avg:+.3f}%)"
+            )
+        if not statuses:
+            return ""
+        parts = ["historical_adjudication: " + "; ".join(statuses)]
+        interpretation = payload.get("overall_interpretation")
+        if isinstance(interpretation, str) and interpretation:
+            parts.append(interpretation)
         return " | ".join(parts)

@@ -63,6 +63,18 @@ class EvidenceReasoner:
         if historical_analogue is not None:
             metadata["historical_analogue"] = historical_analogue
 
+        # Correction 028: explanation-only adjudication of the analogue via
+        # the existing LegacyReasoningEngine.  Stored in metadata only; the
+        # temporary Evidence adapter never enters this collection path.
+        if historical_analogue is not None:
+            from evidence_reasoning.historical_adjudication import (
+                build_historical_adjudication,
+            )
+
+            adjudication = build_historical_adjudication(historical_analogue)
+            if adjudication is not None:
+                metadata["historical_adjudication"] = adjudication
+
         reasoning = EvidenceReasoning(
             reasoning_id=f"er_{uuid4().hex[:12]}",
             collection_id=collection.collection_id,
