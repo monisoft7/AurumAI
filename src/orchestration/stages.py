@@ -863,25 +863,70 @@ def _thesis_update(params: dict[str, Any], results: dict[str, Any]) -> Any:
     return updater.update(construction, reasoning, assessment)
 
 
-def _construction_from_update(update: Any) -> Any:
-    """Build the single-thesis ThesisConstruction carried by a ThesisUpdate.
+def _construction_from_update(update: Any, original: Any = None) -> Any:
+    """Splice the versioned updated primary into the original candidate set.
 
-    The updated thesis is the current version (thesis_id carries the version
-    suffix, e.g. th_xxx.v2), so downstream stages can resolve confidence and
-    scenarios keyed by the same versioned thesis_id produced by the update.
+    The updated thesis is the new version of the previous primary
+    (thesis_id carries the version suffix, e.g. th_xxx.v2).  The original
+    W8 candidate set is preserved so W9/W12/W13 can still evaluate every
+    candidate: the previous primary is replaced by its versioned successor,
+    ``primary_thesis_id`` is re-pointed to the versioned id, and
+    ``ranked_thesis_ids`` are re-derived with the existing
+    institutional-support ranking semantics.
+
+    Falls back to the previous single-thesis reconstruction when the
+    original construction is unavailable (None or an error payload), so
+    downstream consumers can still resolve confidence and scenarios keyed
+    by the versioned thesis_id produced by the update.
     """
     from thesis_construction.contracts import ThesisConstruction
 
     thesis = update.updated_thesis
+
+    base: ThesisConstruction | None = None
+    if isinstance(original, ThesisConstruction):
+        base = original
+    elif isinstance(original, dict) and original.get("theses"):
+        base = ThesisConstruction.from_dict(original)
+
+    spliced: list[Any] = []
+    replaced = False
+    for t in (base.theses if base is not None else ()):
+        if t.thesis_id == update.previous_thesis_id:
+            spliced.append(thesis)
+            replaced = True
+        else:
+            spliced.append(t)
+    if not replaced:
+        spliced.append(thesis)
+
+    ranked_ids = [
+        t.thesis_id
+        for t in sorted(spliced, key=lambda t: t.institutional_support, reverse=True)
+    ]
+
+    if base is not None:
+        return ThesisConstruction(
+            construction_id=update.update_id,
+            reasoning_id=base.reasoning_id,
+            assessment_id=base.assessment_id,
+            timestamp=update.timestamp,
+            regime=base.regime,
+            theses=tuple(spliced),
+            ranked_thesis_ids=tuple(ranked_ids),
+            total_theses=len(spliced),
+            primary_thesis_id=thesis.thesis_id,
+            metadata=dict(base.metadata),
+        )
     return ThesisConstruction(
         construction_id=update.update_id,
         reasoning_id=update.reasoning_id,
         assessment_id=update.assessment_id,
         timestamp=update.timestamp,
         regime=thesis.regime,
-        theses=(thesis,),
-        ranked_thesis_ids=(thesis.thesis_id,),
-        total_theses=1,
+        theses=tuple(spliced),
+        ranked_thesis_ids=tuple(ranked_ids),
+        total_theses=len(spliced),
         primary_thesis_id=thesis.thesis_id,
     )
 
@@ -901,7 +946,9 @@ def _confidence_engine(params: dict[str, Any], results: dict[str, Any]) -> Any:
             update = ThesisUpdate.from_dict(update_data)
         else:
             update = update_data
-        construction = _construction_from_update(update)
+        construction = _construction_from_update(
+            update, results.get("thesis_construction")
+        )
     else:
         construction_data = results.get("thesis_construction")
         if construction_data is None:
@@ -945,7 +992,9 @@ def _scenario_generation(params: dict[str, Any], results: dict[str, Any]) -> Any
             update = ThesisUpdate.from_dict(update_data)
         else:
             update = update_data
-        construction = _construction_from_update(update)
+        construction = _construction_from_update(
+            update, results.get("thesis_construction")
+        )
     else:
         if isinstance(construction_data, dict) and "error" in construction_data:
             return {"error": "thesis_construction stage failed"}
@@ -1021,7 +1070,7 @@ def _decision_engine(params: dict[str, Any], results: dict[str, Any]) -> Any:
             update = ThesisUpdate.from_dict(update_data)
         else:
             update = update_data
-        construction = _construction_from_update(update)
+        construction = _construction_from_update(update, construction_data)
     elif isinstance(construction_data, dict):
         construction = ThesisConstruction.from_dict(construction_data)
     else:
