@@ -233,7 +233,9 @@ class ThesisUpdater:
         analogue_chunk = ThesisBuilder._compose_historical_analogue(reasoning)
         if analogue_chunk:
             explanation += f" | {analogue_chunk}"
-        adjudication_chunk = ThesisBuilder._compose_historical_adjudication(reasoning)
+        adjudication_chunk = ThesisBuilder._compose_historical_adjudication(
+            reasoning, thesis.direction
+        )
         if adjudication_chunk:
             explanation += f" | {adjudication_chunk}"
         contextual_chunk = ThesisBuilder._compose_contextual_historical_adjudication(
