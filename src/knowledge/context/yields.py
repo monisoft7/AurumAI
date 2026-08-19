@@ -6,6 +6,15 @@ from pathlib import Path
 import pandas as pd
 
 
+from knowledge.context.trend_state import TREND_FLAT, TREND_RISING, TREND_FALLING, derive_trend_states
+
+_YIELD_TREND_BY_STATE: dict[str, str] = {
+    TREND_RISING: "yields_rising",
+    TREND_FALLING: "yields_falling",
+    TREND_FLAT: "yields_flat",
+}
+
+
 @dataclass(frozen=True)
 class YieldContextConfig:
     yield_path: Path
@@ -19,8 +28,10 @@ class YieldContextEnricher:
     """Attach US 10Y yield context to event lessons.
 
     Yield level is classified from the latest available value on or before the
-    event date. Yield trend compares that value with the latest available value
-    on or before `event_date - lookback_days`, expressed in basis points.
+    event date. Yield trend is the Correction 029 state machine derived from
+    the 30-day change in basis points: rising/falling are entered only above
+    the existing threshold and released only at a zero crossing (see
+    ``knowledge.context.trend_state``).
     """
 
     def __init__(self, config: YieldContextConfig):
@@ -29,12 +40,18 @@ class YieldContextEnricher:
     def enrich(self, lessons: pd.DataFrame) -> pd.DataFrame:
         self._require_columns(lessons, {"event_date"}, Path("<lessons>"))
         yields = self._load_yields(self.config.yield_path)
+        states = derive_trend_states(
+            yields["Date"],
+            yields["Value"] * 100.0,
+            self.config.lookback_days,
+            self.config.flat_change_bps,
+        )
 
         enriched = lessons.copy()
         enriched["event_date"] = pd.to_datetime(enriched["event_date"], errors="raise")
 
         context_rows = [
-            self._context_for_date(event_date, yields)
+            self._context_for_date(event_date, yields, states)
             for event_date in enriched["event_date"]
         ]
         context = pd.DataFrame(context_rows)
@@ -69,6 +86,7 @@ class YieldContextEnricher:
         self,
         event_date: pd.Timestamp,
         yields: pd.DataFrame,
+        states: list[str],
     ) -> dict[str, object]:
         current = self._latest_on_or_before(yields, event_date)
         lookback_date = event_date - pd.Timedelta(days=self.config.lookback_days)
@@ -91,7 +109,7 @@ class YieldContextEnricher:
         else:
             previous_value = float(previous["Value"])
             change_bps = round((current_value - previous_value) * 100.0, 6)
-            trend = self._trend(change_bps)
+            trend = self._trend_state(states, yields, event_date)
 
         return {
             "us10y_value_at_event": round(current_value, 6),
@@ -120,12 +138,16 @@ class YieldContextEnricher:
             return "high_yield_regime"
         return "normal_yield_regime"
 
-    def _trend(self, change_bps: float) -> str:
-        if change_bps > self.config.flat_change_bps:
-            return "yields_rising"
-        if change_bps < -self.config.flat_change_bps:
-            return "yields_falling"
-        return "yields_flat"
+    def _trend_state(
+        self,
+        states: list[str],
+        yields: pd.DataFrame,
+        event_date: pd.Timestamp,
+    ) -> str:
+        positions = yields["Date"].searchsorted(event_date, side="right")
+        if positions <= 0:
+            return "missing_yield_lookback"
+        return _YIELD_TREND_BY_STATE[states[int(positions) - 1]]
 
     def _require_columns(self, df: pd.DataFrame, required: set[str], path: Path) -> None:
         missing = required.difference(df.columns)

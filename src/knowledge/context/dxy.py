@@ -6,6 +6,15 @@ from pathlib import Path
 import pandas as pd
 
 
+from knowledge.context.trend_state import TREND_FLAT, TREND_RISING, TREND_FALLING, derive_trend_states
+
+_DXY_TREND_BY_STATE: dict[str, str] = {
+    TREND_RISING: "dxy_rising",
+    TREND_FALLING: "dxy_falling",
+    TREND_FLAT: "dxy_flat",
+}
+
+
 @dataclass(frozen=True)
 class DXYContextConfig:
     dxy_path: Path
@@ -19,8 +28,10 @@ class DXYContextEnricher:
     """Attach DXY (US Dollar Index) context to event lessons.
 
     DXY level is classified from the latest available value on or before the
-    event date. DXY trend compares that value with the latest available value
-    on or before `event_date - lookback_days`, expressed in index points.
+    event date. DXY trend is the Correction 029 state machine derived from the
+    30-day change in index points: rising/falling are entered only above the
+    existing threshold and released only at a zero crossing (see
+    ``knowledge.context.trend_state``).
     """
 
     def __init__(self, config: DXYContextConfig):
@@ -29,12 +40,18 @@ class DXYContextEnricher:
     def enrich(self, lessons: pd.DataFrame) -> pd.DataFrame:
         self._require_columns(lessons, {"event_date"}, Path("<lessons>"))
         dxy = self._load_dxy(self.config.dxy_path)
+        states = derive_trend_states(
+            dxy["Date"],
+            dxy["Value"],
+            self.config.lookback_days,
+            self.config.flat_change,
+        )
 
         enriched = lessons.copy()
         enriched["event_date"] = pd.to_datetime(enriched["event_date"], errors="raise")
 
         context_rows = [
-            self._context_for_date(event_date, dxy)
+            self._context_for_date(event_date, dxy, states)
             for event_date in enriched["event_date"]
         ]
         context = pd.DataFrame(context_rows)
@@ -69,6 +86,7 @@ class DXYContextEnricher:
         self,
         event_date: pd.Timestamp,
         dxy: pd.DataFrame,
+        states: list[str],
     ) -> dict[str, object]:
         current = self._latest_on_or_before(dxy, event_date)
         lookback_date = event_date - pd.Timedelta(days=self.config.lookback_days)
@@ -91,7 +109,7 @@ class DXYContextEnricher:
         else:
             previous_value = float(previous["Value"])
             change = round(current_value - previous_value, 6)
-            trend = self._trend(change)
+            trend = self._trend_state(states, dxy, event_date)
 
         return {
             "dxy_value_at_event": round(current_value, 6),
@@ -120,12 +138,16 @@ class DXYContextEnricher:
             return "high_dxy_regime"
         return "normal_dxy_regime"
 
-    def _trend(self, change: float) -> str:
-        if change > self.config.flat_change:
-            return "dxy_rising"
-        if change < -self.config.flat_change:
-            return "dxy_falling"
-        return "dxy_flat"
+    def _trend_state(
+        self,
+        states: list[str],
+        dxy: pd.DataFrame,
+        event_date: pd.Timestamp,
+    ) -> str:
+        positions = dxy["Date"].searchsorted(event_date, side="right")
+        if positions <= 0:
+            return "missing_dxy_lookback"
+        return _DXY_TREND_BY_STATE[states[int(positions) - 1]]
 
     def _require_columns(self, df: pd.DataFrame, required: set[str], path: Path) -> None:
         missing = required.difference(df.columns)

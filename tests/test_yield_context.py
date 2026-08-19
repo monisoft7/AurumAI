@@ -30,7 +30,7 @@ def test_yield_context_enriches_lessons_with_level_and_trend(tmp_path: Path) -> 
         "low_yield_regime",
         "low_yield_regime",
     ]
-    assert list(enriched["us10y_trend"]) == ["yields_rising", "yields_falling"]
+    assert list(enriched["us10y_trend"]) == ["yields_rising", "yields_flat"]
     assert list(enriched["us10y_change_bps"]) == [30.0, -20.0]
 
 
