@@ -236,6 +236,11 @@ class ThesisUpdater:
         adjudication_chunk = ThesisBuilder._compose_historical_adjudication(reasoning)
         if adjudication_chunk:
             explanation += f" | {adjudication_chunk}"
+        contextual_chunk = ThesisBuilder._compose_contextual_historical_adjudication(
+            reasoning
+        )
+        if contextual_chunk:
+            explanation += f" | {contextual_chunk}"
         explanation += (
             f" | UPDATED v{new_version_number}: "
             f"evidence={len(updated_evidence)} | "

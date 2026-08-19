@@ -57,6 +57,9 @@ class ThesisBuilder:
         adjudication_chunk = self._compose_historical_adjudication(reasoning)
         if adjudication_chunk:
             explanation += f" | {adjudication_chunk}"
+        contextual_chunk = self._compose_contextual_historical_adjudication(reasoning)
+        if contextual_chunk:
+            explanation += f" | {contextual_chunk}"
         prov = Provenance(
             created_at=assessment.timestamp,
             created_by="W8 ThesisBuilder",
@@ -319,4 +322,42 @@ class ThesisBuilder:
         interpretation = payload.get("overall_interpretation")
         if isinstance(interpretation, str) and interpretation:
             parts.append(interpretation)
+        return " | ".join(parts)
+
+    @staticmethod
+    def _compose_contextual_historical_adjudication(
+        reasoning: EvidenceReasoning,
+    ) -> str:
+        """Compose the explanation-only contextual historical chunk.
+
+        Correction 030: mirrors the deterministic payload carried in
+        ``reasoning.metadata["contextual_historical_adjudication"]`` into a
+        single ``contextual_historical_adjudication:`` suffix after the
+        ``historical_adjudication:`` chunk.  Uses only the fields already
+        present in the payload -- no new statistic is invented.  Returns ""
+        when no payload is present, so explanations are byte-identical to
+        before.
+        """
+        payload = reasoning.metadata.get("contextual_historical_adjudication")
+        if not isinstance(payload, dict) or not payload:
+            return ""
+        tendency = (payload.get("historical_tendency") or {}).get(
+            "tendency", "unknown"
+        )
+        current = payload.get("current_context") or {}
+        regime_context = payload.get("regime_context") or {}
+        effect = payload.get("context_effect", "")
+        parts = [
+            "contextual_historical_adjudication: "
+            f"effect={effect} tendency={tendency} "
+            f"composite_bias={current.get('composite_bias', 'n/a')}",
+        ]
+        if regime_context.get("regime"):
+            parts.append(f"regime={regime_context['regime']}")
+        interpretation = payload.get("overall_interpretation")
+        if isinstance(interpretation, str) and interpretation:
+            parts.append(interpretation)
+        invalidation = payload.get("invalidation_conditions")
+        if isinstance(invalidation, list) and invalidation:
+            parts.append("invalidation: " + "; ".join(invalidation))
         return " | ".join(parts)

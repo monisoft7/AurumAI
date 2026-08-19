@@ -75,6 +75,27 @@ class EvidenceReasoner:
             if adjudication is not None:
                 metadata["historical_adjudication"] = adjudication
 
+                # Correction 030: explanation-only contextual interpretation
+                # joining the adjudication, the current factor rationale and
+                # the current query.  Stored in metadata only; feeds no
+                # scoring field.
+                from evidence_reasoning.contextual_historical_adjudication import (
+                    build_contextual_historical_adjudication,
+                )
+
+                query = (
+                    historical_analogue.get("query")
+                    if isinstance(historical_analogue, dict)
+                    else None
+                )
+                contextual = build_contextual_historical_adjudication(
+                    adjudication,
+                    metadata.get("factor_rationale"),
+                    query,
+                )
+                if contextual is not None:
+                    metadata["contextual_historical_adjudication"] = contextual
+
         reasoning = EvidenceReasoning(
             reasoning_id=f"er_{uuid4().hex[:12]}",
             collection_id=collection.collection_id,
