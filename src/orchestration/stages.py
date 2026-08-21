@@ -1158,13 +1158,65 @@ def _trade_recommendation(params: dict[str, Any], results: dict[str, Any]) -> An
     return recommendation
 
 
+def _thesis_historical_assessments(
+    results: dict[str, Any],
+) -> list[dict[str, Any]] | None:
+    """Candidate-scoped historical assessments for the finalize artifact.
+
+    Correction 034: observability only.  Resolves the final candidate set
+    exactly like the W9/W12/W13 boundary (``_construction_from_update``), so
+    the W10-versioned primary is the one exposed.  Each entry wraps the
+    verbatim in-memory ``historical_assessment`` -- nothing is recalculated,
+    and no synthetic id or timestamp is introduced.  Candidates without a
+    historical payload are listed with ``historical_assessment: null``.
+    Returns ``None`` when no candidate collection is available, keeping the
+    finalize payload byte-identical to before for legacy-only runs.
+    """
+    from thesis_construction.contracts import ThesisConstruction
+    from thesis_update.contracts import ThesisUpdate
+
+    update_data = results.get("thesis_update")
+    construction_data = results.get("thesis_construction")
+    if update_data is not None and not (
+        isinstance(update_data, dict) and "error" in update_data
+    ):
+        update = (
+            ThesisUpdate.from_dict(update_data)
+            if isinstance(update_data, dict)
+            else update_data
+        )
+        construction = _construction_from_update(update, construction_data)
+    elif construction_data is not None and not (
+        isinstance(construction_data, dict) and "error" in construction_data
+    ):
+        construction = (
+            ThesisConstruction.from_dict(construction_data)
+            if isinstance(construction_data, dict)
+            else construction_data
+        )
+    else:
+        return None
+
+    if not construction.theses:
+        return None
+
+    return [
+        {
+            "thesis_id": thesis.thesis_id,
+            "thesis_direction": thesis.direction,
+            "historical_assessment": thesis.metadata.get("historical_assessment"),
+        }
+        for thesis in construction.theses
+    ]
+
+
 def _finalize(params: dict[str, Any], results: dict[str, Any]) -> Any:
     legacy_pipeline = results.get("build_legacy_pipeline", {})
     legacy_decision = legacy_pipeline.get("decision")
     institutional_decision = results.get("decision_engine")
     if isinstance(institutional_decision, dict) and "error" in institutional_decision:
         institutional_decision = None
-    return {
+    payload = {
         "decision": (
             institutional_decision
             if institutional_decision is not None
@@ -1181,3 +1233,7 @@ def _finalize(params: dict[str, Any], results: dict[str, Any]) -> Any:
         "risk_budget": results.get("position_sizing", {}).get("risk_budget"),
         "position_sizing_status": results.get("position_sizing", {}).get("status"),
     }
+    assessments = _thesis_historical_assessments(results)
+    if assessments:
+        payload["thesis_historical_assessments"] = assessments
+    return payload
