@@ -182,12 +182,25 @@ def build_historical_analogue(
 ) -> dict[str, Any] | None:
     """Retrieve comparable CPI episodes and assemble the analogue payload.
 
+    Two-stage retrieval:
+
+    Stage 1: query with regime intact.
+        If useful results exist, return them unchanged (existing exact behavior).
+
+    Stage 2: if Stage 1 produces no useful result, OR every exact-condition
+        candidate is rejected solely because institutional_context mismatches,
+        retry without institutional_context (regime relaxed).
+
     Returns None (omitted, pipeline continues unchanged) when the episode
     index is missing/unreadable, the current CPI condition is invalid, or no
-    match passes the existing retriever similarity floor.
+    match passes the existing retriever similarity floor even after fallback.
 
     Deterministic: same lesson artifact + same current configuration always
     yield the same matches, order, and content.
+
+    When regime is relaxed, ``context_relaxed`` is set to ``["regime"]``
+    and each returned match is honestly classified (not labeled "exact"
+    when the regime differs).
     """
     index_path = (
         Path(episodes_index_path) if episodes_index_path else DEFAULT_EPISODES_INDEX_PATH
@@ -210,38 +223,111 @@ def build_historical_analogue(
             as_of_date=as_of_date,
         )
     )
-    query = build_situation_query(cpi_condition, current_trends, regime)
-    if query is None:
-        return None
+    base_query = build_situation_query(cpi_condition, current_trends, regime)
 
-    matches = HistoricalSituationRetriever().retrieve(query, query_surface)
+    # ── Stage 1: query with regime intact ────────────────────────────────
+    if base_query is not None and base_query.institutional_context:
+        matches = HistoricalSituationRetriever().retrieve(base_query, query_surface)
+        if matches:
+            state_by_id = {
+                s.state_id: s for s in indexer._ensure_sorted()
+            }
+            entries = [_match_entry_honest(m, state_by_id, regime) for m in matches[:top_k]]
+            aggregate = EvidenceCollection([m.evidence for m in matches[:top_k]]).aggregate()
+
+            return {
+                "primary_query": {
+                    "event_type": base_query.event_type,
+                    "condition": dict(base_query.condition),
+                    "institutional_context": dict(base_query.institutional_context),
+                },
+                "effective_query": {
+                    "event_type": base_query.event_type,
+                    "condition": dict(base_query.condition),
+                    "institutional_context": dict(base_query.institutional_context),
+                },
+                "context_relaxed": False,
+                "match_count": len(matches),
+                "matches": entries,
+                "aggregate": aggregate,
+                "top_k": top_k,
+                "aggregate_scope": "top_k",
+                # Backward compatibility
+                "query": {
+                    "event_type": base_query.event_type,
+                    "condition": dict(base_query.condition),
+                    "institutional_context": dict(base_query.institutional_context),
+                },
+            }
+
+    # ── Stage 2: fallback without institutional_context ──────────────────
+    # Retry without institutional_context (regime relaxed).
+    # empty institutional_context => neutral 0.5 context similarity.
+    fallback_query = build_situation_query(cpi_condition, current_trends, None)
+
+    matches = HistoricalSituationRetriever().retrieve(fallback_query, query_surface)
     if not matches:
         return None
 
     state_by_id = {
         s.state_id: s for s in indexer._ensure_sorted()
     }
-    entries = [_match_entry(m, state_by_id) for m in matches[:top_k]]
+    entries = [_match_entry_honest(m, state_by_id, regime) for m in matches[:top_k]]
     aggregate = EvidenceCollection([m.evidence for m in matches[:top_k]]).aggregate()
 
     return {
-        "query": {
-            "event_type": query.event_type,
-            "condition": dict(query.condition),
-            "institutional_context": dict(query.institutional_context),
+        "primary_query": (
+            {
+                "event_type": base_query.event_type,
+                "condition": dict(base_query.condition),
+                "institutional_context": dict(base_query.institutional_context),
+            }
+            if base_query
+            else {
+                "event_type": fallback_query.event_type,
+                "condition": dict(fallback_query.condition),
+                "institutional_context": {},
+            }
+        ),
+        "effective_query": {
+            "event_type": fallback_query.event_type,
+            "condition": dict(fallback_query.condition),
+            "institutional_context": {},
         },
+        "context_relaxed": ["regime"],
         "match_count": len(matches),
         "matches": entries,
         "aggregate": aggregate,
+        "top_k": top_k,
+        "aggregate_scope": "top_k",
+        # Backward compatibility
+        "query": {
+            "event_type": fallback_query.event_type,
+            "condition": dict(fallback_query.condition),
+            "institutional_context": {},
+        },
     }
 
 
-def _match_entry(
+def _match_entry_honest(
     match: SituationMatch,
     state_by_id: dict[str, Any],
+    regime: str | None,
 ) -> dict[str, Any]:
+    """Convert a SituationMatch to a payload dict with honest retrieval_method.
+
+    Rules (per-match, not per-call):
+      - exact:   all required configuration dimensions match
+      - contextual: configuration dimensions match but institutional regime differs
+      - broadened: one or more requested condition keys are relaxed/mismatched
+      - weak:    partial low-dimension similarity if existing semantics require it
+    """
     ev: Evidence = match.evidence
     state = state_by_id.get(ev.evidence_id)
+
+    # Determine if this match's configuration matches the original query regime
+    match_regime = dict(ev.metadata.get("institutional_context", {}))
+    regime_matches = (regime is not None) and (match_regime.get("regime") == regime)
 
     gold_outcome: dict[str, Any] = {
         "average_return_pct": ev.average_return_pct,
@@ -253,6 +339,16 @@ def _match_entry(
             if value is not None:
                 gold_outcome[key] = value
 
+    # Honestly classify retrieval_method based on what actually matches
+    if match.retrieval_method == "exact" and not regime_matches:
+        # Regime-mismatched exact-condition: label as contextual, not exact
+        retrieved_method = "contextual"
+    elif match.retrieval_method == "broadened":
+        retrieved_method = "broadened"
+    else:
+        # "exact" with matching regime, or any other case
+        retrieved_method = match.retrieval_method
+
     entry: dict[str, Any] = {
         "lesson_id": ev.evidence_id,
         "event_date": state.date if state is not None else None,
@@ -262,7 +358,7 @@ def _match_entry(
             for key in ("cpi_pressure", "us10y_trend", "dxy_trend")
             if key in ev.condition
         },
-        "historical_regime": dict(ev.metadata.get("institutional_context", {})),
+        "historical_regime": match_regime,
         "provenance": {
             key: ev.metadata[key]
             for key in ("source_artifact_path", "source_artifact_sha256")
@@ -276,7 +372,7 @@ def _match_entry(
             "maturity_similarity": match.maturity_similarity,
             "temporal_similarity": match.temporal_similarity,
             "institutional_context_similarity": match.institutional_context_similarity,
-            "retrieval_method": match.retrieval_method,
+            "retrieval_method": retrieved_method,
         },
     }
     return entry

@@ -270,17 +270,42 @@ class TestHistoricalAnalogue:
             "regime": DEFLATIONARY_CRISIS
         }
 
-    def test_full_configuration_mismatch_rejects(self, episodes_json: Path) -> None:
-        # Genuine mismatch: no episode carries the INFLATIONARY regime, so
-        # institutional-context similarity is 0 for every candidate and the
-        # retriever's similarity floor excludes them all.
+    def test_full_configuration_mismatch_rejects_still_returns_fallback(
+        self, episodes_json: Path,
+    ) -> None:
+        # Correction 035: when primary query with regime produces no useful
+        # result (institutional_context mismatch rejects all exact-condition
+        # candidates), a secondary fallback without institutional_context is
+        # performed. The fallback finds episodes matching on configuration
+        # dimensions alone, honestly classified (not labeled "exact" when
+        # regime differs).
         payload = build_historical_analogue(
             cpi_condition={"cpi_pressure": "inflation_pressure_down"},
             regime=INFLATIONARY,
             trends={"us10y_trend": "yields_falling", "dxy_trend": "dxy_rising"},
             episodes_index_path=episodes_json,
         )
-        assert payload is None
+        # Stage 2 fallback activates: returns matches with relaxed regime,
+        # honestly classified (never labeled "exact" when regime mismatches).
+        assert payload is not None
+        assert payload["context_relaxed"] == ["regime"]
+        assert payload["match_count"] >= 1
+        # Every returned match must NOT be labeled "exact" when regime differs
+        for m in payload["matches"]:
+            assert m["similarity"]["retrieval_method"] != "exact", (
+                f"Match {m['lesson_id']} should not be labeled exact "
+                f"when regime differs (got {m['similarity']['retrieval_method']})"
+            )
+        # Provenance preserved
+        prov = payload["matches"][0]["provenance"]
+        assert prov["source_artifact_path"] == "data/economic/CPIAUCSL.csv"
+        assert prov["source_artifact_sha256"] == "abc123"
+        # effective_query has no institutional_context (regime relaxed)
+        assert payload["effective_query"]["institutional_context"] == {}
+        # primary_query still shows the original regime
+        assert payload["primary_query"]["institutional_context"] == {
+            "regime": INFLATIONARY
+        }
 
     def test_provenance_preserved(self, episodes_json: Path) -> None:
         payload = build_historical_analogue(
