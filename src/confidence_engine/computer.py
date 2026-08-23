@@ -69,8 +69,14 @@ class ConfidenceComputer:
             for name, weight in self.PENALTY_WEIGHTS.items()
         )
 
-        support_factor = institutional_support if institutional_support > 0.0 else 1.0
-        final = positive_score * support_factor * (1.0 - min(penalty_score, 1.0))
+        # Correction 049-B: institutional_support enters exactly ONCE,
+        # through evidence_quality / positive_score (the ThesisBuilder mean
+        # of supporting net weights).  The former second global
+        # multiplication (support_factor) duplicated that contribution and
+        # made the 0.5 decision gate unreachable (Trace 049-X: 0/25 crossed;
+        # SUPPORT_ONCE counterfactual: 17/25).  Removed verbatim; every
+        # other component, weight and penalty is unchanged.
+        final = positive_score * (1.0 - min(penalty_score, 1.0))
         final = round(max(0.0, min(final, 1.0)), 4)
 
         positive_contributors = [
@@ -95,7 +101,6 @@ class ConfidenceComputer:
             "reliability_category": self.reliability_category(final),
             "metadata": {
                 "institutional_support": institutional_support,
-                "support_factor": round(support_factor, 4),
             },
         }
 

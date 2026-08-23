@@ -648,7 +648,7 @@ class TestW9InputConsumption:
         engine = ConfidenceEngine()
         result = engine.evaluate(construction, generation=generation)
         tc = result.theses_confidence[0]
-        assert tc.final_confidence == 0.855
+        assert tc.final_confidence == 0.95
         assert tc.metadata["gs_test"]["all_answered"] is True
         assert tc.metadata["gs_cap"] == "none"
         assert result.metadata["meta_evidence"]["w12_downside_case_consumed"] is True
@@ -688,7 +688,7 @@ class TestW9InputConsumption:
         result = engine.evaluate(construction, oos_ece=0.1)
         tc = result.theses_confidence[0]
         assert tc.metadata["oos_calibration"]["cap_applied"] == "none"
-        assert tc.final_confidence == 0.855
+        assert tc.final_confidence == 0.95
 
     def test_absent_inputs_preserve_legacy_behavior(self):
         construction = _make_construction((_make_thesis("th_1"),))
@@ -794,3 +794,89 @@ def test_w9_orchestration_stage_missing_data():
     result = _confidence_engine({}, {})
     assert isinstance(result, dict)
     assert "error" in result
+
+
+# =========================================================================
+# Correction 049-B: institutional support applied exactly ONCE
+# (the second global multiplication by support_factor is removed)
+# =========================================================================
+
+
+class TestCorrection049BSupportAppliedOnce:
+    def test_support_not_applied_twice(self):
+        thesis = _make_thesis()
+        computer = ConfidenceComputer()
+        result = computer.compute(thesis)
+        bd = result["confidence_breakdown"]
+        ps = (
+            0.25 * bd["evidence_quality"]
+            + 0.25 * bd["evidence_consensus"]
+            + 0.15 * bd["regime_alignment"]
+            + 0.15 * bd["source_diversity"]
+            + 0.10 * bd["knowledge_record_quality"]
+            + 0.10 * bd["temporal_recency"]
+        )
+        pen = (
+            0.35 * bd["counter_evidence"]
+            + 0.25 * bd["missing_evidence"]
+            + 0.40 * bd["internal_consistency"]
+        )
+        expected = round(ps * (1.0 - min(pen, 1.0)), 4)
+        assert result["final_confidence"] == expected
+        legacy_double = round(ps * 0.7 * (1.0 - min(pen, 1.0)), 4)
+        assert result["final_confidence"] != legacy_double
+
+    def test_final_invariant_to_support_level_given_same_inputs(self):
+        high = _make_thesis("th_sup09", institutional_support=0.9)
+        zero = _make_thesis("th_sup00", institutional_support=0.0)
+        r_high = ConfidenceComputer().compute(high)
+        r_zero = ConfidenceComputer().compute(zero)
+        assert r_high["final_confidence"] == r_zero["final_confidence"]
+
+    def test_confidence_capped_at_one(self):
+        thesis = _make_thesis(
+            "th_max",
+            supporting_set_ids=("a", "b", "c"),
+            provenance_count=3,
+            confidence_inputs={
+                "avg_supporting_weight": 1.0,
+                "avg_supporting_consensus": 1.0,
+                "conflict_severity": 0.0,
+                "confidence_penalty": 0.0,
+                "raw_support": 1.0,
+            },
+        )
+        result = ConfidenceComputer().compute(thesis)
+        assert result["final_confidence"] == 1.0
+
+    def test_deterministic_repeated_computation(self):
+        thesis = _make_thesis()
+        computer = ConfidenceComputer()
+        first = computer.compute(thesis)
+        second = computer.compute(thesis)
+        assert first == second
+
+    def test_n1_numeric_regression_trace049x_2022_12(self):
+        thesis = _make_thesis(
+            "th_n1",
+            direction="neutral",
+            regime="NORMAL_GROWTH",
+            supporting_set_ids=("es_general", "es_inflation"),
+            provenance_count=2,
+            remaining_unknowns=(),
+            confidence_inputs={
+                "avg_supporting_weight": 0.5528,
+                "avg_supporting_consensus": 1.0,
+                "conflict_severity": 0.0,
+                "confidence_penalty": 0.1,
+                "raw_support": 0.5528,
+            },
+            institutional_support=0.4975,
+        )
+        result = ConfidenceComputer().compute(thesis)
+        assert result["final_confidence"] == 0.7327
+
+    def test_metadata_records_support_without_multiplier(self):
+        result = ConfidenceComputer().compute(_make_thesis())
+        assert result["metadata"]["institutional_support"] == 0.7
+        assert "support_factor" not in result["metadata"]
