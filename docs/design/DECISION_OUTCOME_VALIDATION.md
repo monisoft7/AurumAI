@@ -95,6 +95,22 @@ Field notes:
 - `asset` is fixed `XAU/USD` in v1; the schema is forward-compatible.
 - `decision_id` is an optional cross-reference for traceability; `null` if absent.
 
+Correction 055-A (`schema_version` bumped to `1.1`; all prior fields preserved):
+`decision_snapshot` freezes decision-time facts already contained in
+`finalize["decision"]`, verbatim, so later evaluation never recomputes or
+reinterprets them:
+- `best_rejected` — `{thesis_id, direction, composite_score}` of the best
+  forgone candidate: for abstentions the selected-but-gated thesis takes
+  precedence, otherwise the top composite-sorted `rejected_alternatives` entry;
+  `null` when none exists.
+- `gate_reasons` — `{conviction_gate_pass, rr_gate_pass, risk_reward_ratio,
+  bias_review_blocked}` using the existing W13 constants
+  (`NO_TRADE_CONFIDENCE=0.5`, `NO_TRADE_RR_RATIO=2.0`); `rr_gate_pass=null`
+  is the deterministic signature of the no-eligible-thesis path.
+- `evidence_snapshot` — `{evidence_quality, counter_evidence_quality,
+  scenario_probability_max, total_theses_evaluated}` read from the recorded
+  decision drivers and metadata.
+
 ### 4.2 Evaluated record `outputs/<date>/outcome.evaluated.json`
 
 Identical schema with `status: "evaluated"` and the three outcome fields populated:
@@ -124,6 +140,20 @@ Semantics:
 - `decision_correct` — `true`/`false` from `_decision_is_correct`; **`null` for `NO_TRADE` (abstention is not scored)**, matching existing replay semantics (`historical_replay.py:147-167`).
 - `evaluation_timestamp` — UTC ISO-8601 when the evaluated record was written.
 
+Trace 054 additive fields (evaluated-artifact schema bumped to `1.1`; the
+pending decision-time artifact remains schema `1.0`):
+
+- `gold_source_sha256` — SHA-256 hex digest of the exact gold CSV bytes consulted for this evaluation (`null` when the file is missing/unreadable). Enables reproducibility checks for later re-evaluation without a data-vintage system.
+- `abstention_evaluable` — `true` iff the decision is an abstention (`NO_TRADE` / `INSUFFICIENT_EVIDENCE`).
+- `abstention_verdict` — Correction 055-A taxonomy: `justified_abstention` (no meaningful positive forgone return beyond the existing ±0.10% dead zone), `missed_opportunity` (a named forgone directional candidate would have won beyond the dead zone), `unresolvable` (no eligible directional thesis existed; structural, outcome-independent), `unevaluable` (horizon/gold/integrity failure), or `unscored` (run predates `decision_snapshot`). `null` for non-abstentions.
+- `abstention_basis` — decision-time bases restated verbatim (`bias_review`, `low_conviction`, `rr_asymmetry`, `no_eligible_thesis`); they never override the outcome verdict.
+- `decision_snapshot` — passthrough of the frozen decision-time snapshot.
+- `abstention_return` — the realized return for abstentions (information, not a score); `null` otherwise.
+
+`decision_correct` stays `null` for abstentions: verdicts assess abstention
+quality only. Any binary abstention scoring policy remains DEFERRED. HOLD is
+a scored flat decision class and never enters the abstention taxonomy.
+
 ### 4.3 Immutability pairing
 
 - The pending artifact is **write-once** at Phase A.
@@ -136,6 +166,7 @@ Semantics:
 |---|---|---|---|
 | P1 — Pending emit | `run.py` artifact-writer block (`run.py:376-399`), beside `summary.json`/`finalize.json` writes | Writes `outcome.json` from already-computed run values | Yes — new file, new call; no existing line altered |
 | P2 — Evaluation | New standalone evaluator tool (co-located with `scripts/generate_institutional_report.py`) | Loads pending record + gold CSV, calls the three reused functions, writes `outcome.evaluated.json` | Yes — new tool; `historical_replay.py` and contracts untouched |
+| P2b — Automatic evaluation (Trace 054) | `scripts/run_daily.py` invokes `scripts/evaluate_outcome.py --all-pending` after report generation and verification | Sweeps every run under the outputs base whose horizon has elapsed and evaluates it idempotently; evaluated runs are skipped; failures never affect the daily result or exit code | Yes — additive scheduling step; no decision-time artifact is touched |
 | P3 — Consumption | Reporting / validation / lessons | Reads evaluated records | Yes — read-only |
 
 No orchestration stage is added or modified. The run workflow, decision logic, thresholds, and all contracts (`decision_engine`, `simulation.models`, `InstitutionalDecision`, etc.) are unchanged.

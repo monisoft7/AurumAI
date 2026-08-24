@@ -75,7 +75,7 @@ class TestOutcomeRecordEmit:
             institutional_confidence=0.3139,
             decision_id="dec_0f5f745cf534",
         )
-        assert record["schema_version"] == "1.0"
+        assert record["schema_version"] == "1.1"
         assert record["artifact"] == "decision_outcome"
         assert record["status"] == "pending"
         assert record["run_id"] == "runtime_20260804_182103"

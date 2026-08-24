@@ -8,12 +8,15 @@ Runs the complete daily institutional workflow:
    new immutable record was appended to the run registry.
 4. Send the report to Telegram (output channel only; failures never affect
    the pipeline).
-5. Print a concise execution summary and exit with a proper exit code.
+5. Evaluate elapsed outcome horizons across all runs via
+   ``scripts/evaluate_outcome.py --all-pending`` (additive evaluation layer
+   only; failures never affect the pipeline result or exit code).
+6. Print a concise execution summary and exit with a proper exit code.
 
 This file is the scheduling/runtime layer only. It executes the existing
-``run.py`` and ``scripts/generate_institutional_report.py`` as subprocesses;
-it does not modify any workflow, algorithm, contract, report, or registry
-behavior.
+``run.py``, ``scripts/generate_institutional_report.py`` and
+``scripts/evaluate_outcome.py`` as subprocesses; it does not modify any
+workflow, algorithm, contract, report, or registry behavior.
 
 Usage:
     python scripts/run_daily.py
@@ -46,6 +49,7 @@ EXIT_CONFIG_ERROR = 2
 
 PIPELINE_SCRIPT = ROOT / "run.py"
 REPORT_SCRIPT = ROOT / "scripts" / "generate_institutional_report.py"
+EVALUATE_SCRIPT = ROOT / "scripts" / "evaluate_outcome.py"
 REGISTRY_PATH = ROOT / "runtime" / "run_registry.jsonl"
 
 
@@ -183,6 +187,33 @@ def _send_telegram(run_dir: Path) -> tuple[bool, str]:
         return False, f"failed (pipeline unaffected): {exc}"
 
 
+def _evaluate_outcomes() -> tuple[bool, str]:
+    """Evaluate elapsed outcome horizons across all runs (fail-safe).
+
+    Invokes the existing evaluator's ``--all-pending`` sweep as a
+    subprocess. Never raises and never affects the pipeline result or
+    the daily exit code.
+    """
+    if not EVALUATE_SCRIPT.exists():
+        return False, "evaluator script missing (pipeline unaffected)"
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(EVALUATE_SCRIPT), "--all-pending"],
+            cwd=str(ROOT),
+            capture_output=True,
+            text=True,
+            timeout=600,
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        return False, f"failed (pipeline unaffected): {exc}"
+    if proc.returncode != 0:
+        detail = (proc.stderr or "").strip().splitlines()
+        reason = detail[-1] if detail else f"exit code {proc.returncode}"
+        return False, f"failed ({reason}; pipeline unaffected)"
+    lines = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+    return True, lines[-1] if lines else "ok"
+
+
 def _print_summary(run_dir: Path, rc: int, report_ok: bool,
                    registry_ok: bool, telegram_note: str, success: bool) -> None:
     summary = _load_summary(run_dir)
@@ -246,6 +277,10 @@ def main(argv: list[str] | None = None) -> int:
     telegram_note = "skipped (run not verified)"
     if success:
         telegram_sent, telegram_note = _send_telegram(run_dir)
+
+    evaluation_ok, evaluation_note = _evaluate_outcomes()
+
+    print(f"Outcome evaluation : {evaluation_note}")
     _print_summary(run_dir, rc, report_ok, registry_ok, telegram_note, success)
 
     return EXIT_OK if success else EXIT_RUN_FAILED
