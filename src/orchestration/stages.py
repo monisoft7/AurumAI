@@ -1210,6 +1210,212 @@ def _thesis_historical_assessments(
     ]
 
 
+def _composite_primitives(results: dict[str, Any]) -> list[dict[str, Any]] | None:
+    """Correction 053-A -- per-thesis composite-primitive observability.
+
+    READ-ONLY serialization of values already produced in memory:
+    W9 ThesisConfidence breakdown/contributors, W8 thesis fields, W7
+    assessment severity/penalty inputs, W12 scenario confidences,
+    probabilities, and the risk/reward numbers actually consumed by W13.
+    No recalculation, no new formulas, no numeric transformation beyond
+    JSON serialization; the only aggregates added are ``positive_score`` /
+    ``penalty_score``: positive_score sums value x weight over the verbatim
+    positive-contributor rows (the identical arithmetic W9 applies
+    internally), and penalty_score sums the already-computed per-row
+    penalties.  Additive-only: returns None when
+    no candidate construction resolves so legacy finalize payloads stay
+    byte-identical.
+    """
+    from confidence_engine.contracts import InstitutionalConfidence
+    from counter_evidence.contracts import CounterEvidenceAssessment
+    from risk_reward_validation.contracts import RiskRewardValidation
+    from scenario_generation.contracts import ScenarioGeneration
+    from thesis_construction.contracts import ThesisConstruction
+    from thesis_update.contracts import ThesisUpdate
+
+    update_data = results.get("thesis_update")
+    construction_data = results.get("thesis_construction")
+    if update_data is not None and isinstance(update_data, dict) and "error" in update_data:
+        update_data = None
+    if update_data is None and (
+        construction_data is None
+        or (isinstance(construction_data, dict) and "error" in construction_data)
+    ):
+        return None
+
+    if update_data is not None:
+        update = ThesisUpdate.from_dict(update_data) if isinstance(update_data, dict) else update_data
+        construction: ThesisConstruction = _construction_from_update(
+            update, construction_data
+        )
+    elif isinstance(construction_data, ThesisConstruction):
+        construction = construction_data
+    else:
+        construction = ThesisConstruction.from_dict(construction_data)
+
+    confidence_data = results.get("confidence_engine")
+    confidence = (
+        InstitutionalConfidence.from_dict(confidence_data)
+        if isinstance(confidence_data, dict)
+        else confidence_data
+    )
+    counter_data = results.get("counter_evidence")
+    assessment = (
+        CounterEvidenceAssessment.from_dict(counter_data)
+        if isinstance(counter_data, dict)
+        else counter_data
+    )
+    generation_data = results.get("scenario_generation")
+    generation = (
+        ScenarioGeneration.from_dict(generation_data)
+        if isinstance(generation_data, dict)
+        else generation_data
+    )
+    validation_data = results.get("risk_reward_validation")
+    validation = (
+        RiskRewardValidation.from_dict(validation_data)
+        if isinstance(validation_data, dict)
+        else validation_data
+    )
+    decision_data = results.get("decision_engine")
+    selected_id = None
+    if decision_data is not None and not (
+        isinstance(decision_data, dict) and "error" in decision_data
+    ):
+        if isinstance(decision_data, dict):
+            selected_id = decision_data.get("selected_thesis_id")
+        else:
+            selected_id = decision_data.selected_thesis_id
+
+    tc_by_id = {tc.thesis_id: tc for tc in confidence.theses_confidence} if confidence else {}
+    scenarios_by_thesis = generation.scenarios_by_thesis if generation else {}
+    validations_by_thesis: dict[str, list] = {}
+    if validation is not None:
+        gen_by_sid = (
+            {s.scenario_id: s for s in generation.scenarios} if generation else {}
+        )
+        for v in validation.validations:
+            s = gen_by_sid.get(v.scenario_id)
+            if s is not None:
+                validations_by_thesis.setdefault(s.thesis_id, []).append(v)
+
+    entries: list[dict[str, Any]] = []
+    for thesis in construction.theses:
+        tc = tc_by_id.get(thesis.thesis_id)
+        breakdown = dict(tc.confidence_breakdown) if tc is not None else {}
+        positive_rows = [dict(c) for c in (tc.positive_contributors if tc else ())]
+        negative_rows = [dict(c) for c in (tc.negative_contributors if tc else ())]
+        penalty_rows = [dict(c) for c in (tc.confidence_penalties if tc else ())]
+
+        scen_rows = []
+        for s in scenarios_by_thesis.get(thesis.thesis_id, ()):
+            ci = dict(s.confidence_inputs)
+            scen_rows.append(
+                {
+                    "scenario_type": s.scenario_type,
+                    "scenario_probability": s.probability,
+                    "expected_direction": s.expected_direction,
+                    "time_horizon_days": s.time_horizon_days,
+                    "regime_path": tuple(s.regime_path),
+                    "scenario_confidence": ci.get("scenario_confidence"),
+                    "scenario_confidence_source": ci.get("scenario_confidence_source"),
+                    "scenario_confidence_type": ci.get("scenario_confidence_type"),
+                    "remaining_uncertainty": ci.get("remaining_uncertainty"),
+                    "reliability_category": ci.get("reliability_category"),
+                }
+            )
+
+        rr_rows = []
+        for v in validations_by_thesis.get(thesis.thesis_id, ()):
+            rr_rows.append(
+                {
+                    "validation_status": v.validation_status,
+                    "risk_reward_ratio": v.risk_reward_ratio,
+                    "expected_reward": v.expected_reward,
+                    "expected_risk": v.expected_risk,
+                    "maximum_downside": v.maximum_downside,
+                    "expected_upside": v.expected_upside,
+                    "tail_risk": v.tail_risk,
+                    "liquidity_risk": v.liquidity_risk,
+                    "regime_risk": v.regime_risk,
+                    "volatility_impact": v.volatility_impact,
+                    "metadata_probability": v.metadata.get("probability"),
+                    "metadata_scenario_label": v.metadata.get("scenario_label"),
+                }
+            )
+
+        w9_provenance = (
+            tc.provenance_chain[-1].created_by if tc and tc.provenance_chain else None
+        )
+        entries.append(
+            {
+                "thesis_id": thesis.thesis_id,
+                "thesis_direction": thesis.direction,
+                "is_selected_in_w13": thesis.thesis_id == selected_id,
+                "institutional_support": thesis.institutional_support,
+                "final_confidence": tc.final_confidence if tc is not None else None,
+                "remaining_uncertainty": (
+                    tc.remaining_uncertainty if tc is not None else None
+                ),
+                "reliability_category": (
+                    tc.reliability_category if tc is not None else None
+                ),
+                "evidence_quality": breakdown.get("evidence_quality"),
+                "evidence_consensus": breakdown.get("evidence_consensus"),
+                "regime_alignment": breakdown.get("regime_alignment"),
+                "source_diversity": breakdown.get("source_diversity"),
+                "knowledge_record_quality": breakdown.get("knowledge_record_quality"),
+                "temporal_recency": breakdown.get("temporal_recency"),
+                "counter_evidence_penalty": breakdown.get("counter_evidence"),
+                "missing_evidence_penalty": breakdown.get("missing_evidence"),
+                "internal_consistency_penalty": breakdown.get("internal_consistency"),
+                "positive_score": round(
+                    sum(
+                        float(r.get("value", 0.0)) * float(r.get("weight", 0.0))
+                        for r in positive_rows
+                    ),
+                    4,
+                ),
+                "penalty_score": round(
+                    sum(float(r.get("penalty", 0.0)) for r in penalty_rows), 4
+                ),
+                "positive_contributors": positive_rows,
+                "negative_contributors": negative_rows,
+                "confidence_penalties": penalty_rows,
+                "supporting_set_ids": tuple(thesis.supporting_set_ids),
+                "supporting_set_count": len(thesis.supporting_set_ids),
+                "counter_evidence_ids": tuple(thesis.counter_evidence_ids),
+                "contradicting_set_ids": (
+                    tuple(assessment.contradicting_set_ids) if assessment else ()
+                ),
+                "conflict_severity": (
+                    assessment.conflict_severity if assessment else None
+                ),
+                "confidence_penalty": (
+                    assessment.confidence_penalty if assessment else None
+                ),
+                "regime_conflict_flag": (
+                    assessment.regime_conflict if assessment else None
+                ),
+                "bias_flags": (
+                    tuple(assessment.bias_flags) if assessment else ()
+                ),
+                "scenarios": scen_rows,
+                "risk_reward_consumed_by_w13": rr_rows,
+                "primitive_sources": {
+                    "final_confidence": w9_provenance or "W9 ConfidenceEngine",
+                    "confidence_breakdown": "W9 ConfidenceComputer via W9 ConfidenceEngine",
+                    "institutional_support": "W8 ThesisBuilder._compute_institutional_support",
+                    "supporting_set_ids": "W8 ThesisBuilder (W6 evidence sets)",
+                    "counter_evidence_and_severity": "W7 CounterEvidenceAssessor",
+                    "scenario_fields": "W12 ScenarioGenerator (Correction 052-A labels)",
+                    "risk_reward_fields": "W12 RiskRewardValidator (consumed by W13 DecisionEngine)",
+                },
+            }
+        )
+    return entries
+
+
 def _finalize(params: dict[str, Any], results: dict[str, Any]) -> Any:
     legacy_pipeline = results.get("build_legacy_pipeline", {})
     legacy_decision = legacy_pipeline.get("decision")
@@ -1236,4 +1442,10 @@ def _finalize(params: dict[str, Any], results: dict[str, Any]) -> Any:
     assessments = _thesis_historical_assessments(results)
     if assessments:
         payload["thesis_historical_assessments"] = assessments
+    # Correction 053-A: additive per-thesis composite-primitive observability.
+    # Attached only when a candidate construction resolves, keeping legacy
+    # finalize payloads byte-identical; values are verbatim in-memory reads.
+    primitives = _composite_primitives(results)
+    if primitives:
+        payload["composite_primitives"] = primitives
     return payload

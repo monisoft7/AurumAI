@@ -6,7 +6,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from evidence_collection.collector import EvidenceCollector
+from evidence_collection.collector import (
+    EvidenceCollector,
+    INSTRUMENT_TO_REGIME_BIAS,
+)
 from evidence_collection.contracts import Evidence, EvidenceCollection
 from evidence_collection.strength import EvidenceStrengthComputer
 from knowledge.graph.graph import KnowledgeGraph
@@ -455,8 +458,10 @@ class TestEtfFlowDirectionSemantics:
         collection = EvidenceCollector().collect(assessment)
         assert collection.items[0].event_type == "ETF_FLOW"
 
-    def test_xau_usd_static_bias_unchanged_on_down_day(self):
-        assert self._collect_bias(-2.0, instrument="XAU/USD") == "bullish"
+    def test_xau_usd_negative_move_no_longer_static_bullish(self):
+        # Correction 051 (Trace 051 F-01): a negative XAU/USD move must not
+        # inherit the static bullish instrument bias.
+        assert self._collect_bias(-2.0, instrument="XAU/USD") == "bearish"
 
     def test_weight_formula_unchanged(self):
         obs = _make_observation(
@@ -473,6 +478,271 @@ class TestEtfFlowDirectionSemantics:
         ev = collection.items[0]
         assert ev.base_confidence == 0.5
         assert ev.composite_weight == pytest.approx(0.5 * 0.8, abs=1e-9)
+
+
+class TestCorrection051DirectionAwareOvernightBias:
+    """Correction 051 (Trace 051 F-01): overnight evidence polarity follows
+    the OBSERVED move via sign(change_pct), not merely the instrument name.
+
+    Approved semantics:
+        XAU/USD            up -> bullish   down -> bearish
+        DXY                up -> bearish   down -> bullish
+        US10Y Real Yield   up -> bearish   down -> bullish
+        Breakeven          up -> bullish   down -> bearish
+        S&P futures        up -> bullish   down -> bearish
+        Brent              up -> bullish   down -> bearish
+        EUR/USD            up -> bearish   down -> bullish
+        USD/JPY            up -> bearish   down -> bullish
+    Zero / missing change invents no direction (static mapping preserved).
+    """
+
+    UP_DOWN_BIAS = {
+        "XAU/USD": ("bullish", "bearish"),
+        "DXY": ("bearish", "bullish"),
+        "US10Y Real Yield": ("bearish", "bullish"),
+        "Breakeven Inflation": ("bullish", "bearish"),
+        "S&P 500 Futures": ("bullish", "bearish"),
+        "Brent Crude": ("bullish", "bearish"),
+        "EUR/USD": ("bearish", "bullish"),
+        "USD/JPY": ("bearish", "bullish"),
+    }
+
+    def _collect_bias(self, instrument: str, change_pct) -> str:
+        obs = _make_observation(
+            obs_id=f"obs_c051_{instrument}",
+            classification="Signal",
+            confidence=0.8,
+            instrument=instrument,
+            change_pct=change_pct,
+            change_sigma=1.5,
+        )
+        assessment = _make_assessment([obs])
+        collection = EvidenceCollector().collect(assessment)
+        assert collection.evidence_count == 1
+        return collection.items[0].bias
+
+    @pytest.mark.parametrize("instrument", list(UP_DOWN_BIAS.keys()))
+    def test_positive_move_maps_to_up_bias(self, instrument):
+        up_bias, _ = self.UP_DOWN_BIAS[instrument]
+        assert self._collect_bias(instrument, 1.4) == up_bias
+
+    @pytest.mark.parametrize("instrument", list(UP_DOWN_BIAS.keys()))
+    def test_negative_move_maps_to_down_bias(self, instrument):
+        _, down_bias = self.UP_DOWN_BIAS[instrument]
+        assert self._collect_bias(instrument, -1.4) == down_bias
+
+    @pytest.mark.parametrize("instrument", list(UP_DOWN_BIAS.keys()))
+    def test_sign_flip_flips_evidence_bias(self, instrument):
+        """Changing ONLY the sign of change_pct must flip evidence polarity."""
+        obs_id = f"obs_signflip_{instrument}"
+        positive = EvidenceCollector().collect(
+            _make_assessment([
+                _make_observation(
+                    obs_id=obs_id,
+                    classification="Signal",
+                    confidence=0.8,
+                    instrument=instrument,
+                    change_pct=1.1,
+                    change_sigma=1.5,
+                )
+            ])
+        ).items[0]
+        negative = EvidenceCollector().collect(
+            _make_assessment([
+                _make_observation(
+                    obs_id=obs_id,
+                    classification="Signal",
+                    confidence=0.8,
+                    instrument=instrument,
+                    change_pct=-1.1,
+                    change_sigma=1.5,
+                )
+            ])
+        ).items[0]
+        up_bias, down_bias = self.UP_DOWN_BIAS[instrument]
+        assert positive.bias == up_bias
+        assert negative.bias == down_bias
+        # identical magnitude/confidence/weights: polarity is the only delta
+        assert negative.base_confidence == positive.base_confidence
+        assert negative.composite_weight == positive.composite_weight
+
+    @pytest.mark.parametrize("instrument", list(UP_DOWN_BIAS.keys()))
+    @pytest.mark.parametrize("missing", [None, float("nan"), 0.0])
+    def test_zero_or_missing_change_invents_no_direction(self, instrument, missing):
+        legacy = INSTRUMENT_TO_REGIME_BIAS[instrument]
+        assert self._collect_bias(instrument, missing) == legacy
+
+    def test_us10y_nominal_yield_stays_neutral_on_directional_moves(self):
+        assert self._collect_bias("US10Y Nominal Yield", 2.5) == "neutral"
+        assert self._collect_bias("US10Y Nominal Yield", -2.5) == "neutral"
+
+    def test_absolute_change_sigma_never_drives_polarity(self):
+        # identical |sigma| on both sides, opposite moves -> opposite bias
+        assert self._collect_bias("XAU/USD", 0.9) == "bullish"
+        assert self._collect_bias("XAU/USD", -0.9) == "bearish"
+
+
+class TestCorrection051RegressionPreservation:
+    """Preserved behavior around the Correction-051 polarity change."""
+
+    def _bias_for(self, obs) -> str:
+        collection = EvidenceCollector().collect(_make_assessment([obs]))
+        return collection.items[0].bias
+
+    def test_gold_positioning_correction_006_unchanged(self):
+        assert self._bias_for(_make_observation(
+            obs_id="obs_pos_up",
+            source="positioning",
+            classification="Weak Signal",
+            confidence=0.5,
+            instrument="Gold Positioning",
+            change_pct=2.3,
+            evidence_count=2,
+        )) == "bullish"
+        assert self._bias_for(_make_observation(
+            obs_id="obs_pos_down",
+            source="positioning",
+            classification="Weak Signal",
+            confidence=0.5,
+            instrument="Gold Positioning",
+            change_pct=-1.18,
+            evidence_count=2,
+        )) == "bearish"
+        assert self._bias_for(_make_observation(
+            obs_id="obs_pos_flat",
+            source="positioning",
+            classification="Weak Signal",
+            confidence=0.5,
+            instrument="Gold Positioning",
+            change_pct=0.3,
+            evidence_count=2,
+        )) == "neutral"
+
+    def test_news_observations_remain_neutral(self):
+        news_obs = ClassifiedObservation(
+            observation_id="obs_news_corr051",
+            source="news",
+            classification="Watch",
+            confidence=0.35,
+            regime="NORMAL_GROWTH",
+            reason="news item",
+            instrument="Reuters",
+            change_pct=0.0,
+            change_sigma=0.0,
+        )
+        assert self._bias_for(news_obs) == "neutral"
+
+    def test_anomaly_zero_change_keeps_legacy_static_bias(self):
+        # Anomaly observations carry instrument names but no observed
+        # overnight move (change_pct == 0.0); their static mapping is kept.
+        anomaly = ClassifiedObservation(
+            observation_id="obs_anomaly_corr051",
+            source="anomaly_flag",
+            classification="Watch",
+            confidence=0.35,
+            regime="NORMAL_GROWTH",
+            reason="anomaly flag",
+            instrument="XAU/USD",
+            value=0.0,
+            change_pct=0.0,
+            change_sigma=1.9,
+        )
+        assert self._bias_for(anomaly) == "bullish"
+        dxy_anomaly = ClassifiedObservation(
+            observation_id="obs_anomaly_dxy_corr051",
+            source="anomaly_flag",
+            classification="Watch",
+            confidence=0.35,
+            regime="NORMAL_GROWTH",
+            reason="anomaly flag",
+            instrument="DXY",
+            value=0.0,
+            change_pct=0.0,
+            change_sigma=1.9,
+        )
+        assert self._bias_for(dxy_anomaly) == "bearish"
+
+    def test_cpi_release_stays_neutral_with_nonzero_change(self):
+        from signal_assessment.assembler import SignalAssessmentAssembler
+        from pre_market.contracts import PreMarketBriefing
+
+        briefing = PreMarketBriefing(
+            briefing_id="premarket_c051_cpi",
+            timestamp="2026-08-24T06:00:00",
+            regime="NORMAL_GROWTH",
+            regime_confidence=0.85,
+            overnight_changes=(),
+            metadata={"cpi_release": {
+                "event_type": "CPI",
+                "reference_period": "2026-07-01",
+                "value": 332.813,
+                "cpi_change_pct": 0.0737,
+                "expected_impact": "high",
+            }},
+        )
+        assessment = SignalAssessmentAssembler(regime="NORMAL_GROWTH").assemble(briefing)
+        collection = EvidenceCollector().collect(assessment)
+        cpi_ev = next(e for e in collection.items if e.source_label == "cpi_release")
+        assert cpi_ev.metadata["change_pct"] == pytest.approx(0.0737)
+        assert cpi_ev.bias == "neutral"
+
+
+class TestCorrection051TraceProductionRun:
+    """Trace-051 production-run regression fixture (2026-08-24 CPI run).
+
+    The run's pre-market scan observed XAU/USD LOWER while DXY moved in the
+    correlated opposite sense; under the previous static mapping both pieces
+    of evidence kept their name-implied polarity regardless of the observed
+    move.  This fixture locks only the corrected evidence polarities for the
+    observed-move scenario shape -- never the final decision outcome.
+    """
+
+    def test_observed_move_controls_polarity_in_full_assembly(self):
+        from signal_assessment.assembler import SignalAssessmentAssembler
+        from pre_market.contracts import OvernightPriceChange, PreMarketBriefing
+
+        briefing = PreMarketBriefing(
+            briefing_id="premarket_trace051_fixture",
+            timestamp="2026-08-24T06:00:00",
+            regime="INFLATIONARY",
+            regime_confidence=0.7,
+            overnight_changes=(
+                OvernightPriceChange(
+                    instrument="XAU/USD",
+                    previous_close=2000.0,
+                    current_price=1976.0,
+                    change_pct=-1.2,
+                    change_sigma=1.6,
+                    session="APAC",
+                ),
+                OvernightPriceChange(
+                    instrument="DXY",
+                    previous_close=98.0,
+                    current_price=98.6,
+                    change_pct=0.61,
+                    change_sigma=1.1,
+                    session="APAC",
+                ),
+            ),
+        )
+        assessment = SignalAssessmentAssembler(regime="INFLATIONARY").assemble(briefing)
+        collection = EvidenceCollector().collect(assessment)
+
+        by_instrument = {
+            ev.condition["instrument"]: ev.bias for ev in collection.items
+        }
+        # gold DOWN -> bearish evidence (was statically bullish before 051)
+        assert by_instrument["XAU/USD"] == "bearish"
+        # dollar UP -> bearish-for-gold evidence (was statically bearish)
+        assert by_instrument["DXY"] == "bearish"
+
+        # weights untouched by polarity resolution
+        xau_ev = next(
+            e for e in collection.items if e.condition["instrument"] == "XAU/USD"
+        )
+        assert xau_ev.composite_weight == pytest.approx(
+            round(xau_ev.base_confidence * 0.8, 4), abs=1e-9
+        )
 
 
 class TestKnowledgeRecordEventClassMapping:

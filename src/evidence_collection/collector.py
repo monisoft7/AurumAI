@@ -61,6 +61,23 @@ EVENT_TYPE_TO_EVIDENCE_CLASS: dict[str, str] = {
     "ETF": "ETF_FLOW",
 }
 
+# Correction 051 (Trace 051 F-01): overnight evidence polarity follows the
+# OBSERVED move, not merely the instrument name.  sign(change_pct) resolves
+# the direction; each entry gives the gold implication for up / down moves.
+# Instruments absent from this mapping keep their static
+# INSTRUMENT_TO_REGIME_BIAS value ("US10Y Nominal Yield" has no production
+# rule defining a directional gold implication and stays neutral).
+DIRECTIONAL_INSTRUMENT_GOLD_BIAS: dict[str, dict[str, str]] = {
+    "XAU/USD": {"up": "bullish", "down": "bearish"},
+    "DXY": {"up": "bearish", "down": "bullish"},
+    "US10Y Real Yield": {"up": "bearish", "down": "bullish"},
+    "Breakeven Inflation": {"up": "bullish", "down": "bearish"},
+    "S&P 500 Futures": {"up": "bullish", "down": "bearish"},
+    "Brent Crude": {"up": "bullish", "down": "bearish"},
+    "EUR/USD": {"up": "bearish", "down": "bullish"},
+    "USD/JPY": {"up": "bearish", "down": "bullish"},
+}
+
 
 def _observation_provenance_anchor(observation_id: str) -> str:
     """Deterministic sentinel for evidence with no valid KnowledgeRecord.
@@ -333,6 +350,14 @@ class EvidenceCollector:
             if abs(obs.change_pct) > ETF_FLOW_THRESHOLD_PCT:
                 return "bullish" if obs.change_pct > 0 else "bearish"
             return "neutral"
+        directional = DIRECTIONAL_INSTRUMENT_GOLD_BIAS.get(obs.instrument)
+        if directional is not None:
+            change = obs.change_pct
+            # Correction 051: the observed move controls polarity.  Zero or
+            # missing change invents no direction and keeps the static
+            # mapping (news / anomaly observations carry no overnight move).
+            if change is not None and math.isfinite(change) and change != 0.0:
+                return directional["up"] if change > 0 else directional["down"]
         return base
 
     @staticmethod

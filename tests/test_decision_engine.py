@@ -456,7 +456,9 @@ class TestDecisionEngine:
         decision = DecisionEngine().decide(construction, confidence, generation, validation)
         assert decision.decision == "NO_TRADE"
 
-    def test_drivers_include_all_six(self):
+    def test_drivers_include_all_five(self):
+        # Correction 053-C: standalone regime_alignment driver removed;
+        # regime alignment is single-counted inside institutional_confidence.
         decision, _ = _decide((_strong_bullish(),))
         names = [d.name for d in decision.decision_drivers]
         assert names == [
@@ -465,9 +467,8 @@ class TestDecisionEngine:
             "evidence_quality",
             "counter_evidence_quality",
             "scenario_probability",
-            "regime_alignment",
         ]
-        assert abs(sum(d.weight for d in decision.decision_drivers) - 1.0) < 1e-6
+        assert abs(sum(d.weight for d in decision.decision_drivers) - 0.90) < 1e-6
         for d in decision.decision_drivers:
             assert d.score == round(d.value * d.weight, 4)
 
@@ -517,7 +518,7 @@ class TestDecisionEngine:
         restored = InstitutionalDecision.from_dict(decision.to_dict())
         assert restored.decision_id == decision.decision_id
         assert restored.decision == decision.decision
-        assert len(restored.decision_drivers) == 6
+        assert len(restored.decision_drivers) == 5
         assert len(restored.rejected_alternatives) == 1
         assert not restored.validate()
 
@@ -635,7 +636,7 @@ def test_w8_to_w9_to_w12_to_w13_integration():
         )
         assert decision.preconditions
         assert decision.invalidation_conditions
-        assert len(decision.decision_drivers) == 6
+        assert len(decision.decision_drivers) == 5
 
     assert not decision.validate()
     assert decision.decision_explanation

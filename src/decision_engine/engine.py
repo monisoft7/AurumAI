@@ -39,6 +39,15 @@ TYPE_RANK = {"base": 0, "bull": 1, "bear": 2}
 
 ELIGIBLE_STATUSES = {"acceptable", "borderline"}
 
+# Correction 053-C: the standalone regime-alignment channel
+# (+ REGIME_ALIGNMENT_WEIGHT * regime_alignment) was removed from the
+# composite -- regime alignment is already represented inside W9
+# institutional_confidence (positive_score weight 0.15).  Trace 053-B B2
+# verified this removal preserves candidate ranking and decisions on the
+# canonical smoke cases.  The constant is kept only for import
+# compatibility and MUST NOT be reintroduced into _score_thesis.
+REGIME_ALIGNMENT_WEIGHT = 0.10
+
 
 class DecisionEngine:
     """Scores every thesis, selects the optimal one, and derives the
@@ -183,9 +192,6 @@ class DecisionEngine:
         counter_penalty = float(
             thesis.confidence_inputs.get("confidence_penalty", 0.0)
         )
-        regime_alignment = (
-            float(tc.confidence_breakdown.get("regime_alignment", 0.5)) if tc else 0.5
-        )
         max_probability = max(
             (s.probability for s in scenarios), default=0.0
         )
@@ -200,13 +206,15 @@ class DecisionEngine:
                 best_status = v.validation_status
         rr_score = round(sum(rr_components) / len(rr_components), 4) if rr_components else 0.0
 
+        # Correction 053-C: REGIME_ALIGNMENT_WEIGHT channel removed.
+        # regime_alignment remains inside W9 institutional_confidence
+        # (positive_score, weight 0.15) -- single-count only now.
         score = round(
             CONFIDENCE_WEIGHT * confidence
             + RR_WEIGHT * rr_score
             + EVIDENCE_WEIGHT * evidence_quality
             + COUNTER_EVIDENCE_WEIGHT * (1.0 - counter_penalty)
-            + SCENARIO_PROBABILITY_WEIGHT * max_probability
-            + REGIME_ALIGNMENT_WEIGHT * regime_alignment,
+            + SCENARIO_PROBABILITY_WEIGHT * max_probability,
             4,
         )
         return {
@@ -215,7 +223,6 @@ class DecisionEngine:
             "rr_score": rr_score,
             "evidence_quality": evidence_quality,
             "counter_penalty": counter_penalty,
-            "regime_alignment": regime_alignment,
             "max_probability": max_probability,
             "best_status": best_status,
         }
@@ -284,7 +291,8 @@ class DecisionEngine:
                 COUNTER_EVIDENCE_WEIGHT,
             ),
             ("scenario_probability", selected["max_probability"], SCENARIO_PROBABILITY_WEIGHT),
-            ("regime_alignment", selected["regime_alignment"], REGIME_ALIGNMENT_WEIGHT),
+            # Correction 053-C: standalone regime_alignment driver removed;
+            # regime alignment is single-counted inside institutional_confidence.
         )
         return [
             DecisionDriver(
