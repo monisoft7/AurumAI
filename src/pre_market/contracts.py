@@ -50,6 +50,7 @@ class NewsItem:
     sentiment_confidence: float
     relevance_score: float
     topics: tuple[str, ...] = ()
+    provenance: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -60,10 +61,12 @@ class NewsItem:
             "sentiment_confidence": self.sentiment_confidence,
             "relevance_score": self.relevance_score,
             "topics": list(self.topics),
+            "provenance": dict(self.provenance) if self.provenance else None,
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> NewsItem:
+        prov = data.get("provenance")
         return cls(
             headline=str(data.get("headline", "")),
             source=str(data.get("source", "")),
@@ -72,6 +75,7 @@ class NewsItem:
             sentiment_confidence=float(data.get("sentiment_confidence", 0.0)),
             relevance_score=float(data.get("relevance_score", 0.0)),
             topics=tuple(data.get("topics", ())),
+            provenance=dict(prov) if isinstance(prov, dict) and prov else None,
         )
 
 

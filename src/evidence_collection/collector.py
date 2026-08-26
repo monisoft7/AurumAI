@@ -142,6 +142,20 @@ class EvidenceCollector:
             evidence_items.append(evidence)
 
         collection_id = f"ec_{uuid4().hex[:12]}"
+        collection_metadata: dict[str, Any] = {}
+        news_registry = assessment.metadata.get("news_provenance")
+        if isinstance(news_registry, dict) and news_registry:
+            collection_metadata["news_intelligence"] = {
+                "article_count": len(news_registry),
+                "observation_ids": sorted(news_registry.keys()),
+                "event_types": sorted(
+                    {
+                        str(entry.get("event_type"))
+                        for entry in news_registry.values()
+                        if isinstance(entry, dict) and entry.get("event_type")
+                    }
+                ),
+            }
         return EvidenceCollection(
             collection_id=collection_id,
             assessment_id=assessment.assessment_id,
@@ -154,6 +168,7 @@ class EvidenceCollector:
             watch_count=watch,
             filtered_noise_count=filtered_noise,
             filtered_ignore_count=filtered_ignore,
+            metadata=collection_metadata,
         )
 
     def _build_evidence(
@@ -208,6 +223,13 @@ class EvidenceCollector:
             "provenance_type": provenance_type,
             "knowledge_record_id": knowledge_record_id,
         }
+        # Sprint 058 (W-5): news-derived observations carry their full
+        # article provenance (source, content id, timestamps, event
+        # classification, gold relevance, directional implication and its
+        # basis) so every news evidence item is traceable to a source.
+        news_prov = self._news_provenance_payload(obs, assessment)
+        if news_prov is not None:
+            metadata["news"] = news_prov
         knowledge_semantics = self._knowledge_semantics_payload(
             source_kr_node_id
         )
@@ -242,6 +264,27 @@ class EvidenceCollector:
         "confidence",
         "positive_return_rate_pct",
     )
+
+    @staticmethod
+    def _news_provenance_payload(
+        obs: ClassifiedObservation,
+        assessment: SignalAssessment,
+    ) -> dict[str, Any] | None:
+        """Copy the article provenance registered at W5 into Evidence.metadata.
+
+        Read-only: the payload is carried for downstream auditability and
+        feeds no scoring field.  Returns None for non-news observations or
+        when the assessment carries no news provenance registry.
+        """
+        if obs.source != "news":
+            return None
+        registry = assessment.metadata.get("news_provenance")
+        if not isinstance(registry, dict):
+            return None
+        entry = registry.get(obs.observation_id)
+        if not isinstance(entry, dict) or not entry:
+            return None
+        return dict(entry)
 
     KNOWLEDGE_SEMANTICS_OPTIONAL_FIELDS: tuple[str, ...] = (
         "bias",

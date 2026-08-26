@@ -20,6 +20,15 @@ dependencies = [
 dev = [
     "pytest",
 ]
+technical = [
+    "pandas-ta-classic>=0.6.52",
+]
+# Sprint 058: the news NLP stack is explicitly optional.  Its absence must
+# never silently empty the news pipeline -- see src/news/intelligence.py.
+nlp = [
+    "transformers",
+    "torch",
+]
 
 [tool.pytest.ini_options]
 testpaths = [

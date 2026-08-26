@@ -39,6 +39,7 @@ from orchestration.stages import (
     _risk_reward_validation,
     _scenario_generation,
     _signal_assessment,
+    _technical_research,
     _thesis_construction,
     _thesis_update,
     _trade_recommendation,
@@ -234,7 +235,9 @@ class InstitutionalOrchestrator:
 
         orch.register(PipelineJob(
             job_id="pre_market_scan",
-            dependencies=("regime_diagnosis",),
+            # Sprint 058: W3 consumes the ingest_news stage output (single
+            # ingestion, full provenance) -- the dependency is real.
+            dependencies=("regime_diagnosis", "ingest_news"),
             fn=orch._bind(_pre_market_scan),
             cache_ttl=1800,
             checkpoint=True,
@@ -351,6 +354,14 @@ class InstitutionalOrchestrator:
         ))
 
         orch.register(PipelineJob(
+            job_id="technical_research",
+            dependencies=("build_legacy_pipeline",),
+            fn=orch._bind(_technical_research),
+            cache_ttl=600,
+            checkpoint=True,
+        ))
+
+        orch.register(PipelineJob(
             job_id="ingest_event",
             dependencies=(),
             fn=orch._bind(_ingest_event),
@@ -408,7 +419,10 @@ class InstitutionalOrchestrator:
 
         orch.register(PipelineJob(
             job_id="build_context",
-            dependencies=("forecast", "ingest_news"),
+            # Sprint 058: the decorative ingest_news edge was removed --
+            # _build_context never consumed it.  The real news consumer is
+            # pre_market_scan (see above).
+            dependencies=("forecast",),
             fn=orch._bind(_build_context),
             cache_ttl=600,
             checkpoint=True,

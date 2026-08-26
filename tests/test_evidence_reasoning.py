@@ -294,14 +294,17 @@ class TestEvidenceDetector:
         assert len(result.contradicting_evidence_ids) == 0
 
     def test_analyze_group_neutral_vs_directional(self):
+        # Correction 060: neutral evidence is uninformative against a
+        # directional majority -- it never enters contradicting_evidence_ids.
         items = [
             _make_evidence("ev_1", bias="bullish"),
             _make_evidence("ev_2", bias="neutral"),
         ]
         result = EvidenceDetector.analyze_group(items, "es_reallyield", "REAL_YIELD", [])
         assert result.bias == "bullish"
-        assert len(result.supporting_evidence_ids) == 1
-        assert len(result.contradicting_evidence_ids) == 1
+        assert result.supporting_evidence_ids == ("ev_1",)
+        assert result.contradicting_evidence_ids == ()
+        assert set(result.evidence_ids) == {"ev_1", "ev_2"}
 
     def test_analyze_group_duplicate_ids(self):
         items = [

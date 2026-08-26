@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import re
 import math
 from datetime import datetime, timezone
@@ -32,6 +33,19 @@ GOLD_CLASS_INSTRUMENTS = frozenset(
 )
 
 
+def _deterministic_news_key(news: NewsItem) -> str:
+    """Stable content-derived key for a news observation.
+
+    Prefers the pipeline article_id (full provenance chain), falling back
+    to a sha256 over headline+source+published.  Never process-randomized.
+    """
+    prov = news.provenance if isinstance(news.provenance, dict) else None
+    if prov and prov.get("article_id"):
+        return str(prov["article_id"]).replace("nws_", "")
+    raw = f"{news.source}|{news.headline}|{news.published}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+
 class SignalAssessmentAssembler:
     """Transforms a W3 PreMarketBriefing into a W5 SignalAssessment.
 
@@ -57,6 +71,7 @@ class SignalAssessmentAssembler:
 
     def assemble(self, briefing: PreMarketBriefing) -> SignalAssessment:
         observations: list[ClassifiedObservation] = []
+        news_provenance: dict[str, dict[str, Any]] = {}
         news_headlines = [n.headline for n in briefing.news_items]
         positional = briefing.positioning_snapshot
 
@@ -208,8 +223,11 @@ class SignalAssessmentAssembler:
                     "volume_flow": news_criteria[4],
                 },
             )
+            # Sprint 058: deterministic content id (Python hash() is
+            # process-randomized for str and must never identify evidence).
+            observation_id = f"obs_news_{_deterministic_news_key(news)}"
             observations.append(ClassifiedObservation(
-                observation_id=f"obs_news_{hash(news.headline) % 10**8}",
+                observation_id=observation_id,
                 source="news",
                 classification=label,
                 confidence=confidence,
@@ -218,6 +236,12 @@ class SignalAssessmentAssembler:
                 evidence=tuple(news_criteria),
                 instrument=news.source,
             ))
+            if isinstance(news.provenance, dict) and news.provenance:
+                news_provenance[observation_id] = dict(news.provenance)
+                news_provenance[observation_id]["headline_hash"] = hashlib.sha256(
+                    news.headline.encode("utf-8")
+                ).hexdigest()[:16]
+                news_provenance[observation_id]["source_name"] = news.source
 
         cpi_release = briefing.metadata.get("cpi_release")
         if (
@@ -258,6 +282,11 @@ class SignalAssessmentAssembler:
             ))
 
         assessment_id = f"sa_{briefing.briefing_id.replace('premarket_', '')}"
+        metadata: dict[str, Any] = {}
+        if briefing.metadata.get("news_source_path"):
+            metadata["news_source_path"] = str(briefing.metadata["news_source_path"])
+        if news_provenance:
+            metadata["news_provenance"] = news_provenance
         return SignalAssessment(
             assessment_id=assessment_id,
             briefing_id=briefing.briefing_id,
@@ -265,4 +294,5 @@ class SignalAssessmentAssembler:
             regime=self._regime,
             regime_confidence=briefing.regime_confidence,
             observations=tuple(observations),
+            metadata=metadata,
         )

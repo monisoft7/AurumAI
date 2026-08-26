@@ -30,6 +30,7 @@ class RecommendationEngine:
         decision: InstitutionalDecision,
         instrument: str = DEFAULT_INSTRUMENT,
         reference_price: float | None = None,
+        reference_provenance: dict[str, Any] | None = None,
     ) -> InstitutionalTradeRecommendation:
         prov = Provenance(
             created_at=datetime.now(timezone.utc).isoformat(),
@@ -82,11 +83,7 @@ class RecommendationEngine:
                 invalidation_conditions=decision.invalidation_conditions,
                 monitoring_conditions=self._monitoring_conditions(decision),
                 provenance_chain=tuple(chain),
-                metadata={
-                    "selected_thesis_id": decision.selected_thesis_id,
-                    "selected_scenario_id": decision.selected_scenario_id,
-                    "reference_price": reference_price,
-                },
+                metadata=self._metadata(decision, reference_price, reference_provenance),
             )
 
         return InstitutionalTradeRecommendation(
@@ -110,16 +107,27 @@ class RecommendationEngine:
             invalidation_conditions=decision.invalidation_conditions,
             monitoring_conditions=self._monitoring_conditions(decision),
             provenance_chain=tuple(chain),
-            metadata={
-                "selected_thesis_id": decision.selected_thesis_id,
-                "selected_scenario_id": decision.selected_scenario_id,
-                "reference_price": reference_price,
-            },
+            metadata=self._metadata(decision, reference_price, reference_provenance),
         )
 
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _metadata(
+        decision: InstitutionalDecision,
+        reference_price: float | None,
+        reference_provenance: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        metadata: dict[str, Any] = {
+            "selected_thesis_id": decision.selected_thesis_id,
+            "selected_scenario_id": decision.selected_scenario_id,
+            "reference_price": reference_price,
+        }
+        if reference_provenance is not None:
+            metadata["reference_price_provenance"] = dict(reference_provenance)
+        return metadata
 
     def _trading_levels(
         self,

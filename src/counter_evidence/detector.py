@@ -52,6 +52,10 @@ class ConflictDetector:
         """Returns (contradicting_set_ids, supporting_set_ids, conflict_pairs).
 
         A set contradicts if its bias opposes the majority bias across all sets.
+        A set whose majority bias is neutral carries no proven directional
+        polarity (Correction 060, aligned with News Intelligence 058), so it
+        is uninformative against a directional majority: it enters neither
+        supporting nor contradicting and casts no directional vote.
         """
         if not evidence_sets:
             return [], [], []
@@ -77,7 +81,7 @@ class ConflictDetector:
             elif opposite and es.bias == opposite:
                 contradicting.append(es.set_id)
                 pairs.append(f"{es.set_id}_vs_{majority_bias}")
-            elif majority_bias in {"bullish", "bearish"} and es.bias in {"neutral", "mixed"}:
+            elif majority_bias in {"bullish", "bearish"} and es.bias == "mixed":
                 contradicting.append(es.set_id)
                 pairs.append(f"{es.set_id}_vs_{majority_bias}")
 

@@ -687,7 +687,7 @@ class TestDefaultPipeline:
             "regime_diagnosis",
             "forecast", "forecast_confidence", "forecast_validation",
             "build_context", "risk_measures", "position_sizing",
-            "risk_gate", "finalize",
+            "risk_gate", "finalize", "technical_research",
         }
         assert all_stage_ids == expected, f"Missing stages: {expected - all_stage_ids}"
 
@@ -1061,7 +1061,7 @@ encoding="utf-8",
             "regime_diagnosis",
             "forecast", "forecast_confidence", "forecast_validation",
             "build_context", "risk_measures", "position_sizing",
-            "risk_gate", "finalize",
+            "risk_gate", "finalize", "technical_research",
         }
         assert set(orch.list_jobs()) == expected_jobs
 

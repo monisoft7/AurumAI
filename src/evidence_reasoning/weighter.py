@@ -63,6 +63,16 @@ class EvidenceWeighter:
         group: list[Evidence],
         majority_bias: str,
     ) -> tuple[float, float]:
+        """Consensus = share of the group actively supporting the majority
+        bias; conflict = share actively holding the opposite direction (or a
+        mixed bidirectional signal) against a directional majority.
+
+        Correction 060: neutral evidence has no proven directional polarity
+        (News Intelligence 058 semantics), so it is uninformative -- it is
+        counted neither as supporting nor as conflicting.  It still dilutes
+        consensus through the denominator because it does not reinforce the
+        majority direction either.
+        """
         if not group:
             return 0.0, 0.0
 
@@ -76,7 +86,7 @@ class EvidenceWeighter:
         conflicting = sum(
             1 for e in group
             if (opposite and e.bias == opposite)
-            or (majority_bias in {"bullish", "bearish"} and e.bias in {"neutral", "mixed"})
+            or (majority_bias in {"bullish", "bearish"} and e.bias == "mixed")
         )
         consensus = round(supporting / n, 4)
         conflict = round(conflicting / n, 4)

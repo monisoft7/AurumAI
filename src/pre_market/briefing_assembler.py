@@ -58,6 +58,7 @@ class PreMarketBriefingAssembler:
         var_utilization_pct: float = 0.0,
         calendar_csv: str | None = None,
         briefing_id: str | None = None,
+        external_news_items: tuple | list | None = None,
     ) -> PreMarketBriefing:
         now = datetime.now(timezone.utc)
         bid = briefing_id or f"premarket_{now.strftime('%Y%m%d_%H%M%S')}"
@@ -67,7 +68,21 @@ class PreMarketBriefingAssembler:
         if not isinstance(overnight_changes, list):
             overnight_changes = []
 
-        news_items = self._news.ingest()
+        # Sprint 058 (W-5): when the orchestrator's ingest_news stage already
+        # produced normalized news, consume it instead of re-collecting
+        # (single ingestion, full provenance).  The legacy internal path is
+        # kept only for standalone use where no stage output exists.
+        news_source_path = "none"
+        if external_news_items is not None:
+            # Stage output exists: consume it verbatim (even when empty) so
+            # an empty/unavailable stage result is never masked by a second
+            # collection pass.
+            news_items = list(external_news_items)
+            news_source_path = "ingest_news_stage"
+        else:
+            news_items, sentiment_status = self._news.ingest_with_status()
+            news_source_path = f"legacy_internal_ingestion:{sentiment_status}"
+
         risk_snapshot = self._risk.generate(
             portfolio_returns=portfolio_returns,
             portfolio_equity=portfolio_equity,
@@ -91,4 +106,5 @@ class PreMarketBriefingAssembler:
             positioning_snapshot=positioning_snapshot,
             anomaly_flags=tuple(anomaly_flags),
             watchlist=tuple(watchlist),
+            metadata={"news_source_path": news_source_path},
         )
