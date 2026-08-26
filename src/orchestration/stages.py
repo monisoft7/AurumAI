@@ -55,29 +55,84 @@ def _ingest_event(params: dict[str, Any], results: dict[str, Any]) -> Any:
 
 
 def _ingest_news(params: dict[str, Any], results: dict[str, Any]) -> Any:
-    topics = params.get("news_topics", ("gold", "inflation", "fed"))
-    lookback_days = params.get("news_lookback_days", 7)
+    """Sprint 058: news ingestion with explicit failure states.
 
-    news_items: list[dict[str, Any]] = []
+    Returns ``{status, reason, items, fomc_events, ...}``.  A missing
+    dependency or failed feed never silently produces an empty news day:
+    ``status='unavailable'`` distinguishes it from ``status='empty'``.
+    The FOMC calendar stays a separate channel (``fomc_events``) with its
+    own ``fomc_status``.
+    """
+    import datetime as _dt
+
+    from news.intelligence import run_news_intelligence
+
+    topics = tuple(params.get("news_topics", ("gold", "inflation", "fed")))
+    lookback_days = int(params.get("news_lookback_days", 7))
+    max_articles = int(params.get("news_max_articles", 20))
+    as_of = params.get("news_as_of")
+
+    payload = run_news_intelligence(
+        topics=topics,
+        lookback_days=lookback_days,
+        max_articles=max_articles,
+        as_of=as_of,
+        data_source=params.get("_news_data_source"),
+        now=params.get("_news_now"),
+        sentiment_analyzer=params.get("_news_sentiment_analyzer"),
+    )
+
+    payload["topics"] = list(topics)
+    payload["lookback_days"] = lookback_days
+
+    # --- FOMC calendar (separate channel, explicit status) ---------------
     fomc_events: list[dict[str, Any]] = []
-
-    try:
-        from news.collector import NewsCollector
-
-        collector = NewsCollector()
-        news_items = [dict(r) for r in collector.collect(topics=topics, max_age_days=lookback_days)]
-    except ImportError:
-        pass
-
+    fomc_status = "ok"
+    fomc_reason = ""
     try:
         from connectors.fomc_calendar import FOMCCalendarConnector
 
-        fomc = FOMCCalendarConnector()
-        fomc_events = [dict(r) for r in fomc.fetch()]
-    except (ImportError, AttributeError):
-        pass
+        fomc = FOMCCalendarConnector(auto_refresh=False)
+        anchor = params.get("fomc_as_of")
+        anchor_date = (
+            _dt.date.fromisoformat(str(anchor))
+            if anchor
+            else _dt.date.today()
+        )
+        start = anchor_date - _dt.timedelta(days=lookback_days)
+        end = anchor_date + _dt.timedelta(days=90)
+        for meeting in fomc.meetings_between(start, end):
+            fomc_events.append(
+                {
+                    "event_type": "FOMC",
+                    "start_date": meeting.start_date.isoformat(),
+                    "end_date": meeting.end_date.isoformat(),
+                    "is_two_day": bool(meeting.is_two_day),
+                    "has_press_conference": bool(meeting.has_press_conference),
+                    "statement_time": str(meeting.statement_time),
+                    "minutes_release_date": meeting.minutes_release_date.isoformat(),
+                }
+            )
+    except Exception as exc:
+        fomc_status = "unavailable"
+        fomc_reason = f"{type(exc).__name__}: {exc}"
 
-    return {"news_items": news_items, "fomc_events": fomc_events}
+    payload["fomc_events"] = fomc_events
+    payload["fomc_status"] = fomc_status
+    payload["fomc_reason"] = fomc_reason
+
+    # Sprint 061: additive canonical-fact references (observability only).
+    # Never alters classification, status semantics or decision inputs.
+    try:
+        from knowledge.facts.builders import news_fact_references
+
+        payload["fact_references"] = news_fact_references(payload)
+    except Exception as exc:
+        payload["fact_references"] = {
+            "status": "error",
+            "reason": f"{type(exc).__name__}: {exc}",
+        }
+    return payload
 
 
 def _build_legacy_pipeline(params: dict[str, Any], results: dict[str, Any]) -> Any:
@@ -637,15 +692,55 @@ def _regime_diagnosis(params: dict[str, Any], results: dict[str, Any]) -> Any:
     if errors:
         raise ValueError(f"invalid RegimeDiagnosis: {errors}")
 
+    payload = diagnosis.to_dict()
+
+    # Sprint 061: additive canonical-fact references (observability only).
+    # Gives the macro/regime desk its first durable identity without
+    # touching RegimeDiagnosis semantics; explicit as_of keeps it deterministic.
+    try:
+        from knowledge.facts.builders import regime_fact_references
+
+        payload["fact_references"] = regime_fact_references(
+            payload,
+            as_of=params.get("regime_as_of") or diagnosis.timestamp[:10],
+        )
+    except Exception as exc:
+        payload["fact_references"] = {
+            "status": "error",
+            "reason": f"{type(exc).__name__}: {exc}",
+        }
+
     output_dir = params.get("output_dir")
     if output_dir is not None:
         artifact = Path(output_dir) / "regime_diagnosis.json"
         artifact.write_text(
-            json.dumps(diagnosis.to_dict(), indent=2, sort_keys=True),
+            json.dumps(payload, indent=2, sort_keys=True),
             encoding="utf-8",
         )
 
-    return diagnosis.to_dict()
+    return payload
+
+
+def _news_stage_items(params: dict[str, Any], results: dict[str, Any]) -> list[Any] | None:
+    """Resolve news items produced by the ingest_news stage (Sprint 058).
+
+    Returns None when no stage output exists at all (standalone calls,
+    legacy checkpoints) so the caller can fall back to internal ingestion.
+    A present-but-unavailable/empty payload returns [] -- never re-fetched.
+    """
+    from news.intelligence import to_pre_market_news_items
+
+    stage = results.get("ingest_news")
+    if stage is None:
+        return None
+    if isinstance(stage, dict) and "items" in stage:
+        if stage.get("status") == "ok":
+            return to_pre_market_news_items(stage)
+        return []
+    if isinstance(stage, dict):
+        # Legacy checkpoint payload: raw news_items dicts without status.
+        return to_pre_market_news_items({"items": stage.get("news_items", [])})
+    return []
 
 
 def _pre_market_scan(params: dict[str, Any], results: dict[str, Any]) -> Any:
@@ -675,6 +770,7 @@ def _pre_market_scan(params: dict[str, Any], results: dict[str, Any]) -> Any:
         var_utilization_pct=params.get("var_utilization_pct", 0.0),
         calendar_csv=params.get("release_calendar_path"),
         briefing_id=params.get("briefing_id"),
+        external_news_items=_news_stage_items(params, results),
     )
     cpi_release = _cpi_release_snapshot(params, results)
     if cpi_release is not None:
@@ -1136,6 +1232,7 @@ def _bias_prevention(params: dict[str, Any], results: dict[str, Any]) -> Any:
 def _trade_recommendation(params: dict[str, Any], results: dict[str, Any]) -> Any:
     from decision_engine.contracts import InstitutionalDecision
     from trade_recommendation.recommender import RecommendationEngine
+    from trade_recommendation.reference_price import resolve_reference_price
 
     decision_data = results.get("decision_engine")
     if decision_data is None:
@@ -1149,11 +1246,40 @@ def _trade_recommendation(params: dict[str, Any], results: dict[str, Any]) -> An
     else:
         decision = decision_data
 
+    # Sprint 057: resolve the reference price end-to-end.  An explicit param
+    # always wins; otherwise the latest valid close from the run's own gold
+    # data is used.  When neither is available the recommender keeps its
+    # relative-anchor behaviour and the fallback is announced in metadata --
+    # no price is ever invented.
+    reference_price = params.get("reference_price")
+    if reference_price is not None:
+        reference_provenance: dict[str, Any] | None = {
+            "status": "explicit_param",
+            "value": float(reference_price),
+        }
+    else:
+        resolved, reason = resolve_reference_price(
+            params.get("gold_path"),
+            as_of=params.get("reference_as_of"),
+        )
+        if resolved is not None:
+            reference_price = resolved.value
+            reference_provenance = {
+                "status": "resolved_from_gold_data",
+                **resolved.to_dict(),
+            }
+        else:
+            reference_provenance = {
+                "status": "unavailable_relative_anchor_fallback",
+                "reason": reason,
+            }
+
     engine = RecommendationEngine()
     recommendation = engine.recommend(
         decision,
         instrument=params.get("asset", "XAU/USD"),
-        reference_price=params.get("reference_price"),
+        reference_price=reference_price,
+        reference_provenance=reference_provenance,
     )
     return recommendation
 
@@ -1448,4 +1574,76 @@ def _finalize(params: dict[str, Any], results: dict[str, Any]) -> Any:
     primitives = _composite_primitives(results)
     if primitives:
         payload["composite_primitives"] = primitives
+    # Sprint 058: additive news-intelligence observability.  Attached only
+    # when the ingest_news stage produced output so legacy payloads stay
+    # byte-identical; verbatim stage payload (status/reason/items/fomc).
+    news_payload = results.get("ingest_news")
+    if isinstance(news_payload, dict) and "status" in news_payload:
+        payload["news_intelligence"] = news_payload
     return payload
+
+
+def _technical_research(params: dict[str, Any], results: dict[str, Any]) -> Any:
+    """Independent Technical Research Desk artifact (observability only).
+
+    Computes a deterministic TechnicalAssessment from the run's gold OHLCV
+    data and persists it as ``output_dir/technical_assessment.json``.  The
+    stage is a deliberate leaf in the pipeline DAG: nothing downstream
+    consumes its output, so it cannot influence W13/W14 decisions.
+    """
+    import datetime
+    import json
+    from pathlib import Path
+
+    gold_path = params.get("gold_path")
+    if not gold_path:
+        return {"error": "no gold_path available"}
+
+    try:
+        import pandas as pd
+
+        from technical.contracts import SUPPORTED_TIMEFRAMES
+        from technical.desk import TechnicalResearchDesk
+
+        timeframe = params.get("technical_timeframe", "D1")
+        if timeframe not in SUPPORTED_TIMEFRAMES:
+            return {"error": f"unsupported technical timeframe: {timeframe}"}
+
+        frame = pd.read_csv(gold_path)
+        as_of = params.get("technical_as_of") or datetime.date.today().isoformat()
+        assessment = TechnicalResearchDesk().assess(
+            frame,
+            as_of=str(as_of),
+            timeframe=timeframe,
+            asset=params.get("asset", "XAU/USD"),
+        )
+        payload = assessment.to_dict()
+
+        # Sprint 061: additive canonical-fact references (observability only).
+        # The technical desk remains a DAG leaf; nothing downstream consumes
+        # these keys and no decision path can observe them.
+        try:
+            from knowledge.facts.builders import technical_fact_references
+
+            references = technical_fact_references(payload)
+            payload["fact_references"] = {
+                "status": references.get("status", "ok"),
+                "facts": references.get("facts", []),
+            }
+            payload["desk_provenance"] = references.get("desk_provenance")
+        except Exception as exc:
+            payload["fact_references"] = {
+                "status": "error",
+                "reason": f"{type(exc).__name__}: {exc}",
+            }
+
+        output_dir = params.get("output_dir")
+        if output_dir:
+            artifact = Path(output_dir) / "technical_assessment.json"
+            artifact.write_text(
+                json.dumps(payload, indent=2, sort_keys=True),
+                encoding="utf-8",
+            )
+        return payload
+    except Exception as exc:
+        return {"error": f"technical research failed: {exc}"}
