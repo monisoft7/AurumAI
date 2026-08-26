@@ -563,6 +563,102 @@ class TestStageWiring:
         assert reasoning.total_evidence_items == 0
 
 
+# ── Sprint 062: mandatory-query contract across W6 -> analogue -> retriever ─
+
+class TestMandatoryQueryContract:
+    """Sprint 062: query=None must never reach the retriever.
+
+    Root cause being locked down: when the CPI anchor (``reasoning_condition``)
+    is missing/invalid, ``build_situation_query`` correctly returns None for
+    any regime, and the Stage-2 regime-relax fallback previously forwarded
+    that None straight into ``HistoricalSituationRetriever.retrieve``.
+    The documented degradation is omission of the analogue, never a
+    fabricated configuration-free query.
+    """
+
+    def test_missing_cpi_anchor_degrades_to_none(self, episodes_json: Path) -> None:
+        assert build_historical_analogue(
+            cpi_condition=None,
+            regime=NORMAL_GROWTH,
+            trends={"us10y_trend": "yields_rising", "dxy_trend": "dxy_flat"},
+            episodes_index_path=episodes_json,
+        ) is None
+
+    def test_invalid_cpi_pressure_degrades_to_none(
+        self, episodes_json: Path,
+    ) -> None:
+        assert build_historical_analogue(
+            cpi_condition={"cpi_pressure": "not_a_pressure"},
+            regime=DEFLATIONARY_CRISIS,
+            trends={"us10y_trend": "yields_flat", "dxy_trend": "dxy_falling"},
+            episodes_index_path=episodes_json,
+        ) is None
+
+    def test_retriever_rejects_none_query(self, episodes_json: Path) -> None:
+        indexer = load_lesson_episode_index(episodes_json)
+        query_surface = LessonEpisodeQuery(indexer)
+        with pytest.raises(ValueError, match="SituationQuery"):
+            HistoricalSituationRetriever().retrieve(None, query_surface)
+
+    def test_regime_relaxed_fallback_still_works_with_valid_anchor(
+        self, episodes_json: Path,
+    ) -> None:
+        # Valid CPI anchor, absent regime: Stage 1 is skipped (no
+        # institutional_context), Stage 2 runs the regime-relaxed query and
+        # must still retrieve honestly-classified matches.
+        payload = build_historical_analogue(
+            cpi_condition={"cpi_pressure": "inflation_pressure_up"},
+            regime=None,
+            trends={"us10y_trend": "yields_rising", "dxy_trend": "dxy_flat"},
+            episodes_index_path=episodes_json,
+        )
+        assert payload is not None
+        assert payload["context_relaxed"] == ["regime"]
+        assert payload["match_count"] >= 1
+        assert payload["effective_query"]["institutional_context"] == {}
+        assert payload["effective_query"]["condition"]["cpi_pressure"] == (
+            "inflation_pressure_up"
+        )
+
+    def test_orchestration_without_reasoning_condition_is_clean(
+        self, episodes_json: Path,
+    ) -> None:
+        # The exact production shape behind test_w6_orchestration_stage:
+        # no build_legacy_pipeline reasoning_condition reaches the stage.
+        # The analogue is omitted explicitly -- no exception, no error dict,
+        # no fabricated payload, metadata stays analogue-free.
+        collection = EvidenceCollection(
+            collection_id="col_1",
+            assessment_id="ass_1",
+            timestamp="2026-08-14T00:00:00+00:00",
+            regime=NORMAL_GROWTH,
+        )
+        params = {
+            "regime": NORMAL_GROWTH,
+            "lesson_episodes_index_path": str(episodes_json),
+        }
+        results = {
+            "evidence_collection": collection,
+            # no build_legacy_pipeline key at all
+        }
+        reasoning = _evidence_reasoning(params, results)
+        assert not isinstance(reasoning, dict)
+        assert "historical_analogue" not in reasoning.metadata
+        assert isinstance(reasoning, EvidenceReasoning)
+        assert reasoning.total_evidence_sets == 0
+
+    def test_analogue_determinism(self, episodes_json: Path) -> None:
+        kwargs = dict(
+            cpi_condition={"cpi_pressure": "inflation_pressure_up"},
+            regime=DEFLATIONARY_CRISIS,
+            trends={"us10y_trend": "yields_rising", "dxy_trend": "dxy_flat"},
+            episodes_index_path=episodes_json,
+        )
+        first = build_historical_analogue(**kwargs)
+        second = build_historical_analogue(**kwargs)
+        assert first == second
+
+
 # ── K. numeric invariance ──────────────────────────────────────────────────
 
 class TestNumericInvariance:

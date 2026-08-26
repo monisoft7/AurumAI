@@ -264,6 +264,14 @@ def build_historical_analogue(
     # Retry without institutional_context (regime relaxed).
     # empty institutional_context => neutral 0.5 context similarity.
     fallback_query = build_situation_query(cpi_condition, current_trends, None)
+    if fallback_query is None:
+        # The regime relax step cannot rescue Stage 1 when the failure mode is
+        # the documented anchor-construction one: missing/invalid CPI pressure
+        # makes ``build_situation_query`` return None for any regime value.
+        # Per this module's degradation contract, the analogue is omitted and
+        # the pipeline continues unchanged.  A configuration-free SituationQuery
+        # is never fabricated past the retriever's mandatory-query contract.
+        return None
 
     matches = HistoricalSituationRetriever().retrieve(fallback_query, query_surface)
     if not matches:
