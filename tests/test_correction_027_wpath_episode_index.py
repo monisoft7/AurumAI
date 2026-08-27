@@ -59,13 +59,13 @@ from thesis_construction.constructor import ThesisConstructor
 from thesis_update.updater import ThesisUpdater
 
 ROOT = Path(__file__).resolve().parents[1]
+# Pinned fixture (Sprint 064-A): the enriched runtime lesson artifact is
+# committed under tests/fixtures so the clean checkout is self-contained.
 RUNTIME_ENRICHED_ARTIFACT = (
     ROOT
-    / "outputs"
-    / "2026-08-14"
-    / "runtime_20260814_113245"
-    / "artifacts"
-    / "lessons.csv"
+    / "tests"
+    / "fixtures"
+    / "correction027_enriched_runtime_lessons.csv"
 )
 
 KNOWN_ABSENT_EPISODES = (
@@ -360,7 +360,10 @@ class TestGlobalIndexNotRequired:
             m for m in payload["matches"]
             if m["lesson_id"] == "CPI_GOLD_2020-03-01"
         )
-        assert assigned["similarity"]["retrieval_method"] == "exact"
+        # Correction-035 honest classification: this query carries NO regime,
+        # so regime match cannot be verified -- an exact-condition match must
+        # be labeled "contextual", never "exact".
+        assert assigned["similarity"]["retrieval_method"] == "contextual"
         assert assigned["similarity"]["condition_similarity"] == pytest.approx(1.0)
 
         # without the run-local path the (missing) global default degrades to
@@ -542,7 +545,19 @@ class TestPayloadShape:
             episodes_index_path=enriched_runtime_index,
         )
         assert payload is not None
-        assert set(payload) == {"query", "match_count", "matches", "aggregate"}
+        # Post-Correction-035 two-stage retrieval contract: the payload
+        # exposes primary/effective queries, relaxation state and scope.
+        assert set(payload) == {
+            "primary_query",
+            "effective_query",
+            "context_relaxed",
+            "match_count",
+            "matches",
+            "aggregate",
+            "top_k",
+            "aggregate_scope",
+            "query",
+        }
         entry = payload["matches"][0]
         assert set(entry) == {
             "lesson_id",
