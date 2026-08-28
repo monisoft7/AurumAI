@@ -755,6 +755,12 @@ class HistoricalReplayEngine:
                     asset="XAU/USD",
                     horizon=self._horizon,
                     release_calendar_path=str(calendar_path),
+                    # No-lookahead: news/FOMC channels are anchored to the
+                    # release timestamp, so articles or meetings published
+                    # after ``as_of`` are excluded and counted, never
+                    # silently folded into a historical decision.
+                    news_as_of=as_of.isoformat(),
+                    fomc_as_of=as_of.date().isoformat(),
                 )
                 release_elapsed = (time.perf_counter() - t0) * 1000.0
 
@@ -1588,6 +1594,10 @@ class _EvalReplayEngine:
                     release_calendar_path=str(calendar_path),
                     prebuilt_lessons_path=self._prebuilt_lessons_path,
                     yield_data_path=self._yield_data_path,
+                    # No-lookahead: mirror the release-by-release replay --
+                    # news/FOMC channels anchored to the release timestamp.
+                    news_as_of=as_of.isoformat(),
+                    fomc_as_of=as_of.date().isoformat(),
                 )
                 release_elapsed = (time.perf_counter() - t0) * 1000.0
 

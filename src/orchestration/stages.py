@@ -71,6 +71,12 @@ def _ingest_news(params: dict[str, Any], results: dict[str, Any]) -> Any:
     lookback_days = int(params.get("news_lookback_days", 7))
     max_articles = int(params.get("news_max_articles", 20))
     as_of = params.get("news_as_of")
+    if as_of is None:
+        # No-lookahead gate: an article published after the decision time
+        # must never enter the run.  Deterministic callers anchor the clock
+        # via ``news_as_of`` (historical replay) or ``_news_now``; live runs
+        # gate on the same wall clock that stamps ``ingested_at``.
+        as_of = params.get("_news_now") or _dt.datetime.now(_dt.timezone.utc)
 
     payload = run_news_intelligence(
         topics=topics,

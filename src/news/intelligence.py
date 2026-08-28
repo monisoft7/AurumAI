@@ -498,6 +498,12 @@ def run_news_intelligence(
         except ImportError as exc:
             payload["reason"] = f"dependency_missing: {exc.name or 'feedparser'}"
             return payload
+        except Exception as exc:
+            # Same failure-honesty contract as the ``data_source`` path: an
+            # unexpected collection error is an explicit ``unavailable`` day,
+            # never a crash of the consuming run and never a fake empty feed.
+            payload["reason"] = f"collector_failed: {type(exc).__name__}"
+            return payload
 
     # --- normalization / classification ---------------------------------
     norm = normalize_articles(raw_articles, as_of=as_of, now=now)
@@ -540,6 +546,8 @@ def _collect_with_error_capture(collector: Any) -> tuple[list[Any], list[str]]:
     fake ``empty`` news day.
     """
     import feedparser
+
+    from news.news_collector import NewsCollector
 
     articles: list[Any] = []
     errors: list[str] = []

@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import sys
+import types
 from dataclasses import replace
 from unittest.mock import MagicMock
 
@@ -680,3 +682,107 @@ class TestIsolationGuarantees:
         legacy_results = {k: v for k, v in results.items() if k != "ingest_news"}
         legacy_payload = _finalize({}, legacy_results)
         assert "news_intelligence" not in legacy_payload
+
+
+# ===========================================================================
+# Default (live) RSS collection path -- the path with no injected
+# data_source.  Baseline regression: ``NewsCollector`` was referenced
+# undefined inside ``_collect_with_error_capture`` and crashed every
+# run_daily / historical-replay ``ingest_news`` stage.  These tests pin the
+# live path end-to-end with a stubbed feedparser (no network).
+# ===========================================================================
+
+
+class _FakeFeed:
+    def __init__(self, entries=None, bozo=False, bozo_exception=None):
+        self.entries = entries or []
+        self.bozo = bozo
+        self.bozo_exception = bozo_exception
+
+
+def _entry(title="Gold price edges higher", link="https://news.example/g1",
+           summary="bullion demand", published_parsed=None):
+    return {
+        "title": title,
+        "link": link,
+        "summary": summary,
+        "published_parsed": published_parsed,
+    }
+
+
+@pytest.fixture
+def fake_feedparser(monkeypatch):
+    """Install a stub ``feedparser`` module and capture parsed URLs."""
+    calls: list[str] = []
+
+    def _parse(url):
+        calls.append(url)
+        return _FakeFeed(entries=[_entry()])
+
+    module = types.SimpleNamespace(parse=_parse)
+    monkeypatch.setitem(sys.modules, "feedparser", module)
+    return calls
+
+
+class TestDefaultRssCollectionPath:
+    def test_default_path_collects_articles_with_provenance(self, fake_feedparser) -> None:
+        payload = run_news_intelligence(now=NOW, as_of=AS_OF)
+        assert payload["status"] == STATUS_OK
+        assert payload["reason"] == ""
+        assert payload["fetch_errors"] == []
+        assert len(payload["items"]) == 1
+        item = payload["items"][0]
+        assert item["article_id"].startswith("nws_")
+        assert item["content_hash"]
+        assert len(fake_feedparser) >= 1
+
+    def test_default_path_never_raises_name_error(self, fake_feedparser) -> None:
+        # The baseline defect raised ``NameError: NewsCollector is not
+        # defined`` from the default path; the callable must complete with
+        # an explicit status whatever the collection outcome is.
+        for _ in range(2):
+            payload = run_news_intelligence(now=NOW, as_of=AS_OF)
+            assert payload["status"] in (STATUS_OK, STATUS_EMPTY, STATUS_UNAVAILABLE)
+
+    def test_default_path_total_network_failure_is_unavailable(self, monkeypatch) -> None:
+        def _parse(url):
+            raise OSError("network unreachable")
+
+        monkeypatch.setitem(
+            sys.modules, "feedparser", types.SimpleNamespace(parse=_parse)
+        )
+        payload = run_news_intelligence(now=NOW)
+        assert payload["status"] == STATUS_UNAVAILABLE
+        assert payload["reason"] == "feed_fetch_failed"
+        assert payload["fetch_errors"], "per-feed errors must be recorded"
+        assert payload["items"] == []
+
+    def test_default_path_collector_crash_is_explicit_unavailable(self, monkeypatch) -> None:
+        import news.intelligence as news_intel
+
+        def _boom(collector):
+            raise RuntimeError("collector exploded")
+
+        monkeypatch.setattr(news_intel, "_collect_with_error_capture", _boom)
+        payload = run_news_intelligence(now=NOW)
+        assert payload["status"] == STATUS_UNAVAILABLE
+        assert payload["reason"] == "collector_failed: RuntimeError"
+        assert payload["items"] == []
+
+
+class TestStageLiveNoLookahead:
+    def test_stage_without_news_as_of_excludes_future_articles(self) -> None:
+        """No explicit ``news_as_of``: the stage gates on ``_news_now``."""
+        params = {
+            "_news_data_source": lambda: [
+                _article("Past gold headline", published=NOW - _dt.timedelta(days=1)),
+                _article("Future gold headline", published=NOW + _dt.timedelta(days=1)),
+            ],
+            "_news_now": NOW,
+        }
+        payload = _ingest_news(params, {})
+        headlines = [i["headline"] for i in payload["items"]]
+        assert "Past gold headline" in headlines
+        assert "Future gold headline" not in headlines
+        assert payload["excluded_after_asof_count"] == 1
+        assert payload["status"] == STATUS_OK

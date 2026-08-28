@@ -967,6 +967,40 @@ def build_sections(data: dict[str, Any]) -> list[Section]:
             Section(15, "Execution Levels", "\n".join(md_levels), html_levels)
         )
 
+    # 16 -- Sprint 058 news-intelligence observability (additive).  Rendered
+    # only when the ingest_news stage produced its explicit payload so an
+    # unavailable/filtered news day can never masquerade as a healthy empty
+    # feed in the human-readable report.
+    news_intel = finalize.get("news_intelligence") or {}
+    if news_intel.get("status"):
+        news_rows = [
+            ["Status", _fmt(news_intel.get("status"))],
+            ["Reason", _fmt(news_intel.get("reason")) or "—"],
+            ["Articles ingested", _fmt(len(news_intel.get("items") or []))],
+            ["Duplicates", _fmt(news_intel.get("duplicate_count"))],
+            ["Malformed skipped", _fmt(news_intel.get("malformed_count"))],
+            ["Excluded after as_of", _fmt(news_intel.get("excluded_after_asof_count"))],
+            ["FOMC status", _fmt(news_intel.get("fomc_status"))],
+            ["FOMC events", _fmt(len(news_intel.get("fomc_events") or []))],
+            ["Sentiment status", _fmt(news_intel.get("sentiment_status"))],
+        ]
+        fetch_errors = news_intel.get("fetch_errors") or []
+        if fetch_errors:
+            news_rows.append(
+                ["Fetch errors", "; ".join(str(e) for e in fetch_errors)]
+            )
+        md_16 = [
+            "News intelligence channel state (ingest_news stage payload, "
+            "verbatim). An explicit non-ok status means the news day is not "
+            "a healthy empty feed.",
+            "",
+            _md_table(["Field", "Value"], [[r[0], r[1]] for r in news_rows]),
+        ]
+        html_16 = _html_table(["Field", "Value"], news_rows)
+        sections.append(
+            Section(16, "News Intelligence", "\n".join(md_16), html_16)
+        )
+
     return sections
 
 
