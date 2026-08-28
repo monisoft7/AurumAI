@@ -561,3 +561,44 @@ def test_w13_orchestration_stage_propagates_upstream_errors():
     result = _trade_recommendation({}, {"decision_engine": {"error": "failed"}})
     assert isinstance(result, dict)
     assert "error" in result
+
+
+def test_w14_artifact_write_failure_is_surfaced_not_swallowed(tmp_path):
+    """Final Hardening closure (D-06): a failed trade_recommendation.json
+    write must never silently pass -- the stage's fail-safe contract is an
+    explicit error payload (surfaced through finalize) that still carries
+    the in-memory recommendation."""
+    import json
+
+    from orchestration.stages import _finalize, _trade_recommendation
+
+    # output_dir points at a regular FILE: creating
+    # <file>/trade_recommendation.json raises NotADirectoryError (OSError)
+    blocker = tmp_path / "not_a_directory"
+    blocker.write_text("occupied", encoding="utf-8")
+
+    decision = _manual_decision()
+    result = _trade_recommendation(
+        {"output_dir": str(blocker), "reference_price": 2000.0},
+        {"decision_engine": decision.to_dict()},
+    )
+    assert isinstance(result, dict)
+    assert result["error"].startswith("trade_recommendation.json write failed:")
+    assert "OSError" in result["error"] or "Error" in result["error"]
+    # no decision data is dropped: the recommendation rides along
+    assert result["recommendation"]["recommendation_action"] == "BUY"
+
+    # the failure is observable in the finalize contract
+    payload = _finalize(
+        {},
+        {
+            "build_legacy_pipeline": {},
+            "decision_engine": {"decision": "BUY"},
+            "trade_recommendation": result,
+        },
+    )
+    assert "trade_recommendation.json write failed" in payload["trade_recommendation"]["error"]
+    assert payload["trade_recommendation"]["recommendation"]["recommendation_action"] == "BUY"
+    # nothing was silently written
+    assert not (blocker / "trade_recommendation.json").exists()
+    assert json.loads(json.dumps(payload["trade_recommendation"]))  # serializable

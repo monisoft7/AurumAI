@@ -1503,16 +1503,26 @@ def _trade_recommendation(params: dict[str, Any], results: dict[str, Any]) -> An
 
     output_dir = params.get("output_dir")
     if output_dir:
+        artifact = _Path(output_dir) / "trade_recommendation.json"
         try:
-            artifact = _Path(output_dir) / "trade_recommendation.json"
             artifact.write_text(
                 _json.dumps(recommendation.to_dict(), indent=2, sort_keys=True),
                 encoding="utf-8",
             )
-        except Exception:
-            # the recommendation still flows through finalize; an unwritable
-            # artifact directory must not kill the stage
-            pass
+        except OSError as exc:
+            # Final Hardening closure: a failed artifact write is never
+            # silent.  The stage's established fail-safe contract is an
+            # explicit error payload surfaced through finalize; the
+            # in-memory recommendation rides along so no decision data is
+            # dropped.  Non-I/O failures are programming errors and
+            # propagate to the stage failure channel.
+            return {
+                "error": (
+                    "trade_recommendation.json write failed: "
+                    f"{type(exc).__name__}: {exc}"
+                ),
+                "recommendation": recommendation.to_dict(),
+            }
     return recommendation
 
 

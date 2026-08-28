@@ -12,25 +12,53 @@ if TYPE_CHECKING:
 SYNTHETIC_INDEX_FILENAME = "synthetic_data_index.json"
 
 
+class SyntheticIndexError(ValueError):
+    """Raised when ``synthetic_data_index.json`` exists but cannot be
+    trusted (unreadable, malformed JSON, or invalid schema).
+
+    Final Hardening closure: a corrupt index must never silently behave as
+    "no known synthetic files" -- that would re-admit machine-generated
+    placeholders into live institutional computation.  A MISSING index is
+    not an error (explicit "no known synthetic files" semantics); a corrupt
+    one is an integrity failure and must surface."""
+
+
 def load_synthetic_exclusions(data_dir: str | Path) -> dict[str, dict[str, Any]]:
     """Load the synthetic-data index for *data_dir* (Final Hardening, D-03).
 
     ``synthetic_data_index.json`` lists CSV files in that directory that are
     machine-generated placeholders (rng-seeded) rather than observed market /
     macro data.  Synthetic files must never masquerade as institutional
-    input: callers exclude them from every live computation.  A missing
-    index means "no known synthetic files" and is not an error.
+    input: callers exclude them from every live computation.
+
+    Three distinct states (Final Hardening closure):
+
+    1. index absent -> ``{}`` ("no known synthetic files"; not an error);
+    2. index present and valid -> the exclusion mapping;
+    3. index present but unreadable / malformed / invalid schema ->
+       :class:`SyntheticIndexError` (never silently treated as state 1).
     """
     index_path = Path(data_dir) / SYNTHETIC_INDEX_FILENAME
     if not index_path.is_file():
         return {}
     try:
-        payload = json.loads(index_path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return {}
-    files = payload.get("files")
+        raw = index_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise SyntheticIndexError(
+            f"synthetic data index is unreadable: {index_path}: {exc}"
+        ) from exc
+    try:
+        payload = json.loads(raw)
+    except ValueError as exc:
+        raise SyntheticIndexError(
+            f"synthetic data index is malformed JSON: {index_path}: {exc}"
+        ) from exc
+    files = payload.get("files") if isinstance(payload, dict) else None
     if not isinstance(files, dict):
-        return {}
+        raise SyntheticIndexError(
+            f"synthetic data index has invalid schema "
+            f"(expected a 'files' mapping): {index_path}"
+        )
     return {str(k): v for k, v in files.items() if isinstance(v, dict)}
 
 

@@ -1,16 +1,15 @@
 """Correction 053-C -- standalone regime_alignment channel removed from W13.
 
-Locks the post-053-C composite:
-    0.30*institutional_confidence
-  + 0.20*risk_reward_quality
-  + 0.15*evidence_quality
-  + 0.15*(1-penalty)
-  + 0.10*scenario_probability
+Locks the post-hardening composite (Final Hardening Group A):
+    0.50*institutional_confidence
+  + (1/3)*risk_reward_quality
+  + (1/6)*scenario_probability
 (regime alignment remains single-counted inside W9 institutional_confidence).
 
 Also locks, using the RECORDED Trace-053-A/B primitive payloads for
-CPI_GOLD_2015-06-01 / 2020-09-01 / 2026-02-01, that the implemented formula
-is EXACTLY the B2 counterfactual measured in Trace-053-B: ranking,
+CPI_GOLD_2015-06-01 / 2020-09-01 / 2026-02-01, that the implemented
+composite reproduces the recorded hardening counterfactuals (independent
+pinned values) and preserves the B2 Trace-053-B outcomes: ranking,
 selected thesis, confidence, RR and decisions all unchanged.
 """
 
@@ -187,7 +186,6 @@ class TestCorrection053CFormula:
 class TestCorrection053CUntouchedNeighbors:
     def test_w9_computer_byte_identical_to_recorded_breakdown(self):
         # recorded pre-053-C values for the standard fixture thesis
-        thesis = _make_chain.__wrapped__ if False else None  # placeholder guard
         from thesis_construction.contracts import InvestmentThesis
 
         t = InvestmentThesis(
@@ -341,44 +339,248 @@ class TestCorrection053CUntouchedNeighbors:
 # B2 regression on the recorded canonical cases
 # ---------------------------------------------------------------------------
 
+# Recorded post-hardening counterfactuals (Final Hardening Group A): the
+# three-term composite (0.50*fc + 1/3*rr + 1/6*maxp) applied to the SAME
+# Trace-053-B primitives.  These are independent pinned expected values --
+# NOT computed by the code under test -- so any change to the composite
+# arithmetic, the candidate ranking, or the top-2 margin fails here instead
+# of silently re-baselining.
+HARDENING_RECORDED = {
+    "CPI_GOLD_2015-06-01": {
+        "scores": {"bearish": 0.6733, "neutral": 0.6606},
+        "margin_top2": 0.0127,
+    },
+    "CPI_GOLD_2020-09-01": {
+        "scores": {"bullish": 0.6294, "neutral": 0.6535},
+        "margin_top2": 0.0241,
+    },
+    "CPI_GOLD_2026-02-01": {
+        "scores": {"bearish": 0.4331, "neutral": 0.5641},
+        "margin_top2": 0.1310,
+    },
+}
+
+# Best-scenario risk_reward_ratio per (case, direction) for the decision-gate
+# reconstruction: the NO_TRADE baselines must fail the W13 RR gate
+# (ratio > NO_TRADE_RR_RATIO = 2.0), the HOLD baseline must clear it.  The
+# remaining scenarios carry ratios whose mean reproduces the recorded rr
+# score exactly (rr_score = mean(1 - ratio/10), rounded to 4dp).
+BEST_SCENARIO_RR_RATIO = {
+    # NO_TRADE baselines: every scenario shares the uniform recorded-mean
+    # ratio 10*(1-rr), which already fails the W13 RR gate (> 2.0).
+    ("CPI_GOLD_2015-06-01", "bearish"): 3.208,
+    ("CPI_GOLD_2015-06-01", "neutral"): 2.663,
+    ("CPI_GOLD_2020-09-01", "bullish"): 2.882,
+    ("CPI_GOLD_2020-09-01", "neutral"): 3.342,
+    ("CPI_GOLD_2026-02-01", "bearish"): 5.902,
+    # HOLD baseline: the selected (base) scenario must clear the RR gate;
+    # the two off-path scenarios carry the rest of the recorded mean.
+    ("CPI_GOLD_2026-02-01", "neutral"): 1.5,
+}
+
+
+def _make_b2_case_chain(lid: str, case: dict):
+    """Reconstruct one recorded Trace-053-B canonical case through REAL
+    W11/W12/W13 objects.
+
+    Each thesis carries its recorded primitives verbatim: final_confidence
+    (fc), scenario probabilities at the recorded maxp, and validations whose
+    mean rr component reproduces the recorded rr score
+    (rr_score = round(mean(1 - ratio/10), 4)).  No recomputed shortcut is
+    used -- DecisionEngine.decide() consumes fully constructed contracts, so
+    the composite arithmetic, ranking and decision gates exercised are the
+    production code paths.
+    """
+    from confidence_engine.computer import ConfidenceComputer
+    from risk_reward_validation.contracts import (
+        InstitutionalRiskValidation,
+        RiskRewardValidation,
+    )
+    from scenario_generation.contracts import (
+        InstitutionalScenario,
+        ScenarioGeneration,
+    )
+    from thesis_construction.contracts import InvestmentThesis, ThesisConstruction
+
+    theses, tcs, scenarios, validations = [], [], [], []
+    for direction in case["order_dirs"]:
+        prim = case["theses"][direction]
+        thesis = InvestmentThesis(
+            thesis_id=f"th_{lid}_{direction}",
+            direction=direction,
+            supporting_set_ids=("es_general",),
+            counter_evidence_ids=(),
+            regime="INFLATIONARY",
+            economic_mechanism="mechanism",
+            time_horizon_days=90,
+            invalidating_conditions=("invalidation",),
+            remaining_unknowns=("unknown",),
+            confidence_inputs={
+                "avg_supporting_weight": prim["w"],
+                "avg_supporting_consensus": 1.0,
+                "conflict_severity": 0.0,
+                "confidence_penalty": prim["icp"],
+                "raw_support": prim["w"],
+            },
+            institutional_support=0.3781,
+            explanation="c053c-b2",
+        )
+        theses.append(thesis)
+        tcs.append(ThesisConfidence(
+            thesis_id=thesis.thesis_id,
+            final_confidence=prim["fc"],
+            confidence_breakdown={"regime_alignment": prim["ra"]},
+            reliability_category=ConfidenceComputer.reliability_category(prim["fc"]),
+        ))
+        if (lid, direction) == ("CPI_GOLD_2026-02-01", "neutral"):
+            # HOLD baseline: base scenario clears the RR gate, the two
+            # off-path scenarios carry the rest of the recorded mean.
+            ratios = {"base": 1.5, "bull": 4.263, "bear": 4.263}
+        else:
+            uniform = round(10.0 * (1.0 - prim["rr"]), 6)
+            ratios = {"base": uniform, "bull": uniform, "bear": uniform}
+        base_ratio = BEST_SCENARIO_RR_RATIO[(lid, direction)]
+        for scenario_type in ("base", "bull", "bear"):
+            sid = f"sc_{lid}_{direction}_{scenario_type}"
+            scenarios.append(InstitutionalScenario(
+                scenario_id=sid,
+                thesis_id=thesis.thesis_id,
+                scenario_type=scenario_type,
+                probability=prim["maxp"],
+                expected_direction=direction,
+                time_horizon_days=90,
+                regime_path=("INFLATIONARY",),
+                confidence_inputs={
+                    "scenario_confidence": 0.3781,
+                    "scenario_confidence_source": "institutional_support",
+                    "scenario_confidence_type": "conviction_proxy",
+                },
+            ))
+            validations.append(InstitutionalRiskValidation(
+                validation_id=f"vv_{sid}",
+                scenario_id=sid,
+                thesis_id=thesis.thesis_id,
+                validation_status="borderline",
+                expected_reward=0.2,
+                expected_risk=0.1,
+                risk_reward_ratio=base_ratio
+                if scenario_type == "base" else ratios[scenario_type],
+                maximum_downside=0.1,
+                expected_upside=0.3,
+                volatility_impact=0.1,
+                regime_risk=0.1,
+                liquidity_risk=0.1,
+                tail_risk=0.1,
+                validation_explanation="b2 counterfactual reconstruction",
+            ))
+
+    construction = ThesisConstruction(
+        construction_id=f"tc_{lid}",
+        reasoning_id="rsn_053c",
+        assessment_id="cae_053c",
+        timestamp="2026-08-24T06:56:54+00:00",
+        regime="INFLATIONARY",
+        theses=tuple(theses),
+        ranked_thesis_ids=tuple(t.thesis_id for t in theses),
+        total_theses=len(theses),
+        primary_thesis_id=theses[0].thesis_id,
+        metadata={},
+    )
+    confidence = InstitutionalConfidence(
+        confidence_id=f"cf_{lid}",
+        construction_id=construction.construction_id,
+        timestamp="2026-08-24T06:56:54+00:00",
+        regime="INFLATIONARY",
+        theses_confidence=tuple(tcs),
+        ranked_thesis_ids=tuple(t.thesis_id for t in theses),
+        primary_thesis_id=theses[0].thesis_id,
+    )
+    generation = ScenarioGeneration(
+        scenario_generation_id=f"sg_{lid}",
+        construction_id=construction.construction_id,
+        confidence_id=confidence.confidence_id,
+        timestamp="2026-08-24T06:56:54+00:00",
+        regime="INFLATIONARY",
+        scenarios=tuple(scenarios),
+        thesis_ids=tuple(t.thesis_id for t in theses),
+        total_scenarios=len(scenarios),
+    )
+    validation = RiskRewardValidation(
+        validation_id=f"rrv_{lid}",
+        scenario_generation_id=generation.scenario_generation_id,
+        timestamp="2026-08-24T06:56:54+00:00",
+        regime="INFLATIONARY",
+        validations=tuple(validations),
+        scenario_ids=tuple(s.scenario_id for s in scenarios),
+        total_validations=len(validations),
+    )
+    return DecisionEngine().decide(construction, confidence, generation, validation)
+
 
 class TestCorrection053CB2Regression:
-    @staticmethod
-    def _hardening_score(prim: dict) -> float:
-        # Final Hardening (Group A): three-term single-count composite
-        # (0.50*fc + 1/3*rr + 1/6*maxp) applied to the SAME recorded
-        # Trace-053-B primitives.
-        return round(
-            0.50 * prim["fc"] + (1.0 / 3.0) * prim["rr"] + (1.0 / 6.0) * prim["maxp"],
-            4,
-        )
+    # -- recorded B2 counterfactual integrity (Trace-053-B data) ----------
 
-    def test_new_composite_recomputes_from_recorded_primitives(self):
+    def test_recorded_b2_counterfactual_identity_intact(self):
+        # B2 removed exactly the +0.10*regime_alignment term from the
+        # recorded six-term score: b2 == score - 0.10*ra for EVERY recorded
+        # thesis.  Fails if any recorded B2 regression value is tampered with.
         for lid, case in B2_RECORDED.items():
             for direction, prim in case["theses"].items():
-                rebuilt = self._hardening_score(prim)
-                # score must be a deterministic function of the recorded
-                # primitives (no hidden inputs)
-                assert rebuilt == self._hardening_score(prim), (lid, direction)
-                assert 0.0 <= rebuilt <= 1.0, (lid, direction)
+                b2 = round(prim["score"] - 0.10 * prim["ra"], 4)
+                assert b2 == case["b2_scores_by_dir"][direction], (lid, direction)
 
     @pytest.mark.parametrize("lid", list(B2_RECORDED.keys()))
-    def test_ranking_selected_and_margins_match_b2(self, lid):
-        # The hardening composite preserves the recorded candidate ordering
-        # on every canonical case.
+    def test_recorded_b2_ranking_and_margin_intact(self, lid):
+        # The recorded B2 counterfactual itself must keep its recorded
+        # ranking and exact top-2 margin.
         case = B2_RECORDED[lid]
-        scores = {d: self._hardening_score(v) for d, v in case["theses"].items()}
+        scores = case["b2_scores_by_dir"]
         order = sorted(scores, key=lambda k: -scores[k])
         assert order == case["order_dirs"], lid
         margin = round(scores[order[0]] - scores[order[1]], 4)
-        assert margin >= 0.0
+        assert margin == case["margin_top2"], lid
 
-    def test_confidence_rr_and_decisions_unchanged_all_cases(self):
-        for lid, case in B2_RECORDED.items():
-            for direction, prim in case["theses"].items():
-                assert prim["fc"] > 0 or True
-            # confidence values are inputs, untouched by the hardening
-            # decisions: gates depend only on fc/ratios/statuses; selection
-            # order proven preserved above -> same selected thesis ->
-            # same final decision as recorded baseline.
-            assert case["decision_baseline"] in {"BUY", "SELL", "HOLD", "NO_TRADE"}
+    # -- hardening composite regression through the real engine -----------
+
+    @pytest.mark.parametrize("lid", list(B2_RECORDED.keys()))
+    def test_hardening_composite_matches_recorded_counterfactual(self, lid):
+        # The implemented three-term composite applied to the recorded
+        # primitives must equal the independently pinned hardening
+        # counterfactuals for BOTH theses (selected + rejected).
+        case = B2_RECORDED[lid]
+        expected = HARDENING_RECORDED[lid]
+        decision = _make_b2_case_chain(lid, case)
+        selected_dir = decision.metadata["selected_thesis_direction"]
+        assert decision.metadata["composite_score"] == expected["scores"][selected_dir], lid
+        rejected = decision.rejected_alternatives
+        assert len(rejected) == 1, lid
+        assert rejected[0].composite_score == expected["scores"][rejected[0].thesis_direction], lid
+
+    @pytest.mark.parametrize("lid", list(B2_RECORDED.keys()))
+    def test_hardening_ranking_margin_and_confidence_preserved(self, lid):
+        case = B2_RECORDED[lid]
+        expected = HARDENING_RECORDED[lid]
+        decision = _make_b2_case_chain(lid, case)
+        selected_dir = decision.metadata["selected_thesis_direction"]
+        rejected = decision.rejected_alternatives
+        # ranking: selected thesis and runner-up match the recorded order
+        assert selected_dir == case["order_dirs"][0], lid
+        assert rejected[0].thesis_direction == case["order_dirs"][1], lid
+        # exact recorded top-2 margin under the hardening composite
+        margin = round(
+            decision.metadata["composite_score"] - rejected[0].composite_score, 4
+        )
+        assert margin == expected["margin_top2"], lid
+        # confidence values are inputs, untouched by the hardening
+        assert decision.institutional_confidence == case["theses"][selected_dir]["fc"], lid
+
+    @pytest.mark.parametrize("lid", list(B2_RECORDED.keys()))
+    def test_decision_baseline_rederived_from_recorded_primitives(self, lid):
+        # The recorded decision must be re-derivable through the REAL
+        # decision gates (confidence gate + RR gate + direction semantics)
+        # from the recorded primitives -- not merely asserted to exist.
+        case = B2_RECORDED[lid]
+        decision = _make_b2_case_chain(lid, case)
+        assert decision.decision == case["decision_baseline"], lid
+
+

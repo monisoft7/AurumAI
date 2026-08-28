@@ -30,6 +30,7 @@ if str(SRC) not in sys.path:
 from knowledge.regime.composite_score import (  # noqa: E402
     SYNTHETIC_INDEX_FILENAME,
     CompositeScoreBuilder,
+    SyntheticIndexError,
     load_synthetic_exclusions,
 )
 
@@ -54,6 +55,49 @@ def test_load_synthetic_exclusions_reads_index():
     assert "PMI.csv" in exclusions
     assert "CPIAUCSL.csv" not in exclusions
     assert load_synthetic_exclusions(ROOT / "data" / "does_not_exist") == {}
+
+
+def test_synthetic_index_missing_is_not_corrupt(tmp_path):
+    # state 1 -- absent: explicit "no known synthetic files", not an error
+    assert load_synthetic_exclusions(tmp_path) == {}
+
+
+def test_synthetic_index_malformed_json_is_corrupt_not_missing(tmp_path):
+    # state 3a -- exists but malformed JSON: must NOT collapse to state 1
+    (tmp_path / SYNTHETIC_INDEX_FILENAME).write_text("{not json", encoding="utf-8")
+    with pytest.raises(SyntheticIndexError, match="malformed JSON"):
+        load_synthetic_exclusions(tmp_path)
+
+
+def test_synthetic_index_invalid_schema_is_corrupt_not_missing(tmp_path):
+    # state 3b -- valid JSON but no 'files' mapping: corrupt, not missing
+    (tmp_path / SYNTHETIC_INDEX_FILENAME).write_text(
+        json.dumps(["not", "a", "mapping"]), encoding="utf-8"
+    )
+    with pytest.raises(SyntheticIndexError, match="invalid schema"):
+        load_synthetic_exclusions(tmp_path)
+
+
+def test_synthetic_index_unreadable_is_corrupt_not_missing(tmp_path, monkeypatch):
+    # state 3c -- exists but unreadable (e.g. permission failure)
+    index_path = tmp_path / SYNTHETIC_INDEX_FILENAME
+    index_path.write_text(json.dumps({"files": {}}), encoding="utf-8")
+
+    def _unreadable(self, *args, **kwargs):
+        raise PermissionError("simulated unreadable index")
+
+    monkeypatch.setattr(Path, "read_text", _unreadable)
+    with pytest.raises(SyntheticIndexError, match="unreadable"):
+        load_synthetic_exclusions(tmp_path)
+
+
+def test_composite_builder_fails_loudly_on_corrupt_index(tmp_path):
+    # whole-path: a corrupt index must surface through the composite
+    # builder (stage failure), never silently re-admit synthetic data
+    (tmp_path / SYNTHETIC_INDEX_FILENAME).write_text("{corrupt", encoding="utf-8")
+    builder = CompositeScoreBuilder(data_dir=tmp_path)
+    with pytest.raises(SyntheticIndexError):
+        builder.build_with_provenance()
 
 
 def test_composite_builder_excludes_synthetic_indicators(tmp_path):

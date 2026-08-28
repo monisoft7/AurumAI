@@ -47,6 +47,15 @@ def collect_evaluated_outcomes(
     - it carries a scored verdict (``decision_correct`` is True/False);
     - ``entry_date`` parses and is strictly before ``as_of_date``
       (default: today UTC) -- decisions evaluated never look ahead.
+
+    Final Hardening closure: BOTH on-disk layouts are discovered,
+    deterministically:
+    - legacy one-level: ``outputs/YYYY-MM-DD/outcome.evaluated.json``
+    - per-run:          ``outputs/YYYY-MM-DD/<run_id>/outcome.evaluated.json``
+
+    The same evaluated decision copied into both layouts (layout migration)
+    is consumed exactly once: records are deduplicated by ``decision_id``
+    in deterministic (sorted-path) order.
     """
     root = Path(outputs_root)
     effective_as_of = as_of_date or datetime.datetime.now(
@@ -55,7 +64,15 @@ def collect_evaluated_outcomes(
     records: list[dict[str, Any]] = []
     if not root.is_dir():
         return records
-    for evaluated_path in sorted(root.glob(f"*/*/{'outcome.evaluated.json'}")):
+    candidates = sorted(
+        {
+            *root.glob("*/outcome.evaluated.json"),
+            *root.glob("*/*/outcome.evaluated.json"),
+        },
+        key=str,
+    )
+    seen_decision_ids: set[str] = set()
+    for evaluated_path in candidates:
         try:
             data = json.loads(evaluated_path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -73,6 +90,11 @@ def collect_evaluated_outcomes(
         confidence = data.get("institutional_confidence")
         if not isinstance(confidence, (int, float)) or isinstance(confidence, bool):
             continue
+        decision_id = data.get("decision_id")
+        if isinstance(decision_id, str) and decision_id:
+            if decision_id in seen_decision_ids:
+                continue
+            seen_decision_ids.add(decision_id)
         records.append(data)
     return records
 

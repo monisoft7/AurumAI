@@ -66,7 +66,7 @@ def _write_evaluated(
         "decision_correct": correct,
         "evaluation_timestamp": "2026-08-10T00:00:00+00:00",
         "notes": [],
-        "decision_id": "dec_x",
+        "decision_id": f"dec_{date}_{pipeline}",
         "decision_snapshot": {},
     }
     (run_dir / "outcome.evaluated.json").write_text(
@@ -88,6 +88,112 @@ def test_collect_only_scored_evaluated_past_records(tmp_path):
     records = collect_evaluated_outcomes(tmp_path, as_of_date=AS_OF)
     assert len(records) == 1
     assert records[0]["run_id"] == "run_2026-08-01_p1"
+
+
+# ---------------------------------------------------------------------------
+# Final Hardening closure: legacy one-level layout support
+# ---------------------------------------------------------------------------
+
+
+def _write_raw_evaluated(path: Path, **overrides) -> dict:
+    record = {
+        "schema_version": "1.1",
+        "artifact": "decision_outcome",
+        "status": "evaluated",
+        "run_id": "run_legacy",
+        "decision": "BUY",
+        "decision_id": "dec_legacy",
+        "institutional_confidence": 0.7,
+        "event_type": "CPI",
+        "asset": "XAU/USD",
+        "horizon_days": 5,
+        "gold_path": "data/history/gold/gold.csv",
+        "entry_date": "2026-08-01",
+        "realized_gold_return": 1.2,
+        "decision_correct": True,
+        "evaluation_timestamp": "2026-08-10T00:00:00+00:00",
+        "notes": [],
+        "decision_snapshot": {},
+    }
+    record.update(overrides)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(record), encoding="utf-8")
+    return record
+
+
+def test_collect_supports_legacy_one_level_layout(tmp_path):
+    # outputs/YYYY-MM-DD/outcome.evaluated.json (no run_id directory)
+    _write_raw_evaluated(
+        tmp_path / "2026-08-01" / "outcome.evaluated.json",
+        run_id="run_legacy_1",
+        decision_id="dec_legacy_1",
+    )
+    records = collect_evaluated_outcomes(tmp_path, as_of_date=AS_OF)
+    assert len(records) == 1
+    assert records[0]["run_id"] == "run_legacy_1"
+    assert records[0]["decision_correct"] is True
+
+
+def test_collect_mixed_layouts_is_deterministic(tmp_path):
+    # one legacy record + two per-run records: all consumed, stable order
+    _write_raw_evaluated(
+        tmp_path / "2026-08-01" / "outcome.evaluated.json",
+        run_id="run_legacy_1", decision_id="dec_l1",
+    )
+    _write_raw_evaluated(
+        tmp_path / "2026-08-02" / "runA" / "outcome.evaluated.json",
+        run_id="run_a", decision_id="dec_a",
+    )
+    _write_raw_evaluated(
+        tmp_path / "2026-08-02" / "runB" / "outcome.evaluated.json",
+        run_id="run_b", decision_id="dec_b",
+    )
+    first = collect_evaluated_outcomes(tmp_path, as_of_date=AS_OF)
+    second = collect_evaluated_outcomes(tmp_path, as_of_date=AS_OF)
+    assert len(first) == 3
+    assert [r["decision_id"] for r in first] == [r["decision_id"] for r in second]
+    assert first == second
+
+
+def test_collect_dedupes_same_decision_across_layouts(tmp_path):
+    # the same evaluated decision present in BOTH layouts (layout
+    # migration) must be consumed exactly once
+    _write_raw_evaluated(
+        tmp_path / "2026-08-01" / "outcome.evaluated.json",
+        run_id="run_shared", decision_id="dec_shared",
+    )
+    _write_raw_evaluated(
+        tmp_path / "2026-08-01" / "runtime_shared" / "outcome.evaluated.json",
+        run_id="run_shared", decision_id="dec_shared",
+    )
+    records = collect_evaluated_outcomes(tmp_path, as_of_date=AS_OF)
+    assert len(records) == 1
+    assert records[0]["decision_id"] == "dec_shared"
+
+
+def test_collect_distinct_decisions_in_both_layouts_both_counted(tmp_path):
+    # a legacy file and a per-run file describing DIFFERENT decisions are
+    # two independent samples (real 2026-08-04 tree state)
+    _write_raw_evaluated(
+        tmp_path / "2026-08-04" / "outcome.evaluated.json",
+        run_id="run_legacy", decision_id="dec_legacy",
+    )
+    _write_raw_evaluated(
+        tmp_path / "2026-08-04" / "runtime_x" / "outcome.evaluated.json",
+        run_id="run_x", decision_id="dec_x",
+    )
+    records = collect_evaluated_outcomes(tmp_path, as_of_date=AS_OF)
+    assert {r["decision_id"] for r in records} == {"dec_legacy", "dec_x"}
+
+
+def test_legacy_layout_future_entry_still_excluded(tmp_path):
+    # point-in-time gate applies unchanged to the legacy layout
+    _write_raw_evaluated(
+        tmp_path / "2026-08-01" / "outcome.evaluated.json",
+        run_id="run_legacy_future", decision_id="dec_lf",
+        entry_date="2026-08-27",
+    )
+    assert collect_evaluated_outcomes(tmp_path, as_of_date=AS_OF) == []
 
 
 def test_compute_calibration_statistics(tmp_path):
