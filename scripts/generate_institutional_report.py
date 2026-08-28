@@ -1001,6 +1001,124 @@ def build_sections(data: dict[str, Any]) -> list[Section]:
             Section(16, "News Intelligence", "\n".join(md_16), html_16)
         )
 
+    # 17 -- Daily operational snapshot (additive measurement layer).
+    # Rendered from ``daily_operational_summary.json`` when the summary
+    # builder has produced it.  Values are copied verbatim from the
+    # summary contract; when the artifact is absent the section says so
+    # explicitly instead of pretending the day is healthy.
+    summary_payload = _load_json(
+        Path(str(data.get("run_dir", ""))) / "daily_operational_summary.json"
+    )
+    if not isinstance(summary_payload, dict):
+        summary_payload = {}
+    snapshot_rows: list[list[str]]
+    if summary_payload:
+        decision_s = summary_payload.get("decision") or {}
+        news_s = summary_payload.get("news") or {}
+        technical_s = summary_payload.get("technical") or {}
+        risk_s = summary_payload.get("risk") or {}
+        governance_s = summary_payload.get("governance") or {}
+        outcome_s = summary_payload.get("outcome") or {}
+        calibration_s = summary_payload.get("calibration") or {}
+
+        def _cell(value: Any) -> str:
+            if value is None:
+                return "unavailable"
+            return str(value)
+
+        snapshot_rows = [
+            ["What happened", _cell(summary_payload.get("event_type"))],
+            ["What AurumAI thinks (decision)", _cell(decision_s.get("action"))],
+            ["Confidence", _cell(decision_s.get("confidence"))],
+            ["Why (gate reason)", _cell(decision_s.get("gate_reason"))],
+            ["Selected thesis", _cell(decision_s.get("selected_thesis_id"))],
+            ["Regime", _cell(summary_payload.get("regime"))],
+            [
+                "Technical confirmations",
+                f"trend {_cell(technical_s.get('trend_direction'))} / "
+                f"momentum {_cell(technical_s.get('momentum_direction'))} / "
+                f"structure {_cell(technical_s.get('structure_state'))} "
+                f"(confidence {_cell(technical_s.get('technical_confidence'))})",
+            ],
+            [
+                "Technical conflicts",
+                "none recorded"
+                if technical_s.get("status") == "ok"
+                else _cell(technical_s.get("status")),
+            ],
+            [
+                "Market risk",
+                f"reference {_cell(risk_s.get('reference_price'))} | "
+                f"ATR {_cell(risk_s.get('atr'))} | "
+                f"market RR {_cell(risk_s.get('market_risk_reward'))} | "
+                f"risk gate {_cell(risk_s.get('risk_status'))}",
+            ],
+            [
+                "Execution",
+                (
+                    f"{_cell(risk_s.get('stop'))} | tp1 {_cell(risk_s.get('tp1'))} | "
+                    f"tp2 {_cell(risk_s.get('tp2'))}"
+                )
+                if risk_s.get("stop") is not None
+                else "no absolute levels emitted for this decision class",
+            ],
+            [
+                "News health",
+                f"status {_cell(news_s.get('status'))} | "
+                f"articles {_cell(news_s.get('article_count'))} | "
+                f"directional {_cell(news_s.get('directional_count'))} | "
+                f"unknown {_cell(news_s.get('unknown_count'))} | "
+                f"sentiment {_cell(news_s.get('sentiment_status'))}",
+            ],
+            [
+                "Calibration",
+                f"{_cell(calibration_s.get('calibration_status'))} "
+                f"(samples {_cell(calibration_s.get('sample_count'))}, "
+                f"OOS ECE {_cell(calibration_s.get('oos_ece'))})",
+            ],
+            [
+                "Bias / governance",
+                f"severity {_cell(governance_s.get('bias_severity'))} | "
+                f"human review {_cell(governance_s.get('bias_review_flag'))} | "
+                f"provenance {_cell(governance_s.get('provenance_status'))}",
+            ],
+            [
+                "Outcome tracking",
+                f"{_cell(outcome_s.get('status'))} | "
+                f"decision correct {_cell(outcome_s.get('decision_correct'))} | "
+                f"abstention verdict {_cell(outcome_s.get('abstention_verdict'))} | "
+                f"realized return {_cell(outcome_s.get('realized_return'))}",
+            ],
+            [
+                "What remains unobservable",
+                "outcome pending (horizon not elapsed)"
+                if outcome_s.get("status") == "pending"
+                else "none recorded in this summary",
+            ],
+            [
+                "Provenance",
+                f"git {_cell((summary_payload.get('provenance') or {}).get('git_commit'))} | "
+                f"run {_cell(summary_payload.get('run_id'))}",
+            ],
+        ]
+        md_17 = (
+            "One-page operational snapshot built from "
+            "``daily_operational_summary.json`` (additive; no decision "
+            "recalculation).\n\n"
+            + _md_table(["Question", "Answer"], snapshot_rows)
+        )
+        html_17 = _html_table(["Question", "Answer"], snapshot_rows)
+    else:
+        note = (
+            "daily_operational_summary.json not found in this run directory; "
+            "the operational snapshot is unavailable for this run."
+        )
+        md_17 = note
+        html_17 = _html_para(note)
+    sections.append(
+        Section(17, "DAILY INSTITUTIONAL SNAPSHOT", md_17, html_17)
+    )
+
     return sections
 
 
@@ -1136,6 +1254,7 @@ def main(argv: list[str] | None = None) -> int:
         "summary": summary,
         "finalize": finalize,
         "stages": stages,
+        "run_dir": str(run_dir),
     }
 
     sections = build_sections(data)
