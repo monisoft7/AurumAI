@@ -75,6 +75,18 @@ class SignalAssessmentAssembler:
         news_headlines = [n.headline for n in briefing.news_items]
         positional = briefing.positioning_snapshot
 
+        def _pos_available(feed: str) -> bool:
+            # Final Hardening (D-11): unavailable positioning feeds must not
+            # be consumed as real measurements.  Missing availability map
+            # (legacy snapshots) keeps the legacy behaviour.
+            if positional is None:
+                return False
+            return positional.availability.get(feed, "available") == "available"
+
+        oi_available = _pos_available("open_interest")
+        etf_available = _pos_available("etf_flow")
+        cot_available = _pos_available("cot")
+
         for change in briefing.overnight_changes:
             changes_dict = {c.instrument: c.change_pct for c in briefing.overnight_changes}
             persistence = self._persistence.evaluate(
@@ -102,9 +114,15 @@ class SignalAssessmentAssembler:
             volume_kwargs: dict[str, Any] = {}
             if positional is not None and change.instrument in GOLD_CLASS_INSTRUMENTS:
                 volume_kwargs = {
-                    "etf_flow_change_pct": positional.etf_flow_change_pct,
+                    "etf_flow_change_pct": (
+                        positional.etf_flow_change_pct if etf_available else 0.0
+                    ),
                     "etf_flow_momentum": positional.etf_flow_momentum,
-                    "open_interest_change_pct": positional.open_interest_change_pct,
+                    # unavailable OI is passed as None so the volume/flow
+                    # criterion never treats a masked 0.0 as a flat day
+                    "open_interest_change_pct": (
+                        positional.open_interest_change_pct if oi_available else None
+                    ),
                 }
             volume = self._volume.evaluate(
                 change_sigma=change.change_sigma,
@@ -138,15 +156,27 @@ class SignalAssessmentAssembler:
             ))
 
         if positional is not None:
+            cot_detail = (
+                f"COT z-score={positional.cot_z_score:.2f}"
+                if cot_available
+                else "COT unavailable (no data source)"
+            )
+            etf_detail = (
+                f"ETF flow {positional.etf_flow_change_pct:+.2f}%"
+                if etf_available
+                else "ETF flow unavailable"
+            )
             pos_criteria = CriterionScore(
                 criterion="persistence",
                 score=0.5,
                 threshold=0.5,
-                passed=abs(positional.cot_z_score) >= 1.0,
-                detail=f"COT z-score={positional.cot_z_score:.2f}",
+                passed=cot_available and abs(positional.cot_z_score) >= 1.0,
+                detail=cot_detail,
             )
             vol_criteria = self._volume.evaluate(
-                etf_flow_change_pct=positional.etf_flow_change_pct,
+                etf_flow_change_pct=(
+                    positional.etf_flow_change_pct if etf_available else 0.0
+                ),
                 etf_flow_momentum=positional.etf_flow_momentum,
             )
             label, confidence, reason = self._classifier.classify(
@@ -154,12 +184,24 @@ class SignalAssessmentAssembler:
                     "persistence": pos_criteria,
                     "breadth": CriterionScore(
                         "breadth",
-                        0.5 if abs(positional.etf_flow_change_pct) > ETF_FLOW_THRESHOLD_PCT else 0.0,
+                        (
+                            min(abs(positional.etf_flow_change_pct) / ETF_FLOW_THRESHOLD_PCT, 1.0)
+                            if etf_available
+                            and abs(positional.etf_flow_change_pct) > ETF_FLOW_THRESHOLD_PCT
+                            else 0.0
+                        ),
                         0.5,
-                        abs(positional.etf_flow_change_pct) > ETF_FLOW_THRESHOLD_PCT,
-                        f"ETF flow {positional.etf_flow_change_pct:+.2f}%",
+                        etf_available
+                        and abs(positional.etf_flow_change_pct) > ETF_FLOW_THRESHOLD_PCT,
+                        etf_detail,
                     ),
-                    "magnitude": CriterionScore("magnitude", min(abs(positional.cot_z_score) / 3.0, 1.0), 2.0, abs(positional.cot_z_score) >= 2.0, detail=f"COT z={positional.cot_z_score:.2f}"),
+                    "magnitude": CriterionScore(
+                        "magnitude",
+                        min(abs(positional.cot_z_score) / 3.0, 1.0) if cot_available else 0.0,
+                        2.0,
+                        cot_available and abs(positional.cot_z_score) >= 2.0,
+                        detail=cot_detail,
+                    ),
                     "narrative_fit": CriterionScore("narrative_fit", 0.0, 0.3, False, "no specific narrative for positioning"),
                     "volume_flow": vol_criteria,
                 },

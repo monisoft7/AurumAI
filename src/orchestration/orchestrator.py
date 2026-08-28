@@ -285,7 +285,10 @@ class InstitutionalOrchestrator:
 
         orch.register(PipelineJob(
             job_id="thesis_construction",
-            dependencies=("evidence_reasoning", "counter_evidence"),
+            # Final Hardening (Group F): technical_research is a real
+            # dependency -- its non-scoring research context (confirmations /
+            # contradictions / structure) rides on each candidate thesis.
+            dependencies=("evidence_reasoning", "counter_evidence", "technical_research"),
             fn=orch._bind(_thesis_construction),
             cache_ttl=600,
             checkpoint=True,
@@ -325,7 +328,11 @@ class InstitutionalOrchestrator:
 
         orch.register(PipelineJob(
             job_id="bias_prevention",
-            dependencies=("thesis_update", "counter_evidence", "confidence_engine"),
+            # Final Hardening (Group A): thesis_construction is a real
+            # dependency now -- the stage reviews every candidate thesis so
+            # the decision can be gated by the review of the thesis it was
+            # actually made on.
+            dependencies=("thesis_construction", "thesis_update", "counter_evidence", "confidence_engine"),
             fn=orch._bind(_bias_prevention),
             cache_ttl=600,
             checkpoint=True,
@@ -455,8 +462,12 @@ class InstitutionalOrchestrator:
 
         orch.register(PipelineJob(
             job_id="finalize",
+            # Final Hardening (Group D): trade_recommendation is a real
+            # finalize dependency -- the executable levels are part of the
+            # final artifact, not an in-memory leaf.
             dependencies=("risk_gate", "position_sizing", "forecast_confidence",
-                          "forecast_validation", "decision_engine"),
+                          "forecast_validation", "decision_engine",
+                          "trade_recommendation"),
             fn=orch._bind(_finalize),
             cache_ttl=None,
             checkpoint=True,

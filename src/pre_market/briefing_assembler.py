@@ -93,7 +93,13 @@ class PreMarketBriefingAssembler:
         )
         positioning_snapshot = self._positioning.fetch()
         anomaly_flags = self._anomaly.detect(overnight_changes)
-        watchlist = self._watchlist.build(calendar_csv=calendar_csv)
+        # Final Hardening (D-11): the watchlist availability status is
+        # surfaced on the briefing metadata -- a default-fallback watchlist
+        # (undated generic events) is never silently presented as the
+        # calendar output.
+        watchlist, watchlist_status = self._watchlist.build_with_status(
+            calendar_csv=calendar_csv
+        )
 
         return PreMarketBriefing(
             briefing_id=bid,
@@ -106,5 +112,8 @@ class PreMarketBriefingAssembler:
             positioning_snapshot=positioning_snapshot,
             anomaly_flags=tuple(anomaly_flags),
             watchlist=tuple(watchlist),
-            metadata={"news_source_path": news_source_path},
+            metadata={
+                "news_source_path": news_source_path,
+                "watchlist_status": watchlist_status,
+            },
         )

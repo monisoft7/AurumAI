@@ -358,10 +358,25 @@ class TestRiskReportGenerator:
         assert snapshot.drawdown_state in ("normal", "caution", "halted")
 
     def test_generate_with_empty_returns(self):
+        # Final Hardening (D-03/D-11): no portfolio returns -> explicit
+        # unavailable snapshot; the previous behaviour fabricated 252
+        # rng-seeded random returns and reported them as risk numbers.
         generator = RiskReportGenerator()
         snapshot = generator.generate()
         assert isinstance(snapshot, RiskSnapshot)
-        assert snapshot.var_95 != 0.0
+        assert snapshot.status == RiskReportGenerator.UNAVAILABLE
+        assert snapshot.status_reason
+        assert snapshot.var_95 == 0.0
+        assert snapshot.var_99 == 0.0
+        assert snapshot.cvar_95 == 0.0
+        assert snapshot.tail_index is None
+        assert snapshot.drawdown_state == "unknown"
+        # deterministic: two unavailable snapshots carry identical numbers
+        # (timestamps naturally differ)
+        again = generator.generate()
+        first, second = snapshot.to_dict(), again.to_dict()
+        first.pop("timestamp"), second.pop("timestamp")
+        assert first == second
 
 
 # =========================================================================
@@ -374,9 +389,18 @@ class TestPositioningDataFetcher:
         fetcher = PositioningDataFetcher(oi_state_file=tmp_path / "oi_state.json")
         snapshot = fetcher.fetch()
         assert isinstance(snapshot, PositioningSnapshot)
-        assert snapshot.cot_regime == "neutral"
-        assert snapshot.etf_flow_momentum in ("accumulating", "distributing", "stable")
+        # Final Hardening (D-11): COT/GOFO have no wired data source and are
+        # flagged unavailable instead of masquerading as neutral/zero.
+        assert snapshot.cot_regime == "unavailable"
+        assert snapshot.availability["cot"] == "unavailable_no_data_source"
+        assert snapshot.availability["gofo"] == "unavailable_no_data_source"
+        assert snapshot.etf_flow_momentum in ("accumulating", "distributing", "stable", "unknown")
         assert snapshot.open_interest_change_pct == 0.0
+        assert snapshot.availability["open_interest"] in (
+            "available",
+            "unavailable_fetch_failed",
+            "unavailable_no_previous_state",
+        )
 
     def test_fetch_open_interest_first_observation_returns_zero(self, tmp_path):
         state_file = tmp_path / "oi_state.json"
@@ -384,7 +408,7 @@ class TestPositioningDataFetcher:
         with patch("yfinance.Ticker") as mock_ticker:
             mock_ticker.return_value.get_info.return_value = {"openInterest": 298095}
             result = fetcher._fetch_open_interest()
-        assert result == {"change_pct": 0.0}
+        assert result == {"change_pct": 0.0, "status": "unavailable_no_previous_state"}
         assert state_file.exists()
         saved = json.loads(state_file.read_text(encoding="utf-8"))
         assert saved["open_interest"] == 298095.0
@@ -402,7 +426,7 @@ class TestPositioningDataFetcher:
             mock_ticker.return_value.get_info.return_value = {"openInterest": 297155}
             result = fetcher._fetch_open_interest()
         expected = round((297155.0 - 290000.0) / 290000.0 * 100.0, 2)
-        assert result == {"change_pct": expected}
+        assert result == {"change_pct": expected, "status": "available"}
         saved = json.loads(state_file.read_text(encoding="utf-8"))
         assert saved["open_interest"] == 297155.0
 
@@ -418,7 +442,7 @@ class TestPositioningDataFetcher:
         with patch("yfinance.Ticker") as mock_ticker:
             mock_ticker.return_value.get_info.return_value = {}
             result = fetcher._fetch_open_interest()
-        assert result == {"change_pct": 0.0}
+        assert result == {"change_pct": 0.0, "status": "unavailable_fetch_failed"}
         saved = json.loads(state_file.read_text(encoding="utf-8"))
         assert saved["open_interest"] == 290000.0
 
@@ -433,7 +457,7 @@ class TestPositioningDataFetcher:
         fetcher = PositioningDataFetcher(oi_state_file=state_file)
         with patch("yfinance.Ticker", side_effect=RuntimeError("network down")):
             result = fetcher._fetch_open_interest()
-        assert result == {"change_pct": 0.0}
+        assert result == {"change_pct": 0.0, "status": "unavailable_fetch_failed"}
         saved = json.loads(state_file.read_text(encoding="utf-8"))
         assert saved["open_interest"] == 290000.0
 
@@ -444,7 +468,7 @@ class TestPositioningDataFetcher:
         with patch("yfinance.Ticker") as mock_ticker:
             mock_ticker.return_value.get_info.return_value = {"openInterest": 298095}
             result = fetcher._fetch_open_interest()
-        assert result == {"change_pct": 0.0}
+        assert result == {"change_pct": 0.0, "status": "unavailable_no_previous_state"}
         saved = json.loads(state_file.read_text(encoding="utf-8"))
         assert saved["open_interest"] == 298095.0
 
@@ -457,7 +481,7 @@ class TestPositioningDataFetcher:
         with patch("yfinance.Ticker") as mock_ticker:
             mock_ticker.return_value.get_info.return_value = {"openInterest": 298095}
             result = fetcher._fetch_open_interest()
-        assert result == {"change_pct": 0.0}
+        assert result == {"change_pct": 0.0, "status": "unavailable_no_previous_state"}
 
     def test_fetch_open_interest_never_uses_volume(self, tmp_path):
         state_file = tmp_path / "oi_state.json"
@@ -475,7 +499,7 @@ class TestPositioningDataFetcher:
             }
             result = fetcher._fetch_open_interest()
         expected = round((297155.0 - 290000.0) / 290000.0 * 100.0, 2)
-        assert result == {"change_pct": expected}
+        assert result == {"change_pct": expected, "status": "available"}
         assert expected != round((999999999.0 - 290000.0) / 290000.0 * 100.0, 2)
 
 

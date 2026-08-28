@@ -48,6 +48,7 @@
     "outcome_isolation": "future gold outcomes evaluation_only by construction",
     "t5yie": "not part of the live historical query (CPI + US10Y trend + DXY trend + regime)",
     "regime": "CompositeScoreBuilder z-scores sliced <= D; InstitutionalRegimeDetector(random_state=42)",
+    "regime_hardening_note": "Final Hardening (D-03): files listed in data/economic/synthetic_data_index.json (PMI.csv) are excluded from the composite on BOTH the live path and this as-of replay, so validation semantics match the hardened live semantics. Cohort identity (positions, content witness, lessons hash) is unchanged.",
     "episode_index": "rebuilt in-memory per run; persisted global index unused"
   },
   "random_seed": 42,

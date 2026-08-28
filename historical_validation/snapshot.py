@@ -272,10 +272,17 @@ def _dxy_block(as_of: date, config: SnapshotConfig) -> dict[str, object]:
 
 class _AsOfCompositeScoreBuilder:  # adapts CompositeScoreBuilder with a <= D slice
     def __init__(self, data_dir: str | Path, as_of: date) -> None:
-        from knowledge.regime.composite_score import CompositeScoreBuilder
+        from knowledge.regime.composite_score import (
+            CompositeScoreBuilder,
+            load_synthetic_exclusions,
+        )
 
         self._builder = CompositeScoreBuilder(data_dir=data_dir)
         self._as_of = as_of
+        # Final Hardening (D-03): the live composite excludes files listed
+        # in synthetic_data_index.json; the as-of replay applies the SAME
+        # exclusion so validation semantics match the live path.
+        self._synthetic = load_synthetic_exclusions(data_dir)
 
     def build(self):
         import pandas as pd
@@ -284,6 +291,8 @@ class _AsOfCompositeScoreBuilder:  # adapts CompositeScoreBuilder with a <= D sl
         z_scores = []
         common = None
         for name, filename in builder._INDICATORS.items():
+            if filename in self._synthetic:
+                continue
             path = Path(builder._data_dir) / filename
             if not path.exists():
                 continue

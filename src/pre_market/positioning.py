@@ -16,9 +16,12 @@ class PositioningDataFetcher:
     """Fetches COMEX COT, gold ETF flow, and LBMA/GOFO positioning data.
 
     COT data is updated weekly (CFTC). ETF flow is daily via yfinance.
-    GOFO/LBMA rates are sourced from LBMA (stub: returns defaults).
+    GOFO/LBMA rates are sourced from LBMA (no data source wired yet).
 
-    Returns PositioningSnapshot with defaults when data is unavailable.
+    Final Hardening (D-11): every feed carries an explicit availability
+    state in ``PositioningSnapshot.availability``.  A failed fetch is never
+    serialized as a "stable"/0.0 measurement; neutral-looking numeric
+    defaults on unavailable feeds are placeholders, flagged as such.
     """
 
     COT_TICKER = "GC=F"
@@ -44,10 +47,22 @@ class PositioningDataFetcher:
             open_interest_change_pct=oi["change_pct"],
             gofo_rate=gofo["rate"],
             timestamp=datetime.now(timezone.utc).isoformat(),
+            availability={
+                "cot": cot["status"],
+                "etf_flow": etf["status"],
+                "open_interest": oi["status"],
+                "gofo": gofo["status"],
+            },
         )
 
     def _fetch_cot(self) -> dict[str, Any]:
-        return {"z_score": 0.0, "regime": "neutral"}
+        # No CFTC COT data source is wired; report unavailable instead of a
+        # fake neutral z-score (Final Hardening D-11).
+        return {
+            "z_score": 0.0,
+            "regime": "unavailable",
+            "status": "unavailable_no_data_source",
+        }
 
     def _fetch_etf_flow(self) -> dict[str, Any]:
         try:
@@ -67,16 +82,28 @@ class PositioningDataFetcher:
             if total_prev > 0:
                 change_pct = (total_curr - total_prev) / total_prev * 100.0
             else:
-                change_pct = 0.0
+                return {
+                    "momentum": "unknown",
+                    "change_pct": 0.0,
+                    "status": "unavailable_fetch_failed",
+                }
             if change_pct > 1.0:
                 momentum = "accumulating"
             elif change_pct < -1.0:
                 momentum = "distributing"
             else:
                 momentum = "stable"
-            return {"momentum": momentum, "change_pct": round(change_pct, 2)}
+            return {
+                "momentum": momentum,
+                "change_pct": round(change_pct, 2),
+                "status": "available",
+            }
         except Exception:
-            return {"momentum": "stable", "change_pct": 0.0}
+            return {
+                "momentum": "unknown",
+                "change_pct": 0.0,
+                "status": "unavailable_fetch_failed",
+            }
 
     def _fetch_open_interest(self) -> dict[str, Any]:
         """Real COMEX gold open interest via the existing yfinance quote field.
@@ -87,22 +114,27 @@ class PositioningDataFetcher:
         state file (fred-client cache pattern). Traded ``Volume`` is never used
         as a substitute for open interest.
 
-        Fail-safe: unavailable/invalid OI, or a missing/malformed previous
-        state, returns ``{"change_pct": 0.0}`` without raising and without
-        overwriting a valid previous state.
+        Final Hardening (D-11): unavailability is explicit.  When the level
+        cannot be fetched the status is ``unavailable_fetch_failed``; when no
+        previous state exists the change is 0.0 but the status
+        ``unavailable_no_previous_state`` makes clear the 0.0 is not an
+        observed flat day.  A valid previous state is never overwritten by a
+        failure.
         """
         current_oi = self._fetch_current_oi()
         if current_oi is None:
-            return {"change_pct": 0.0}
+            return {"change_pct": 0.0, "status": "unavailable_fetch_failed"}
 
         previous_oi = self._load_previous_oi()
         if previous_oi is not None:
             change_pct = round((current_oi - previous_oi) / previous_oi * 100.0, 2)
+            status = "available"
         else:
             change_pct = 0.0
+            status = "unavailable_no_previous_state"
 
         self._persist_oi_level(current_oi, datetime.now(timezone.utc).isoformat())
-        return {"change_pct": change_pct}
+        return {"change_pct": change_pct, "status": status}
 
     def _fetch_current_oi(self) -> float | None:
         try:
@@ -149,4 +181,6 @@ class PositioningDataFetcher:
 
     @staticmethod
     def _fetch_gofo() -> dict[str, Any]:
-        return {"rate": 0.0}
+        # No GOFO/LBMA data source is wired; report unavailable instead of a
+        # fake zero rate (Final Hardening D-11).
+        return {"rate": 0.0, "status": "unavailable_no_data_source"}

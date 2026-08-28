@@ -621,7 +621,13 @@ class TestIsolationGuarantees:
             jid for jid, job in orch._jobs.items()
             if "technical_research" in job.dependencies
         ]
-        assert consumers == []
+        # Final Hardening (Group F): the technical desk joined the research
+        # layer via thesis_construction (non-scoring metadata context).  It
+        # remains fully isolated from the NEWS path and from every
+        # decision-scoring module.
+        assert consumers == ["thesis_construction"]
+        news_job = orch._jobs["ingest_news"]
+        assert "technical_research" not in news_job.dependencies
 
     def test_technical_assessment_contract_has_no_news_fields(self) -> None:
         from technical.contracts import TechnicalAssessment
@@ -650,9 +656,12 @@ class TestIsolationGuarantees:
 
         orch = InstitutionalOrchestrator.with_default_pipeline()
         finalize_deps = orch._jobs["finalize"].dependencies
+        # Final Hardening (Group D): trade_recommendation is a finalize
+        # dependency -- the executable levels are part of the final artifact.
         assert set(finalize_deps) == {
             "risk_gate", "position_sizing", "forecast_confidence",
             "forecast_validation", "decision_engine",
+            "trade_recommendation",
         }
 
     def test_finalize_attaches_news_payload_additively(self) -> None:

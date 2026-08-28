@@ -9,15 +9,22 @@ from thesis_construction.contracts import InvestmentThesis
 
 class ConfidenceComputer:
     """Computes normalized institutional confidence [0,1] for a single thesis
-    with a full breakdown of every contributing factor."""
+    with a full breakdown of every contributing factor.
+
+    Final Hardening (Group A): the ``temporal_recency`` positive channel was
+    removed.  Its input (``avg_temporal_recency``) was never written by any
+    producer in the repository, so the channel was a constant 1.0 -- a dead
+    confidence input that inflated every thesis by a fixed +0.10 on the
+    positive score.  The remaining weights are renormalized to sum to 1.0;
+    no other channel, penalty or threshold changed.
+    """
 
     POSITIVE_WEIGHTS: dict[str, float] = {
-        "evidence_quality": 0.25,
-        "evidence_consensus": 0.25,
+        "evidence_quality": 0.30,
+        "evidence_consensus": 0.30,
         "regime_alignment": 0.15,
         "source_diversity": 0.15,
         "knowledge_record_quality": 0.10,
-        "temporal_recency": 0.10,
     }
 
     PENALTY_WEIGHTS: dict[str, float] = {
@@ -41,7 +48,6 @@ class ConfidenceComputer:
         regime_alignment = self._regime_alignment(thesis.direction, thesis.regime)
         source_diversity = min(len(thesis.supporting_set_ids) / 3.0, 1.0)
         kr_quality = min(len(thesis.provenance_chain) / 2.0, 1.0)
-        temporal_recency = self._temporal_recency(thesis)
         missing_penalty = min(len(thesis.remaining_unknowns) / 3.0, 1.0)
 
         positives = {
@@ -50,7 +56,6 @@ class ConfidenceComputer:
             "regime_alignment": regime_alignment,
             "source_diversity": round(source_diversity, 4),
             "knowledge_record_quality": round(kr_quality, 4),
-            "temporal_recency": temporal_recency,
         }
 
         positive_score = sum(
@@ -112,13 +117,6 @@ class ConfidenceComputer:
         if direction == expected:
             return 1.0
         return 0.0
-
-    @staticmethod
-    def _temporal_recency(thesis: InvestmentThesis) -> float:
-        meta = thesis.metadata or {}
-        if "avg_temporal_recency" in meta:
-            return max(0.0, min(float(meta["avg_temporal_recency"]), 1.0))
-        return 1.0
 
     @staticmethod
     def reliability_category(final_confidence: float) -> str:

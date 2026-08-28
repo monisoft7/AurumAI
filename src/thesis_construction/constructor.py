@@ -28,7 +28,16 @@ class ThesisConstructor:
         self,
         reasoning: EvidenceReasoning,
         assessment: CounterEvidenceAssessment,
+        technical_context: dict[str, Any] | None = None,
     ) -> ThesisConstruction:
+        """Build the candidate thesis set.
+
+        ``technical_context`` (Final Hardening, Group F / D-07): compact,
+        non-scoring research context from the Technical Research Desk
+        (trend/structure/confirmations/contradictions).  It is recorded on
+        each thesis's metadata so the research layer can reason with it --
+        it never enters institutional_support, confidence, or selection.
+        """
         directions = self._determine_thesis_directions(reasoning, assessment)
         theses: list[InvestmentThesis] = []
 
@@ -41,6 +50,7 @@ class ThesisConstructor:
                 assessment=assessment,
                 supporting_set_ids=supporting_ids,
                 counter_set_ids=counter_ids,
+                technical_context=technical_context,
             )
             theses.append(thesis)
 

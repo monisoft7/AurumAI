@@ -48,6 +48,7 @@ PRODUCTION = {
     "volatility_impact": 0.4609,
     "composite_score_recorded_pre_053c": 0.6359,
     "composite_score_expected_post_053c": 0.5359,
+    "composite_score_expected_post_hardening": 0.5831,
     "decision": "BUY",
     "institutional_confidence": 0.5922,
 }
@@ -73,23 +74,17 @@ GOLDEN_JSON = '''\
   }
  },
  "decision_leaves": {
-  "decision_drivers[0].score": 0.1777,
+  "decision_drivers[0].score": 0.2961,
   "decision_drivers[0].value": 0.5922,
-  "decision_drivers[0].weight": 0.3,
-  "decision_drivers[1].score": 0.1222,
+  "decision_drivers[0].weight": 0.5,
+  "decision_drivers[1].score": 0.2037,
   "decision_drivers[1].value": 0.6111,
-  "decision_drivers[1].weight": 0.2,
-  "decision_drivers[2].score": 0.081,
-  "decision_drivers[2].value": 0.5402,
-  "decision_drivers[2].weight": 0.15,
-  "decision_drivers[3].score": 0.105,
-  "decision_drivers[3].value": 0.7,
-  "decision_drivers[3].weight": 0.15,
-  "decision_drivers[4].score": 0.05,
-  "decision_drivers[4].value": 0.5,
-  "decision_drivers[4].weight": 0.1,
+  "decision_drivers[1].weight": 0.3333333333333333,
+  "decision_drivers[2].score": 0.0833,
+  "decision_drivers[2].value": 0.5,
+  "decision_drivers[2].weight": 0.16666666666666666,
   "institutional_confidence": 0.5922,
-  "metadata.composite_score": 0.5359,
+  "metadata.composite_score": 0.5831,
   "metadata.total_rejected_alternatives": 0.0,
   "metadata.total_theses_evaluated": 1.0,
   "risk_reward_summary.expected_reward": 0.2823,
@@ -249,6 +244,9 @@ class TestCorrection052ANumericInvariance:
         assert _normalized_leaves(validation.to_dict()) == golden["validation_leaves"]
 
     def test_decision_numeric_leaves_identical(self):
+        # Final Hardening (Group A): the W13 composite is three single-count
+        # terms (0.50*fc + 1/3*rr + 1/6*maxp); the golden decision leaves
+        # are re-pinned for that formula.  W12/generation leaves unchanged.
         _, _, decision = _run_chain()
         golden = json.loads(GOLDEN_JSON)
         assert _normalized_leaves(decision.to_dict()) == golden["decision_leaves"]
@@ -284,7 +282,7 @@ class TestCorrection052ANumericInvariance:
         assert decision.decision == PRODUCTION["decision"]
         assert decision.selected_thesis_id == "th_052a"
         assert decision.metadata["selected_scenario_type"] == "base"
-        assert decision.metadata["composite_score"] == PRODUCTION["composite_score_expected_post_053c"]
+        assert decision.metadata["composite_score"] == PRODUCTION["composite_score_expected_post_hardening"]
         assert decision.institutional_confidence == PRODUCTION[
             "institutional_confidence"
         ]

@@ -397,6 +397,8 @@ def _build_context(params: dict[str, Any], results: dict[str, Any]) -> Any:
 
 def _risk_measures(params: dict[str, Any], results: dict[str, Any]) -> Any:
     from forecasting.risk_measures import (
+        UNAVAILABLE_METHOD_PREFIX,
+        RiskMetrics,
         compute_var,
         compute_cvar,
         TailRiskDetector,
@@ -410,7 +412,17 @@ def _risk_measures(params: dict[str, Any], results: dict[str, Any]) -> Any:
     points = forecast_result.points
     residuals = np.array([p.y_hi - p.y_lo for p in points])
     if len(residuals) == 0 or residuals.std() < 1e-12:
-        residuals = np.random.default_rng(42).normal(0, 1, 252)
+        # Final Hardening (D-03/D-11): the previous rng-seeded substitution
+        # fabricated random "risk metrics" that reached the risk gate.  A
+        # degenerate forecast interval distribution is now an explicit
+        # unavailable state; the gate treats it as not-acceptable.
+        return RiskMetrics(
+            var_95=0.0,
+            var_99=0.0,
+            cvar_95=0.0,
+            tail_index=None,
+            method=f"{UNAVAILABLE_METHOD_PREFIX}_degenerate_forecast_intervals",
+        )
 
     var_95 = compute_var(residuals, 0.95)
     var_99 = compute_var(residuals, 0.99)
@@ -490,6 +502,7 @@ def _position_sizing(params: dict[str, Any], results: dict[str, Any]) -> Any:
 
 def _risk_gate(params: dict[str, Any], results: dict[str, Any]) -> Any:
     from forecasting.decision_gate import DecisionGate, RegimeRiskOverlay, UncertaintyBudget
+    from forecasting.risk_measures import UNAVAILABLE_METHOD_PREFIX
 
     risk_metrics = results.get("risk_measures")
     context = results.get("build_context")
@@ -501,12 +514,26 @@ def _risk_gate(params: dict[str, Any], results: dict[str, Any]) -> Any:
 
     var_95 = getattr(risk_metrics, "var_95", None) if risk_metrics else None
     tail_index = getattr(risk_metrics, "tail_index", None) if risk_metrics else None
+    method = str(getattr(risk_metrics, "method", "") or "") if risk_metrics else ""
+    unavailable = method.startswith(UNAVAILABLE_METHOD_PREFIX)
     budget = UncertaintyBudget()
-    uncertainty = budget.evaluate(
-        context_coherence=0.5,
-        var_95=var_95 or -0.05,
-        tail_index=tail_index,
-    )
+    if unavailable:
+        # Final Hardening (D-03/D-11): with no honest risk input the gate
+        # must not treat fabricated numbers as an acceptable budget.  An
+        # unavailable state reads as NOT acceptable (delay), never success.
+        uncertainty = {
+            "acceptable": False,
+            "coherence_ok": True,
+            "var_ok": False,
+            "tail_ok": True,
+            "unavailable": True,
+        }
+    else:
+        uncertainty = budget.evaluate(
+            context_coherence=0.5,
+            var_95=var_95 or -0.05,
+            tail_index=tail_index,
+        )
 
     ps_result = results.get("position_sizing", {})
     scaling_factor = 0.5
@@ -524,6 +551,17 @@ def _risk_gate(params: dict[str, Any], results: dict[str, Any]) -> Any:
         scaling_factor=float(scaling_factor),
         drawdown_state=drawdown_state,
     )
+
+    if unavailable:
+        from dataclasses import replace as _replace
+
+        gate_result = _replace(
+            gate_result,
+            reason=(
+                f"risk measures unavailable ({method}); gate cannot verify "
+                "the uncertainty budget and does not proceed as if healthy"
+            ),
+        )
 
     return gate_result
 
@@ -655,7 +693,9 @@ def _regime_diagnosis(params: dict[str, Any], results: dict[str, Any]) -> Any:
         InstitutionalRegimeDetector,
     )
 
-    composite_data = CompositeScoreBuilder().build()
+    composite_data, composite_provenance = (
+        CompositeScoreBuilder().build_with_provenance()
+    )
     if len(composite_data) == 0:
         raise ValueError("composite_score data empty -- cannot diagnose regime")
 
@@ -693,6 +733,11 @@ def _regime_diagnosis(params: dict[str, Any], results: dict[str, Any]) -> Any:
         raise ValueError(f"invalid RegimeDiagnosis: {errors}")
 
     payload = diagnosis.to_dict()
+
+    # Final Hardening (D-03): synthetic-input exclusion is surfaced, never
+    # silently swallowed -- the payload records which indicators were
+    # excluded as synthetic placeholders from the regime composite.
+    payload["composite_provenance"] = composite_provenance
 
     # Sprint 061: additive canonical-fact references (observability only).
     # Gives the macro/regime desk its first durable identity without
@@ -795,6 +840,10 @@ def _cpi_release_snapshot(
     it to a ClassifiedObservation.  No new calendar source and no second
     condition rule: the pressure value is the extractor's column and W6 keeps
     using ``reasoning_condition`` from W4.
+
+    Final Hardening (D-11): when stage inputs exist but the snapshot cannot
+    be produced, the failure is explicit (``status: unavailable`` + reason)
+    instead of a silent ``None``.
     """
     from pathlib import Path
 
@@ -817,6 +866,7 @@ def _cpi_release_snapshot(
             "cpi_pressure": str(row["cpi_pressure"]),
             "priority": "Tier 1",
             "expected_impact": "high",
+            "status": "ok",
         }
         release_calendar_path = params.get("release_calendar_path")
         if release_calendar_path:
@@ -828,11 +878,16 @@ def _cpi_release_snapshot(
                 )
                 if release is not None:
                     snapshot["release_date"] = release.release_date
-            except Exception:
-                pass
+            except Exception as exc:
+                snapshot["release_date_status"] = "unavailable"
+                snapshot["release_date_reason"] = f"{type(exc).__name__}: {exc}"
         return snapshot
-    except Exception:
-        return None
+    except Exception as exc:
+        return {
+            "event_type": "CPI",
+            "status": "unavailable",
+            "reason": f"{type(exc).__name__}: {exc}",
+        }
 
 
 def _evidence_reasoning(params: dict[str, Any], results: dict[str, Any]) -> Any:
@@ -903,6 +958,35 @@ def _counter_evidence(params: dict[str, Any], results: dict[str, Any]) -> Any:
     return assessment
 
 
+def _technical_research_context(assessment_payload: Any) -> dict[str, Any] | None:
+    """Final Hardening (Group F, D-07): compact non-scoring research context
+    from the Technical Research Desk artifact (trend / momentum / structure /
+    volatility / confirmations / contradictions).  Research-layer context
+    only -- it never feeds weights, confidence, or selection.
+    """
+    if not isinstance(assessment_payload, dict) or "error" in assessment_payload:
+        return None
+    metadata = assessment_payload.get("metadata") or {}
+    structure = metadata.get("structure") or {}
+    return {
+        "assessment_id": assessment_payload.get("assessment_id"),
+        "as_of": assessment_payload.get("as_of"),
+        "timeframe": assessment_payload.get("timeframe"),
+        "trend_direction": assessment_payload.get("trend_direction"),
+        "momentum_direction": assessment_payload.get("momentum_direction"),
+        "structure_state": assessment_payload.get("structure_state"),
+        "volatility_state": assessment_payload.get("volatility_state"),
+        "bos_flag": structure.get("bos_flag"),
+        "supporting_indicators": list(
+            assessment_payload.get("supporting_indicators") or ()
+        ),
+        "conflicting_indicators": list(
+            assessment_payload.get("conflicting_indicators") or ()
+        ),
+        "technical_confidence": assessment_payload.get("technical_confidence"),
+    }
+
+
 def _thesis_construction(params: dict[str, Any], results: dict[str, Any]) -> Any:
     from evidence_reasoning.contracts import EvidenceReasoning
     from counter_evidence.contracts import CounterEvidenceAssessment
@@ -922,8 +1006,16 @@ def _thesis_construction(params: dict[str, Any], results: dict[str, Any]) -> Any
     else:
         assessment = assessment_data
 
+    # Final Hardening (Group F, D-07): the Technical Research Desk joins the
+    # research layer as metadata context on every candidate thesis.
+    technical_context = _technical_research_context(
+        results.get("technical_research")
+    )
+
     constructor = ThesisConstructor()
-    construction = constructor.construct(reasoning, assessment)
+    construction = constructor.construct(
+        reasoning, assessment, technical_context=technical_context
+    )
     return construction
 
 
@@ -1192,15 +1284,41 @@ def _decision_engine(params: dict[str, Any], results: dict[str, Any]) -> Any:
         from bias_prevention.contracts import BiasReview, apply_bias_review
 
         if isinstance(bias_data, dict):
-            bias_review = BiasReview.from_dict(bias_data)
+            primary_review = BiasReview.from_dict(bias_data)
         else:
-            bias_review = bias_data
-        decision = apply_bias_review(decision, bias_review)
+            primary_review = bias_data
+
+        # Final Hardening (Group A, D-04): gate the decision with the
+        # review of the thesis it was actually made on.  Reviews of other
+        # candidates are recorded as advisories only.
+        reviews_by_thesis: dict[str, BiasReview] = {}
+        if isinstance(bias_data, dict):
+            raw_map = bias_data.get("reviews_by_thesis")
+            if isinstance(raw_map, dict):
+                reviews_by_thesis = {
+                    str(tid): BiasReview.from_dict(r)
+                    for tid, r in raw_map.items()
+                    if isinstance(r, dict)
+                }
+        selected_id = decision.selected_thesis_id
+        if reviews_by_thesis:
+            review = reviews_by_thesis.get(selected_id)
+            others = [r for tid, r in reviews_by_thesis.items() if tid != selected_id]
+            if review is None:
+                # Selected thesis carries no review entry (legacy checkpoint
+                # or single-candidate edge): fall back to the primary review
+                # as an advisory so nothing silently disappears.
+                review = primary_review
+        else:
+            review = primary_review
+            others = []
+        decision = apply_bias_review(decision, review, other_reviews=others)
 
     return decision
 
 
 def _bias_prevention(params: dict[str, Any], results: dict[str, Any]) -> Any:
+    from thesis_construction.contracts import ThesisConstruction
     from thesis_update.contracts import ThesisUpdate
     from counter_evidence.contracts import CounterEvidenceAssessment
     from confidence_engine.contracts import InstitutionalConfidence
@@ -1209,6 +1327,7 @@ def _bias_prevention(params: dict[str, Any], results: dict[str, Any]) -> Any:
     update_data = results.get("thesis_update")
     assessment_data = results.get("counter_evidence")
     confidence_data = results.get("confidence_engine")
+    construction_data = results.get("thesis_construction")
     if update_data is None or assessment_data is None or confidence_data is None:
         return {"error": "missing thesis_update, counter_evidence, or confidence_engine data"}
 
@@ -1226,7 +1345,95 @@ def _bias_prevention(params: dict[str, Any], results: dict[str, Any]) -> Any:
         confidence = confidence_data
 
     reviewer = BiasReviewer()
-    return reviewer.review(update, assessment, confidence)
+    primary_review = reviewer.review(update, assessment, confidence)
+
+    # Final Hardening (Group A, D-04): review EVERY candidate so the
+    # decision can be gated by the review of the thesis it was actually
+    # made on.  The payload keeps the flat primary-review shape (legacy
+    # checkpoints/consumers keep working) and adds an additive
+    # ``reviews_by_thesis`` map.
+    payload = primary_review.to_dict()
+    construction: ThesisConstruction | None = None
+    if construction_data is not None and not (
+        isinstance(construction_data, dict) and "error" in construction_data
+    ):
+        if isinstance(construction_data, dict):
+            construction = ThesisConstruction.from_dict(construction_data)
+        else:
+            construction = construction_data
+    if construction is not None:
+        reviews = reviewer.review_candidates(
+            construction, update, assessment, confidence
+        )
+        payload["reviews_by_thesis"] = {
+            thesis_id: review.to_dict() for thesis_id, review in reviews.items()
+        }
+    return payload
+
+
+def _resolve_atr_context(
+    gold_path: str | None, as_of: str | None
+) -> tuple[float | None, dict[str, Any] | None]:
+    """Final Hardening (Group C, D-01): market-anchored stop/target widths
+    need ATR(14) from the run's own gold OHLCV data.
+
+    Reuses the existing technical-desk machinery (validated frame prep +
+    deterministic as-of slicing + the pandas-ta-classic engine).  ATR-14
+    needs far less history than the desk's full EMA-200 assessment, so the
+    engine is applied to the prepared as-of slice with an ATR-appropriate
+    minimum of 30 bars.  Returns ``(atr, provenance)``; a None atr with an
+    explicit provenance reason means the levels fall back to the labeled
+    conviction heuristic -- no volatility number is ever invented.
+    """
+    import datetime
+
+    import numpy as np
+    import pandas as pd
+
+    from technical.desk import TechnicalResearchDesk
+    from technical.engine import PandasTaClassicEngine
+
+    if not gold_path:
+        return None, {"status": "unavailable", "reason": "no gold_path"}
+    effective_as_of = as_of or datetime.date.today().isoformat()
+    try:
+        frame = TechnicalResearchDesk._prepare_frame(
+            pd.read_csv(gold_path)
+        )
+        sliced = TechnicalResearchDesk._slice_as_of(frame, str(effective_as_of))
+        if len(sliced) < 30:
+            return None, {
+                "status": "unavailable",
+                "reason": (
+                    f"insufficient history for ATR-14: {len(sliced)} bars "
+                    "available, 30 required"
+                ),
+                "as_of": str(effective_as_of),
+            }
+        indicators = PandasTaClassicEngine().compute(sliced)
+        atr_value = indicators["atr_14"].iloc[-1]
+        if atr_value is None or not np.isfinite(float(atr_value)) or float(atr_value) <= 0.0:
+            return None, {
+                "status": "unavailable",
+                "reason": "atr_14 not finite on the as-of slice",
+                "as_of": str(effective_as_of),
+            }
+        atr_value = float(atr_value)
+        provenance = {
+            "status": "ok",
+            "atr_14": round(atr_value, 6),
+            "as_of": str(effective_as_of),
+            "bar_date": str(sliced.index[-1].date()),
+            "bars_used": int(len(sliced)),
+            "engine": "pandas_ta_classic:atr_14",
+        }
+        return atr_value, provenance
+    except Exception as exc:
+        return None, {
+            "status": "unavailable",
+            "reason": f"{type(exc).__name__}: {exc}",
+            "as_of": str(effective_as_of),
+        }
 
 
 def _trade_recommendation(params: dict[str, Any], results: dict[str, Any]) -> Any:
@@ -1275,12 +1482,37 @@ def _trade_recommendation(params: dict[str, Any], results: dict[str, Any]) -> An
             }
 
     engine = RecommendationEngine()
+    atr, atr_provenance = _resolve_atr_context(
+        params.get("gold_path"),
+        params.get("technical_as_of") or params.get("reference_as_of"),
+    )
     recommendation = engine.recommend(
         decision,
         instrument=params.get("asset", "XAU/USD"),
         reference_price=reference_price,
         reference_provenance=reference_provenance,
+        atr=atr,
+        atr_provenance=atr_provenance,
     )
+
+    # Final Hardening (Group D, D-06): the executable recommendation is a
+    # first-class run artifact -- entry/stop/target/RR reach the outputs
+    # directory alongside the decision instead of dying in memory.
+    import json as _json
+    from pathlib import Path as _Path
+
+    output_dir = params.get("output_dir")
+    if output_dir:
+        try:
+            artifact = _Path(output_dir) / "trade_recommendation.json"
+            artifact.write_text(
+                _json.dumps(recommendation.to_dict(), indent=2, sort_keys=True),
+                encoding="utf-8",
+            )
+        except Exception:
+            # the recommendation still flows through finalize; an unwritable
+            # artifact directory must not kill the stage
+            pass
     return recommendation
 
 
@@ -1491,7 +1723,6 @@ def _composite_primitives(results: dict[str, Any]) -> list[dict[str, Any]] | Non
                 "regime_alignment": breakdown.get("regime_alignment"),
                 "source_diversity": breakdown.get("source_diversity"),
                 "knowledge_record_quality": breakdown.get("knowledge_record_quality"),
-                "temporal_recency": breakdown.get("temporal_recency"),
                 "counter_evidence_penalty": breakdown.get("counter_evidence"),
                 "missing_evidence_penalty": breakdown.get("missing_evidence"),
                 "internal_consistency_penalty": breakdown.get("internal_consistency"),
@@ -1542,6 +1773,84 @@ def _composite_primitives(results: dict[str, Any]) -> list[dict[str, Any]] | Non
     return entries
 
 
+def _canonical_fact_registry_summary(results: dict[str, Any]) -> dict[str, Any]:
+    """Final Hardening (Group F, D-07/D-09): run-scoped CanonicalFactRegistry.
+
+    Every run shares ONE registry instance: the technical desk facts and the
+    reference-price close fact are registered into it (with lineage edges),
+    so cross-desk same-primitive identity becomes observable live -- e.g.
+    the technical desk's close and the 057 reference price converging on the
+    same primitive.  Observability only: nothing here scores, votes, or
+    alters a decision input.
+    """
+    try:
+        from knowledge.facts.contracts import CanonicalFact
+        from knowledge.facts.builders import reference_price_fact
+        from knowledge.facts.registry import CanonicalFactRegistry
+        from knowledge.integrity.lineage import LineageRegistry
+
+        registry = CanonicalFactRegistry()
+        lineage = LineageRegistry()
+        sources: list[str] = []
+
+        technical = results.get("technical_research")
+        technical_as_of = None
+        if isinstance(technical, dict):
+            references = technical.get("fact_references") or {}
+            technical_as_of = technical.get("as_of")
+            for raw_fact in references.get("facts", []):
+                try:
+                    registry.register(
+                        CanonicalFact.from_dict(raw_fact),
+                        lineage_registry=lineage,
+                    )
+                except (KeyError, ValueError):
+                    continue
+            if references.get("facts"):
+                sources.append("technical_research")
+
+        recommendation = results.get("trade_recommendation")
+        metadata: dict[str, Any] = {}
+        if hasattr(recommendation, "metadata"):
+            metadata = dict(recommendation.metadata or {})
+        elif isinstance(recommendation, dict):
+            metadata = dict(recommendation.get("metadata") or {})
+        provenance = metadata.get("reference_price_provenance") or {}
+        if (
+            isinstance(provenance, dict)
+            and provenance.get("status") == "resolved_from_gold_data"
+        ):
+            fact = reference_price_fact(provenance, as_of=technical_as_of)
+            registry.register(fact, lineage_registry=lineage)
+            sources.append("reference_price")
+
+        convergence = []
+        for fact_id in registry.fact_ids():
+            producers = sorted(registry.producers(fact_id))
+            if len(producers) > 1:
+                values = sorted(
+                    {str(observation.value) for observation in registry.get(fact_id)}
+                )
+                convergence.append(
+                    {
+                        "fact_id": fact_id,
+                        "producers": producers,
+                        "values": values,
+                        "agreement": len(values) == 1,
+                    }
+                )
+
+        return {
+            "status": "ok",
+            "sources": sorted(set(sources)),
+            "summary": registry.summary(),
+            "cross_producer_convergence": convergence,
+            "lineage_edges": len(lineage.all_records()),
+        }
+    except Exception as exc:
+        return {"status": "error", "reason": f"{type(exc).__name__}: {exc}"}
+
+
 def _finalize(params: dict[str, Any], results: dict[str, Any]) -> Any:
     legacy_pipeline = results.get("build_legacy_pipeline", {})
     legacy_decision = legacy_pipeline.get("decision")
@@ -1580,6 +1889,20 @@ def _finalize(params: dict[str, Any], results: dict[str, Any]) -> Any:
     news_payload = results.get("ingest_news")
     if isinstance(news_payload, dict) and "status" in news_payload:
         payload["news_intelligence"] = news_payload
+    # Final Hardening (Group D, D-06): the executable trade recommendation
+    # (entry/stop/target, market-anchored risk summary) is part of the
+    # finalize contract.  Serialized when the stage produced a valid
+    # recommendation; an explicit error payload is surfaced, never dropped.
+    recommendation_payload = results.get("trade_recommendation")
+    if recommendation_payload is not None:
+        if hasattr(recommendation_payload, "to_dict"):
+            payload["trade_recommendation"] = recommendation_payload.to_dict()
+        elif isinstance(recommendation_payload, dict):
+            payload["trade_recommendation"] = recommendation_payload
+    # Final Hardening (Group F): run-scoped canonical-fact aggregation.
+    facts_summary = _canonical_fact_registry_summary(results)
+    if facts_summary.get("status") == "ok":
+        payload["canonical_fact_registry"] = facts_summary
     return payload
 
 

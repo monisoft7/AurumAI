@@ -560,7 +560,12 @@ class TestOrchestratorLevels:
     def test_finalize_is_last(self) -> None:
         orch = InstitutionalOrchestrator.with_default_pipeline()
         levels = _topological_levels(orch._jobs)
-        assert "trade_recommendation" in levels[-1]
+        # Final Hardening (Group D): finalize consumes trade_recommendation,
+        # so finalize is the unique last level and the recommendation is
+        # executed strictly before it.
+        assert levels[-1] == ["finalize"]
+        assert "trade_recommendation" in levels[-2]
+        assert "finalize" not in levels[-2]
 
 
 # ===========================================================================

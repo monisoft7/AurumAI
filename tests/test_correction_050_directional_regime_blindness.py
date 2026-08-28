@@ -327,10 +327,15 @@ def test_human_review_flag_and_gate_semantics_unchanged():
     update = _update("bearish", "INFLATIONARY")
     review = BiasReviewer().review(update, _assessment("INFLATIONARY"), _confidence())
     assert review.human_review_flag is True
+    # Final Hardening (Group A, D-04): the gate applies when the reviewed
+    # thesis IS the selected thesis.  (The pre-hardening version of this
+    # test asserted a block even when the review targeted a different
+    # candidate than the selected thesis -- the cross-thesis veto that the
+    # hardening wave removed.)
     decision = InstitutionalDecision(
         decision_id="dec-c050",
         decision="BUY",
-        selected_thesis_id="th_c050.v2",
+        selected_thesis_id=review.thesis_id,
         selected_scenario_id="sc-c050",
         institutional_confidence=0.55,
         decision_explanation="test",
@@ -338,6 +343,28 @@ def test_human_review_flag_and_gate_semantics_unchanged():
     gated = apply_bias_review(decision, review)
     assert gated.decision == "NO_TRADE"
     assert "BLOCKED BY BIAS PREVENTION" in gated.decision_explanation
+
+
+def test_review_of_non_selected_candidate_is_advisory_only():
+    # Final Hardening (Group A, D-04): a human-review finding on a
+    # candidate that was NOT selected must not veto the decision made on
+    # a different thesis; it is recorded as an explicit advisory.
+    update = _update("bearish", "INFLATIONARY")
+    review = BiasReviewer().review(update, _assessment("INFLATIONARY"), _confidence())
+    assert review.human_review_flag is True
+    decision = InstitutionalDecision(
+        decision_id="dec-c050-b",
+        decision="BUY",
+        selected_thesis_id="th_other_candidate",
+        selected_scenario_id="sc-c050-b",
+        institutional_confidence=0.55,
+        decision_explanation="test",
+    )
+    gated = apply_bias_review(decision, review)
+    assert gated.decision == "BUY"
+    assert "BIAS REVIEW ADVISORY" in gated.decision_explanation
+    assert gated.metadata["bias_review"]["human_review_flag"] is True
+    assert gated.metadata["reviewed_thesis_id"] == review.thesis_id
 
 
 # ---------------------------------------------------------------------------

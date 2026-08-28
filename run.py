@@ -312,6 +312,17 @@ def _best_rejected(decision: Any) -> dict[str, Any] | None:
     return None
 
 
+def _load_published_oos_ece() -> float | None:
+    """Final Hardening (Group E, D-05): read runtime/calibration.json.
+
+    The file is produced by the outcome sweep (scripts/evaluate_outcome.py)
+    from immutable, point-in-time-safe evaluated records only.
+    """
+    from knowledge.learning.outcome_calibration import load_oos_ece
+
+    return load_oos_ece(ROOT / "runtime" / "calibration.json")
+
+
 def _gate_reasons(decision: Any) -> dict[str, Any]:
     confidence = _decision_field(decision, "institutional_confidence")
     rr_summary = _decision_field(decision, "risk_reward_summary") or {}
@@ -533,6 +544,16 @@ def main(argv: list[str] | None = None) -> int:
         value = config.get(key)
         if value:
             params[key] = str(ROOT / str(value))
+
+    # Final Hardening (Group E, D-05): consume the published outcome
+    # calibration error through the EXISTING W9 ``oos_ece`` cap channel.
+    # Only evaluated, point-in-time-safe outcomes feed the statistic; when
+    # no usable calibration exists the value stays absent and behaviour is
+    # exactly as before.
+    oos_ece = _load_published_oos_ece()
+    if oos_ece is not None:
+        params["oos_ece"] = oos_ece
+        LOG.info("Outcome calibration consumed: oos_ece=%.4f", oos_ece)
 
     LOG.info("Executing institutional run (pipeline_id=%s)", pipeline_id)
     t0 = time.monotonic()

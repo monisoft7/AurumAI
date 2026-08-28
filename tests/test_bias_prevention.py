@@ -407,8 +407,46 @@ def test_stage_integration():
             "confidence_engine": _make_confidence().to_dict(),
         },
     )
-    assert isinstance(result, BiasReview)
-    assert result.review_id == "bias-th_test.v2"
+    # Final Hardening (Group A): the stage returns a serialized payload whose
+    # primary review still round-trips through BiasReview.from_dict.
+    assert isinstance(result, dict)
+    review = BiasReview.from_dict(result)
+    assert review.review_id == "bias-th_test.v2"
+
+
+def test_stage_reviews_every_candidate():
+    # Final Hardening (Group A, D-04): with thesis_construction available the
+    # stage emits a per-candidate review map so the decision can be gated by
+    # the review of the thesis it was actually made on.
+    from thesis_construction.contracts import ThesisConstruction
+
+    thesis = _make_update().updated_thesis
+    construction = ThesisConstruction(
+        construction_id="c1",
+        reasoning_id="rsn-1",
+        assessment_id="cae-1",
+        timestamp=TIMESTAMP,
+        regime="NORMAL_GROWTH",
+        theses=(thesis,),
+        ranked_thesis_ids=(thesis.thesis_id,),
+        total_theses=1,
+        primary_thesis_id=thesis.thesis_id,
+    )
+    result = _bias_prevention(
+        {},
+        {
+            "thesis_update": _make_update().to_dict(),
+            "counter_evidence": _make_assessment().to_dict(),
+            "confidence_engine": _make_confidence().to_dict(),
+            "thesis_construction": construction.to_dict(),
+        },
+    )
+    assert "reviews_by_thesis" in result
+    assert set(result["reviews_by_thesis"]) == {thesis.thesis_id}
+    assert (
+        result["reviews_by_thesis"][thesis.thesis_id]["metadata"]["update_scope"]
+        is True
+    )
 
 
 def test_stage_missing_inputs_returns_error():
@@ -509,7 +547,7 @@ def test_decision_stage_consumes_clean_bias_review():
             "counter_evidence": assessment.to_dict(),
             "confidence_engine": _make_confidence().to_dict(),
         },
-    ).to_dict()
+    )
     result = _decision_engine({}, results)
     assert isinstance(result, InstitutionalDecision)
     assert result.decision == "BUY"
@@ -537,7 +575,7 @@ def test_decision_stage_gates_on_human_review():
             "counter_evidence": _make_assessment().to_dict(),
             "confidence_engine": confidence.to_dict(),
         },
-    ).to_dict()
+    )
     from thesis_construction.contracts import ThesisConstruction
 
     results["thesis_construction"] = ThesisConstruction(

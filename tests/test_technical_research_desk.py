@@ -567,7 +567,10 @@ class TestRuntimeIntegration:
             for jid, j in orch._jobs.items()
             if "technical_research" in j.dependencies
         ]
-        assert consumers == []
+        # Final Hardening (Group F): thesis_construction consumes the desk's
+        # NON-SCORING research context (metadata only).  The desk remains
+        # fully excluded from every decision-scoring path.
+        assert consumers == ["thesis_construction"]
         assert "technical_research" not in orch._jobs["finalize"].dependencies
         assert "technical_research" not in orch._jobs["decision_engine"].dependencies
 

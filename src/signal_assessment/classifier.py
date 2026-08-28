@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from statistics import mean
 from typing import Any
 
 from signal_assessment.contracts import (
@@ -29,19 +28,16 @@ class NoiseSignalClassifier:
 
     def classify(
         self,
-        criteria_scores: dict[str, CriterionScore] | None = None,
-        persistence: CriterionScore | None = None,
-        breadth: CriterionScore | None = None,
-        magnitude_z: float = 0.0,
-        narrative: CriterionScore | None = None,
-        volume: CriterionScore | None = None,
+        criteria_scores: dict[str, CriterionScore],
     ) -> tuple[str, float, str]:
-        scores = self._collect_scores(
-            criteria_scores, persistence, breadth, magnitude_z, narrative, volume,
-        )
-        if criteria_scores is not None and "magnitude" in criteria_scores:
+        # Final Hardening (Group G): the legacy positional-arguments branch
+        # (persistence/breadth/magnitude_z/narrative/volume) was removed --
+        # every production and test caller passes ``criteria_scores``.
+        scores = list(criteria_scores.values())
+        magnitude_z = 0.0
+        if criteria_scores and "magnitude" in criteria_scores:
             mag = criteria_scores["magnitude"]
-            magnitude_z = mag.score * 3.0 * (1 if mag.detail and "z-score=" in mag.detail else 1)
+            magnitude_z = mag.score * 3.0
             if mag.detail and "z-score=" in mag.detail:
                 try:
                     magnitude_z = float(mag.detail.split("z-score=")[1].split(")")[0])
@@ -53,7 +49,6 @@ class NoiseSignalClassifier:
             (s.passed for s in scores if s.criterion == "persistence"), False
         )
         magnitude_passed = abs(magnitude_z) >= 2.0
-        avg_score = mean([s.score for s in scores]) if scores else 0.0
 
         if positive_count >= 3 or (positive_count >= 2 and persistence_passed):
             label = ClassificationLabel.SIGNAL
@@ -77,38 +72,6 @@ class NoiseSignalClassifier:
             reason = self._build_reason("Noise", positive_count, scores)
 
         return label.value, round(confidence, 4), reason
-
-    def _collect_scores(
-        self,
-        criteria_scores: dict[str, CriterionScore] | None,
-        persistence: CriterionScore | None,
-        breadth: CriterionScore | None,
-        magnitude_z: float,
-        narrative: CriterionScore | None,
-        volume: CriterionScore | None,
-    ) -> list[CriterionScore]:
-        if criteria_scores is not None:
-            return list(criteria_scores.values())
-
-        scores: list[CriterionScore] = []
-        if persistence is not None:
-            scores.append(persistence)
-        if breadth is not None:
-            scores.append(breadth)
-        mag_passed = abs(magnitude_z) >= 2.0
-        mag_score = min(abs(magnitude_z) / 3.0, 1.0) if abs(magnitude_z) > 0 else 0.0
-        scores.append(CriterionScore(
-            criterion="magnitude",
-            score=round(mag_score, 4),
-            threshold=2.0,
-            passed=mag_passed,
-            detail=f"z-score={magnitude_z:.2f}",
-        ))
-        if narrative is not None:
-            scores.append(narrative)
-        if volume is not None:
-            scores.append(volume)
-        return scores
 
     @staticmethod
     def _build_reason(label: str, positive_count: int, scores: list[CriterionScore]) -> str:

@@ -876,6 +876,97 @@ def build_sections(data: dict[str, Any]) -> list[Section]:
     )
     sections.append(Section(14, "Provenance Summary", "\n".join(md_14), html_14))
 
+    # Final Hardening (Group D): execution levels section.  The finalize
+    # payload carries the executable recommendation (entry/stop/target and
+    # the market-anchored risk summary) as a first-class artifact.
+    recommendation = finalize.get("trade_recommendation") or {}
+    if isinstance(recommendation, dict) and recommendation:
+        action = recommendation.get("recommendation_action", "")
+        levels_rows: list[list[str]] = []
+        if action in ("BUY", "SELL"):
+            entry_zone = recommendation.get("entry_zone") or ()
+            levels_rows.append(["Action", _md_escape(action), ""])
+            if len(entry_zone) >= 1:
+                levels_rows.append(["Entry zone", _md_escape(" - ".join(str(e) for e in entry_zone)), ""])
+            levels_rows.append(["Stop loss", _md_escape(recommendation.get("stop_loss", "")), ""])
+            levels_rows.append(["Take profit 1", _md_escape(recommendation.get("take_profit_1", "")), ""])
+            levels_rows.append(["Take profit 2", _md_escape(recommendation.get("take_profit_2", "")), ""])
+            levels_rows.append(["Risk %", str(recommendation.get("risk_pct", "")), ""])
+            levels_rows.append(
+                ["Holding days", str(recommendation.get("expected_holding_days", "")), ""]
+            )
+        metadata_14b = recommendation.get("metadata") or {}
+        market_summary = metadata_14b.get("market_risk_summary") or {}
+        levels_basis = metadata_14b.get("levels_basis", "unknown")
+        rr_market = market_summary.get("market_reward_risk_ratio")
+        conviction_rr = (decision.get("risk_reward_summary") or {}).get(
+            "risk_reward_ratio"
+        )
+        md_levels = [
+            f"**Recommendation:** {_md_escape(action or 'n/a')} "
+            f"(levels basis: {_md_escape(levels_basis)})",
+            "",
+            _md_table(
+                ["Level", "Value"],
+                [[row[0], row[1]] for row in levels_rows]
+                if levels_rows
+                else [["Levels", "none emitted for this decision class"]],
+            ),
+            "",
+            "**Risk / reward**",
+            "",
+            _md_table(
+                ["Measure", "Value", "Basis"],
+                [
+                    [
+                        "Market reward:risk",
+                        _md_escape(rr_market if rr_market is not None else "n/a"),
+                        "ATR-anchored levels",
+                    ],
+                    [
+                        "W12 conviction ratio",
+                        _md_escape(
+                            conviction_rr if conviction_rr is not None else "n/a"
+                        ),
+                        "conviction proxy (W12)",
+                    ],
+                ],
+            ),
+            "",
+            "The W12 conviction ratio measures thesis-conviction quality; the "
+            "market reward:risk ratio is computed from the actual ATR-anchored "
+            "entry/stop/target levels. They are different measures and are "
+            "reported side by side.",
+        ]
+        html_levels = (
+            "<h3>Recommendation</h3>"
+            + _html_table(
+                ["Level", "Value"],
+                [[row[0], row[1]] for row in levels_rows]
+                if levels_rows
+                else [["Levels", "none emitted for this decision class"]],
+            )
+            + "<h3>Risk / reward</h3>"
+            + _html_table(
+                ["Measure", "Value", "Basis"],
+                [
+                    [
+                        "Market reward:risk",
+                        str(rr_market if rr_market is not None else "n/a"),
+                        "ATR-anchored levels",
+                    ],
+                    [
+                        "W12 conviction ratio",
+                        str(conviction_rr if conviction_rr is not None else "n/a"),
+                        "conviction proxy (W12)",
+                    ],
+                ],
+            )
+        )
+        sections.append(
+            Section(15, "Execution Levels", "\n".join(md_levels), html_levels)
+        )
+
     return sections
 
 

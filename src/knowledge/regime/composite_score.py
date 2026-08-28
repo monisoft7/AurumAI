@@ -1,12 +1,37 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
 if TYPE_CHECKING:
     from connectors.fred_client import EconomicDataFetcher
+
+SYNTHETIC_INDEX_FILENAME = "synthetic_data_index.json"
+
+
+def load_synthetic_exclusions(data_dir: str | Path) -> dict[str, dict[str, Any]]:
+    """Load the synthetic-data index for *data_dir* (Final Hardening, D-03).
+
+    ``synthetic_data_index.json`` lists CSV files in that directory that are
+    machine-generated placeholders (rng-seeded) rather than observed market /
+    macro data.  Synthetic files must never masquerade as institutional
+    input: callers exclude them from every live computation.  A missing
+    index means "no known synthetic files" and is not an error.
+    """
+    index_path = Path(data_dir) / SYNTHETIC_INDEX_FILENAME
+    if not index_path.is_file():
+        return {}
+    try:
+        payload = json.loads(index_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    files = payload.get("files")
+    if not isinstance(files, dict):
+        return {}
+    return {str(k): v for k, v in files.items() if isinstance(v, dict)}
 
 
 class CompositeScoreBuilder:
@@ -16,6 +41,11 @@ class CompositeScoreBuilder:
     Reads 5 monthly indicators (CPI, PPI, PMI, UNRATE, PAYEMS),
     transforms each into a z-score, and averages them into
     a single ``composite_score`` per month.
+
+    Final Hardening (D-03): files listed in ``synthetic_data_index.json``
+    are excluded from the CSV path -- synthetic placeholders never feed the
+    institutional regime path.  Use :meth:`build_with_provenance` to obtain
+    the exclusion report alongside the frame.
     """
 
     _INDICATORS: dict[str, str] = {
@@ -43,15 +73,47 @@ class CompositeScoreBuilder:
         self._fred_fetcher = fred_fetcher
 
     def build(self) -> pd.DataFrame:
+        return self.build_with_provenance()[0]
+
+    def build_with_provenance(self) -> tuple[pd.DataFrame, dict[str, Any]]:
+        """Return (composite frame, provenance report).
+
+        The provenance report records which indicators were included and
+        which were excluded as synthetic placeholders (D-03).
+        """
         if self._fred_fetcher is not None:
-            return self._build_from_fred()
-        return self._build_from_csv()
+            return self._build_from_fred(), {
+                "source": "fred",
+                "excluded_indicators": [],
+            }
+        frame, excluded = self._build_from_csv_with_exclusions()
+        return frame, {
+            "source": "csv",
+            "excluded_indicators": excluded,
+        }
 
     def _build_from_csv(self) -> pd.DataFrame:
+        return self._build_from_csv_with_exclusions()[0]
+
+    def _build_from_csv_with_exclusions(
+        self,
+    ) -> tuple[pd.DataFrame, list[dict[str, Any]]]:
+        synthetic = load_synthetic_exclusions(self._data_dir)
         z_scores: list[pd.Series] = []
         common_index: pd.DatetimeIndex | None = None
+        excluded: list[dict[str, Any]] = []
 
         for name, filename in self._INDICATORS.items():
+            if filename in synthetic:
+                excluded.append(
+                    {
+                        "indicator": name,
+                        "file": filename,
+                        "reason": "synthetic_placeholder",
+                        "detail": synthetic[filename],
+                    }
+                )
+                continue
             series = self._load_and_transform_csv(name, filename)
             if series is None:
                 continue
@@ -63,16 +125,22 @@ class CompositeScoreBuilder:
             z_scores.append(z.rename(name))
 
         if not z_scores or common_index is None:
-            return pd.DataFrame(columns=["Date", "composite_score"])
+            return (
+                pd.DataFrame(columns=["Date", "composite_score"]),
+                excluded,
+            )
 
         aligned = [z.reindex(common_index) for z in z_scores]
         composite = pd.concat(aligned, axis=1).mean(axis=1, skipna=True)
         composite = composite.dropna()
 
-        return pd.DataFrame({
-            "Date": composite.index,
-            "composite_score": composite.values.round(6),
-        }).reset_index(drop=True)
+        return (
+            pd.DataFrame({
+                "Date": composite.index,
+                "composite_score": composite.values.round(6),
+            }).reset_index(drop=True),
+            excluded,
+        )
 
     def _build_from_fred(self) -> pd.DataFrame:
         z_scores: list[pd.Series] = []

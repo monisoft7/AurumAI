@@ -61,14 +61,20 @@ class OvernightDataFetcher:
         session: str = "APAC",
     ) -> list[OvernightPriceChange]:
         results: list[OvernightPriceChange] = []
+        # Final Hardening (D-11): per-instrument fetch failures are collected
+        # and surfaced by ``fetch_all`` -- a silently missing instrument must
+        # never read as a calm session.
+        self._last_fetch_errors: dict[str, str] = {}
 
         for name, info in OVERNIGHT_TICKERS.items():
             try:
                 change = self._fetch_yfinance_change(name, info["ticker"], session)
                 if change is not None:
                     results.append(change)
-            except Exception:
-                pass
+                else:
+                    self._last_fetch_errors[name] = "no data returned"
+            except Exception as exc:
+                self._last_fetch_errors[name] = f"{type(exc).__name__}: {exc}"
 
         for name, series_id in OVERNIGHT_FRED_SERIES.items():
             try:
@@ -92,8 +98,10 @@ class OvernightDataFetcher:
                         session=session,
                         persistence_days=self._compute_persistence_days(series),
                     ))
-            except Exception:
-                pass
+                else:
+                    self._last_fetch_errors[name] = "series empty or too short"
+            except Exception as exc:
+                self._last_fetch_errors[name] = f"{type(exc).__name__}: {exc}"
 
         self._log_freshness()
         return results
@@ -192,4 +200,5 @@ class OvernightDataFetcher:
         return {
             "overnight_changes": overnight_changes,
             "yield_freshness": yield_freshness,
+            "fetch_errors": dict(getattr(self, "_last_fetch_errors", {})),
         }

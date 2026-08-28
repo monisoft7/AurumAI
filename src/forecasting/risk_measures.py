@@ -8,6 +8,12 @@ import numpy as np
 
 _VALID_METHODS = ("historical", "parametric")
 
+# Final Hardening (D-03/D-11): explicit unavailable state for risk metrics.
+# When the underlying inputs are degenerate the metrics must never be
+# fabricated (the previous rng-seeded substitution produced random numbers
+# that silently reached the risk gate).
+UNAVAILABLE_METHOD_PREFIX = "unavailable"
+
 
 def _norm_ppf(p: float) -> float:
     if p <= 0.0 or p >= 1.0:

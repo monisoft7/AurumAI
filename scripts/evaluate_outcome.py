@@ -69,6 +69,9 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from runtime_registry.outputs import latest_run_dir  # noqa: E402
+from knowledge.learning.outcome_calibration import (  # noqa: E402
+    CALIBRATION_FILENAME,
+)
 from simulation.historical_replay import (  # noqa: E402
     _classify_actual_direction,
     _compute_gold_return,
@@ -418,6 +421,39 @@ def _latest_run_dir() -> Path | None:
     return latest_run_dir(ROOT / "outputs", predicate=_has_outcome)
 
 
+def _refresh_calibration(outputs_base: Path) -> None:
+    """Final Hardening (Group E, D-05): after the sweep, aggregate all
+    point-in-time-safe evaluated outcomes into runtime/calibration.json.
+
+    The next run consumes the published ``oos_ece`` through the existing W9
+    calibration cap.  Failures here must never fail the sweep: the loop is
+    an additive learning channel, not a decision dependency.
+    """
+    try:
+        sys.path.insert(0, str(ROOT / "src"))
+
+        from knowledge.learning.outcome_calibration import update_calibration_file
+
+        payload = update_calibration_file(
+            outputs_base, ROOT / "runtime" / CALIBRATION_FILENAME
+        )
+        published = payload.get("oos_ece")
+        if published is None:
+            print(
+                "calibration: not published "
+                f"(sample_count={payload.get('sample_count')} < "
+                f"{payload.get('statistics', {}).get('min_samples_required')})"
+            )
+        else:
+            print(
+                f"calibration: oos_ece={published} "
+                f"(n={payload.get('sample_count')}) -> "
+                f"runtime/{CALIBRATION_FILENAME}"
+            )
+    except Exception as exc:
+        print(f"calibration: refresh failed ({exc})", file=sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python scripts/evaluate_outcome.py",
@@ -462,6 +498,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{'wrote' if result['wrote'] else 'skipped'} {result['path']} "
                   f"status={result['record']['status']}")
         print(f"outcome sweep: processed={len(results)} written={written} errors={errors}")
+        _refresh_calibration(base)
         return EXIT_OK
 
     if args.output_dir:

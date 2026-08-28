@@ -242,7 +242,6 @@ class TestConfidenceComputer:
             "regime_alignment",
             "source_diversity",
             "knowledge_record_quality",
-            "temporal_recency",
             "counter_evidence",
             "missing_evidence",
             "internal_consistency",
@@ -253,7 +252,8 @@ class TestConfidenceComputer:
         thesis = _make_thesis()
         computer = ConfidenceComputer()
         result = computer.compute(thesis)
-        assert len(result["positive_contributors"]) == 6
+        # Final Hardening (Group A): temporal_recency channel removed.
+        assert len(result["positive_contributors"]) == 5
         names = {c["name"] for c in result["positive_contributors"]}
         assert "evidence_quality" in names
         assert "regime_alignment" in names
@@ -648,7 +648,9 @@ class TestW9InputConsumption:
         engine = ConfidenceEngine()
         result = engine.evaluate(construction, generation=generation)
         tc = result.theses_confidence[0]
-        assert tc.final_confidence == 0.95
+        # Final Hardening (Group A): temporal_recency (constant 1.0 dead
+        # channel) removed from the W9 positive score, weights renormalized.
+        assert tc.final_confidence == 0.94
         assert tc.metadata["gs_test"]["all_answered"] is True
         assert tc.metadata["gs_cap"] == "none"
         assert result.metadata["meta_evidence"]["w12_downside_case_consumed"] is True
@@ -688,7 +690,7 @@ class TestW9InputConsumption:
         result = engine.evaluate(construction, oos_ece=0.1)
         tc = result.theses_confidence[0]
         assert tc.metadata["oos_calibration"]["cap_applied"] == "none"
-        assert tc.final_confidence == 0.95
+        assert tc.final_confidence == 0.94
 
     def test_absent_inputs_preserve_legacy_behavior(self):
         construction = _make_construction((_make_thesis("th_1"),))
@@ -809,12 +811,11 @@ class TestCorrection049BSupportAppliedOnce:
         result = computer.compute(thesis)
         bd = result["confidence_breakdown"]
         ps = (
-            0.25 * bd["evidence_quality"]
-            + 0.25 * bd["evidence_consensus"]
+            0.30 * bd["evidence_quality"]
+            + 0.30 * bd["evidence_consensus"]
             + 0.15 * bd["regime_alignment"]
             + 0.15 * bd["source_diversity"]
             + 0.10 * bd["knowledge_record_quality"]
-            + 0.10 * bd["temporal_recency"]
         )
         pen = (
             0.35 * bd["counter_evidence"]
@@ -874,7 +875,9 @@ class TestCorrection049BSupportAppliedOnce:
             institutional_support=0.4975,
         )
         result = ConfidenceComputer().compute(thesis)
-        assert result["final_confidence"] == 0.7327
+        # Final Hardening (Group A): re-pinned for the renormalized weights
+        # (temporal_recency channel removed).  Previous pin: 0.7327.
+        assert result["final_confidence"] == 0.7112
 
     def test_metadata_records_support_without_multiplier(self):
         result = ConfidenceComputer().compute(_make_thesis())

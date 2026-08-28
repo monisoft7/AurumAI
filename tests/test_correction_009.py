@@ -368,4 +368,9 @@ class TestStagingHandoff:
         ) is None
         params = {"data_path": "does/not/exist.csv"}
         results = {"ingest_event": {"event_type": "CPI", "event": CPIEvent()}}
-        assert _cpi_release_snapshot(params, results) is None
+        # Final Hardening (D-11): a missing data file is an explicit
+        # unavailable state, not a silent None.
+        snapshot = _cpi_release_snapshot(params, results)
+        assert isinstance(snapshot, dict)
+        assert snapshot["status"] == "unavailable"
+        assert snapshot["reason"]

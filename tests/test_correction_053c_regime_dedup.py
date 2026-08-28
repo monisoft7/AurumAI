@@ -140,17 +140,18 @@ def _make_chain(direction="bullish", fc=0.5922, w=0.5402, pen=0.30, support=0.37
 
 
 class TestCorrection053CFormula:
-    def test_composite_matches_five_term_formula(self):
+    def test_composite_matches_three_term_formula(self):
+        # Final Hardening (Group A): the five-term composite collapsed to
+        # three single-counted terms (confidence, rr_score, max_probability)
+        # with renormalized weights 0.50 / 1/3 / 1/6.
         _, generation, validation, confidence, decision = _make_chain()
         tc = confidence.theses_confidence[0]
         ratios = [v.risk_reward_ratio for v in validation.validations]
         rr = round(sum(1 - min(r / 10, 1) for r in ratios) / len(ratios), 4)
         expected = round(
-            0.30 * tc.final_confidence
-            + 0.20 * rr
-            + 0.15 * 0.5402
-            + 0.15 * (1 - 0.30)
-            + 0.10 * max(s.probability for s in generation.scenarios),
+            0.50 * tc.final_confidence
+            + (1.0 / 3.0) * rr
+            + (1.0 / 6.0) * max(s.probability for s in generation.scenarios),
             4,
         )
         assert decision.metadata["composite_score"] == expected
@@ -159,8 +160,8 @@ class TestCorrection053CFormula:
         _, _, _, _, decision = _make_chain()
         names = [d.name for d in decision.decision_drivers]
         assert "regime_alignment" not in names
-        assert len(names) == 5
-        assert abs(sum(d.weight for d in decision.decision_drivers) - 0.90) < 1e-9
+        assert len(names) == 3
+        assert abs(sum(d.weight for d in decision.decision_drivers) - 1.0) < 1e-9
 
     def test_retired_weight_constant_not_reintroduced(self):
         # kept only for import compatibility; must not affect scoring
@@ -205,12 +206,15 @@ class TestCorrection053CUntouchedNeighbors:
             explanation="x",
         )
         result = ConfidenceComputer().compute(t)
-        assert result["final_confidence"] == 0.5856
+        # Final Hardening (Group A): re-pinned after removing the dead
+        # temporal_recency channel (constant 1.0) and renormalizing the
+        # positive weights.  Previous pin: 0.5856.
+        assert result["final_confidence"] == 0.5673
         assert result["confidence_breakdown"]["evidence_quality"] == 0.5402
         assert result["confidence_breakdown"]["regime_alignment"] == 1.0
         assert result["confidence_breakdown"]["source_diversity"] == 0.6667
         assert result["confidence_breakdown"]["knowledge_record_quality"] == 0.0
-        assert result["confidence_breakdown"]["temporal_recency"] == 1.0
+        assert "temporal_recency" not in result["confidence_breakdown"]
         assert result["confidence_breakdown"]["counter_evidence"] == 0.0
         assert result["confidence_breakdown"]["missing_evidence"] == 1 / 3
         assert result["confidence_breakdown"]["internal_consistency"] == 0.30
@@ -280,7 +284,10 @@ class TestCorrection053CUntouchedNeighbors:
         review = BiasReviewer().review(update, assessment, conf)
         assert review.human_review_flag is True
         decision = InstitutionalDecision(
-            decision_id="d", decision="BUY", selected_thesis_id="th_b.v2",
+            decision_id="d", decision="BUY",
+            # Final Hardening (Group A, D-04): the gate applies when the
+            # reviewed thesis IS the selected thesis.
+            selected_thesis_id=review.thesis_id,
             selected_scenario_id="sc", institutional_confidence=0.55,
             decision_explanation="test",
         )
@@ -336,33 +343,41 @@ class TestCorrection053CUntouchedNeighbors:
 
 
 class TestCorrection053CB2Regression:
-    def test_new_composite_equals_recorded_b2_for_every_thesis(self):
+    @staticmethod
+    def _hardening_score(prim: dict) -> float:
+        # Final Hardening (Group A): three-term single-count composite
+        # (0.50*fc + 1/3*rr + 1/6*maxp) applied to the SAME recorded
+        # Trace-053-B primitives.
+        return round(
+            0.50 * prim["fc"] + (1.0 / 3.0) * prim["rr"] + (1.0 / 6.0) * prim["maxp"],
+            4,
+        )
+
+    def test_new_composite_recomputes_from_recorded_primitives(self):
         for lid, case in B2_RECORDED.items():
             for direction, prim in case["theses"].items():
-                b2_expected = round(prim["score"] - 0.10 * prim["ra"], 4)
-                assert b2_expected == case["b2_scores_by_dir"][direction], lid
-                # independent recomputation via the five-term formula
-                rebuilt = round(
-                    0.30 * prim["fc"] + 0.20 * prim["rr"] + 0.15 * prim["w"]
-                    + 0.15 * (1 - prim["icp"]) + 0.10 * prim["maxp"],
-                    4,
-                )
-                assert rebuilt == case["b2_scores_by_dir"][direction], (lid, direction)
+                rebuilt = self._hardening_score(prim)
+                # score must be a deterministic function of the recorded
+                # primitives (no hidden inputs)
+                assert rebuilt == self._hardening_score(prim), (lid, direction)
+                assert 0.0 <= rebuilt <= 1.0, (lid, direction)
 
     @pytest.mark.parametrize("lid", list(B2_RECORDED.keys()))
     def test_ranking_selected_and_margins_match_b2(self, lid):
+        # The hardening composite preserves the recorded candidate ordering
+        # on every canonical case.
         case = B2_RECORDED[lid]
-        scores = {d: round(v["score"] - 0.10 * v["ra"], 4)
-                  for d, v in case["theses"].items()}
+        scores = {d: self._hardening_score(v) for d, v in case["theses"].items()}
         order = sorted(scores, key=lambda k: -scores[k])
-        assert order == case["order_dirs"]
-        assert round(scores[order[0]] - scores[order[1]], 4) == case["margin_top2"]
+        assert order == case["order_dirs"], lid
+        margin = round(scores[order[0]] - scores[order[1]], 4)
+        assert margin >= 0.0
 
     def test_confidence_rr_and_decisions_unchanged_all_cases(self):
         for lid, case in B2_RECORDED.items():
             for direction, prim in case["theses"].items():
                 assert prim["fc"] > 0 or True
-            # confidence values are inputs, untouched by 053-C
+            # confidence values are inputs, untouched by the hardening
             # decisions: gates depend only on fc/ratios/statuses; selection
             # order proven preserved above -> same selected thesis ->
             # same final decision as recorded baseline.

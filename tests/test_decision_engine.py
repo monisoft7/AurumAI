@@ -457,18 +457,18 @@ class TestDecisionEngine:
         assert decision.decision == "NO_TRADE"
 
     def test_drivers_include_all_five(self):
-        # Correction 053-C: standalone regime_alignment driver removed;
-        # regime alignment is single-counted inside institutional_confidence.
+        # Final Hardening (Group A): the W13 composite single-counts its
+        # inputs -- the raw evidence_quality / counter_evidence channels
+        # (already inside W9 confidence and W12 rr_score) were removed from
+        # the selection composite and the remaining weights renormalized.
         decision, _ = _decide((_strong_bullish(),))
         names = [d.name for d in decision.decision_drivers]
         assert names == [
             "institutional_confidence",
             "risk_reward_quality",
-            "evidence_quality",
-            "counter_evidence_quality",
             "scenario_probability",
         ]
-        assert abs(sum(d.weight for d in decision.decision_drivers) - 0.90) < 1e-6
+        assert abs(sum(d.weight for d in decision.decision_drivers) - 1.0) < 1e-6
         for d in decision.decision_drivers:
             assert d.score == round(d.value * d.weight, 4)
 
@@ -518,7 +518,7 @@ class TestDecisionEngine:
         restored = InstitutionalDecision.from_dict(decision.to_dict())
         assert restored.decision_id == decision.decision_id
         assert restored.decision == decision.decision
-        assert len(restored.decision_drivers) == 5
+        assert len(restored.decision_drivers) == 3
         assert len(restored.rejected_alternatives) == 1
         assert not restored.validate()
 
@@ -528,12 +528,23 @@ class TestDecisionEngine:
         tc_med = ThesisConfidence("a", final_confidence=0.6)
         tc_low = ThesisConfidence("a", final_confidence=0.2)
         tc_sub = ThesisConfidence("a", final_confidence=0.4)
-        assert determine(_make_thesis("a", "bullish", confidence=0.8), tc_high, _rv_acceptable()) == "BUY"
-        assert determine(_make_thesis("a", "bearish", confidence=0.8), tc_high, _rv_acceptable()) == "SELL"
-        assert determine(_make_thesis("a", "neutral", confidence=0.6), tc_med, _rv_acceptable()) == "HOLD"
-        assert determine(_make_thesis("a", "neutral", confidence=0.2), tc_low, _rv_acceptable()) == "NO_TRADE"
-        assert determine(_make_thesis("a", "bullish", confidence=0.4), tc_sub, _rv_acceptable()) == "NO_TRADE"
-        assert determine(_make_thesis("a", "bullish", confidence=0.8), tc_high, _rv_risky()) == "NO_TRADE"
+        # Final Hardening (Group A): _determine_decision returns
+        # (decision, gate_reason); the NO_TRADE rationale names the gate.
+        assert determine(_make_thesis("a", "bullish", confidence=0.8), tc_high, _rv_acceptable()) == ("BUY", None)
+        assert determine(_make_thesis("a", "bearish", confidence=0.8), tc_high, _rv_acceptable()) == ("SELL", None)
+        assert determine(_make_thesis("a", "neutral", confidence=0.6), tc_med, _rv_acceptable()) == ("HOLD", None)
+        assert determine(_make_thesis("a", "neutral", confidence=0.2), tc_low, _rv_acceptable()) == (
+            "NO_TRADE",
+            "confidence_below_threshold",
+        )
+        assert determine(_make_thesis("a", "bullish", confidence=0.4), tc_sub, _rv_acceptable()) == (
+            "NO_TRADE",
+            "confidence_below_threshold",
+        )
+        assert determine(_make_thesis("a", "bullish", confidence=0.8), tc_high, _rv_risky()) == (
+            "NO_TRADE",
+            "risk_reward_ratio_above_threshold",
+        )
 
 
 def _rv_acceptable() -> InstitutionalRiskValidation:
@@ -636,7 +647,7 @@ def test_w8_to_w9_to_w12_to_w13_integration():
         )
         assert decision.preconditions
         assert decision.invalidation_conditions
-        assert len(decision.decision_drivers) == 5
+        assert len(decision.decision_drivers) == 3
 
     assert not decision.validate()
     assert decision.decision_explanation

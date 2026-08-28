@@ -102,22 +102,6 @@ class ConflictDetector:
         return False
 
     @staticmethod
-    def temporal_conflicts(
-        evidence_sets: tuple[EvidenceSet, ...],
-        low_recency_threshold: float = 0.3,
-    ) -> list[str]:
-        flags: list[str] = []
-        for es in evidence_sets:
-            meta = es.metadata or {}
-            bias_dist = meta.get("bias_distribution", {})
-            if not bias_dist:
-                continue
-            total = sum(bias_dist.values())
-            if total > 0 and es.conflict_score > low_recency_threshold:
-                flags.append(es.set_id)
-        return flags
-
-    @staticmethod
     def source_concentration(
         evidence_sets: tuple[EvidenceSet, ...],
     ) -> bool:

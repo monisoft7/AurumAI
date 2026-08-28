@@ -153,11 +153,19 @@ class BiasReview:
 def apply_bias_review(
     decision: InstitutionalDecision,
     review: BiasReview,
+    other_reviews: tuple[BiasReview, ...] | list[BiasReview] = (),
 ) -> InstitutionalDecision:
     """Consumes a BiasReview into the final decision.
-    The review summary is always recorded on the decision metadata. When the
-    review requires human review, a directional decision is downgraded to
-    NO_TRADE because remediation must precede the decision.
+
+    Final Hardening (Group A, D-04 -- decision vs review scope): the review
+    gates the thesis it actually examined.  A human-review block is applied
+    only when the reviewed thesis IS the selected thesis (or when no thesis
+    was selected).  A review targeting a non-selected candidate is recorded
+    as an explicit advisory and never vetoes a decision made on a different
+    thesis.
+
+    The review summary is always recorded on the decision metadata, together
+    with ``reviewed_thesis_id`` so selected/reviewed identity is auditable.
     """
     summary = {
         "review_id": review.review_id,
@@ -168,10 +176,26 @@ def apply_bias_review(
     }
     metadata = dict(decision.metadata)
     metadata["bias_review"] = summary
+    metadata["reviewed_thesis_id"] = review.thesis_id
+    others = [
+        {
+            "thesis_id": r.thesis_id,
+            "overall_severity": r.overall_severity,
+            "human_review_flag": r.human_review_flag,
+        }
+        for r in other_reviews
+        if r.thesis_id != review.thesis_id
+    ]
+    if others:
+        metadata["other_candidate_reviews"] = others
 
     explanation = decision.decision_explanation
     decision_value = decision.decision
-    if review.human_review_flag:
+    selected_id = decision.selected_thesis_id
+    review_targets_selection = (not selected_id) or (
+        review.thesis_id == selected_id
+    )
+    if review.human_review_flag and review_targets_selection:
         if decision_value != "NO_TRADE":
             decision_value = "NO_TRADE"
             explanation += (
@@ -185,6 +209,12 @@ def apply_bias_review(
                 f"(overall_severity={review.overall_severity}, "
                 f"findings={[f.bias_name for f in review.findings]})"
             )
+    elif review.human_review_flag:
+        explanation += (
+            " | BIAS REVIEW ADVISORY: human review required for candidate "
+            f"{review.thesis_id} (not the selected thesis "
+            f"{selected_id}); recorded, not gating"
+        )
 
     return replace(
         decision,

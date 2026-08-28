@@ -574,6 +574,13 @@ class TestInvariance:
         payload = _finalized(_stub_results(construction))
 
         assert all(key in payload for key in _FINALIZE_KEYS)
+        # Final Hardening: additive observability keys joined the finalize
+        # payload across corrections (053-A composite primitives, Group F
+        # canonical-fact aggregation).  The trade_recommendation key appears
+        # only when the W14 stage produced a recommendation, which this stub
+        # does not provide.
         assert set(payload) == set(_FINALIZE_KEYS) | {
-            "thesis_historical_assessments"
+            "thesis_historical_assessments",
+            "composite_primitives",
+            "canonical_fact_registry",
         }

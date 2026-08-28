@@ -23,21 +23,19 @@ from thesis_construction.contracts import InvestmentThesis, ThesisConstruction
 
 MAX_RISK_REWARD_RATIO = 10.0
 
-CONFIDENCE_WEIGHT = 0.30
-RR_WEIGHT = 0.20
-EVIDENCE_WEIGHT = 0.15
-COUNTER_EVIDENCE_WEIGHT = 0.15
-SCENARIO_PROBABILITY_WEIGHT = 0.10
-REGIME_ALIGNMENT_WEIGHT = 0.10
-
-NO_TRADE_CONFIDENCE = 0.5
-HOLD_CONFIDENCE = 0.35
-NO_TRADE_RR_RATIO = 2.0
-
-STATUS_RANK = {"acceptable": 0, "borderline": 1, "reject": 2}
-TYPE_RANK = {"base": 0, "bull": 1, "bear": 2}
-
-ELIGIBLE_STATUSES = {"acceptable", "borderline"}
+# Final Hardening (Group A): the W13 composite previously re-imported raw
+# W7/W8 inputs (avg_supporting_weight, confidence_penalty) that are ALREADY
+# embedded inside institutional_confidence (W9 positive score + internal
+# consistency penalty) and inside rr_score (via W8 institutional_support ->
+# W12 scenario_confidence).  Counting them again overweighted the evidence /
+# counter-evidence channels relative to the two institutional gates.  The
+# duplicated channels were removed and the remaining weights renormalized
+# proportionally to sum to 1.0:
+#   old effective shares (of 0.90): confidence 1/3, rr 2/9, probability 1/9
+#   new weights: 0.50 / 1/3 / 1/6  (identical relative proportions)
+CONFIDENCE_WEIGHT = 0.50
+RR_WEIGHT = 1.0 / 3.0
+SCENARIO_PROBABILITY_WEIGHT = 1.0 / 6.0
 
 # Correction 053-C: the standalone regime-alignment channel
 # (+ REGIME_ALIGNMENT_WEIGHT * regime_alignment) was removed from the
@@ -47,6 +45,14 @@ ELIGIBLE_STATUSES = {"acceptable", "borderline"}
 # canonical smoke cases.  The constant is kept only for import
 # compatibility and MUST NOT be reintroduced into _score_thesis.
 REGIME_ALIGNMENT_WEIGHT = 0.10
+
+NO_TRADE_CONFIDENCE = 0.5
+NO_TRADE_RR_RATIO = 2.0
+
+STATUS_RANK = {"acceptable": 0, "borderline": 1, "reject": 2}
+TYPE_RANK = {"base": 0, "bull": 1, "bear": 2}
+
+ELIGIBLE_STATUSES = {"acceptable", "borderline"}
 
 
 class DecisionEngine:
@@ -120,7 +126,7 @@ class DecisionEngine:
         best_scenario, best_validation = self._select_best_scenario(
             selected["scenarios"], selected["validations"]
         )
-        decision = self._determine_decision(
+        decision, gate_reason = self._determine_decision(
             thesis=selected["thesis"],
             tc=selected["tc"],
             validation=best_validation,
@@ -145,6 +151,7 @@ class DecisionEngine:
             score=selected["score"],
             confidence_value=confidence_value,
             rr_summary=rr_summary,
+            gate_reason=gate_reason,
         )
         preconditions = self._preconditions(best_scenario)
         invalidation = self._invalidation_conditions(
@@ -171,6 +178,7 @@ class DecisionEngine:
                 "composite_score": round(selected["score"], 4),
                 "total_theses_evaluated": len(scored),
                 "total_rejected_alternatives": len(rejected),
+                "gate_reason": gate_reason,
             },
         )
 
@@ -186,6 +194,9 @@ class DecisionEngine:
         validations: list[InstitutionalRiskValidation],
     ) -> dict[str, float]:
         confidence = tc.final_confidence if tc else 0.0
+        # Observability only (Final Hardening Group A): these raw W7/W8
+        # inputs are already single-counted inside confidence and rr_score;
+        # they no longer enter the composite a second time.
         evidence_quality = float(
             thesis.confidence_inputs.get("avg_supporting_weight", 0.0)
         )
@@ -206,14 +217,9 @@ class DecisionEngine:
                 best_status = v.validation_status
         rr_score = round(sum(rr_components) / len(rr_components), 4) if rr_components else 0.0
 
-        # Correction 053-C: REGIME_ALIGNMENT_WEIGHT channel removed.
-        # regime_alignment remains inside W9 institutional_confidence
-        # (positive_score, weight 0.15) -- single-count only now.
         score = round(
             CONFIDENCE_WEIGHT * confidence
             + RR_WEIGHT * rr_score
-            + EVIDENCE_WEIGHT * evidence_quality
-            + COUNTER_EVIDENCE_WEIGHT * (1.0 - counter_penalty)
             + SCENARIO_PROBABILITY_WEIGHT * max_probability,
             4,
         )
@@ -244,8 +250,15 @@ class DecisionEngine:
             for s, v in ranked
             if v.validation_status in ELIGIBLE_STATUSES
         ]
-        if not ranked and scenarios and validations:
-            ranked = [(scenarios[0], validations[0])]
+        if not ranked:
+            # Final Hardening (Group A): the previous silent fallback paired
+            # scenarios[0] with validations[0], which could associate two
+            # unrelated objects.  A mismatch here is a programming error and
+            # must surface, not fabricate a pairing.
+            raise ValueError(
+                "_select_best_scenario called without an eligible "
+                "(scenario, validation) pair"
+            )
         ranked.sort(
             key=lambda item: (
                 STATUS_RANK[item[1].validation_status],
@@ -260,19 +273,26 @@ class DecisionEngine:
         thesis: InvestmentThesis,
         tc: ThesisConfidence | None,
         validation: InstitutionalRiskValidation,
-    ) -> str:
+    ) -> tuple[str, str | None]:
+        """Return the decision label plus the concrete gate that produced a
+        NO_TRADE (Final Hardening Group A: the emitted rationale must name
+        the actual failing gate, never a generic 'nothing clears' text when
+        a thesis was in fact selected).
+
+        HOLD semantics: a selected NEUTRAL thesis that clears both gates.
+        The previous ``HOLD_CONFIDENCE = 0.35`` comparison was binding-dead
+        (the 0.5 confidence gate always fired first) and was removed.
+        """
         confidence = tc.final_confidence if tc else 0.0
         if confidence < NO_TRADE_CONFIDENCE:
-            return "NO_TRADE"
+            return "NO_TRADE", "confidence_below_threshold"
         if validation.risk_reward_ratio > NO_TRADE_RR_RATIO:
-            return "NO_TRADE"
+            return "NO_TRADE", "risk_reward_ratio_above_threshold"
         if thesis.direction == "bullish":
-            return "BUY"
+            return "BUY", None
         if thesis.direction == "bearish":
-            return "SELL"
-        if confidence >= HOLD_CONFIDENCE:
-            return "HOLD"
-        return "NO_TRADE"
+            return "SELL", None
+        return "HOLD", None
 
     # ------------------------------------------------------------------
     # Output builders
@@ -284,13 +304,11 @@ class DecisionEngine:
         specs = (
             ("institutional_confidence", selected["confidence"], CONFIDENCE_WEIGHT),
             ("risk_reward_quality", selected["rr_score"], RR_WEIGHT),
-            ("evidence_quality", selected["evidence_quality"], EVIDENCE_WEIGHT),
-            (
-                "counter_evidence_quality",
-                1.0 - selected["counter_penalty"],
-                COUNTER_EVIDENCE_WEIGHT,
-            ),
             ("scenario_probability", selected["max_probability"], SCENARIO_PROBABILITY_WEIGHT),
+            # Final Hardening (Group A): the standalone evidence_quality and
+            # counter_evidence_quality drivers were removed from the
+            # composite -- both inputs are already single-counted inside
+            # institutional_confidence and risk_reward_quality.
             # Correction 053-C: standalone regime_alignment driver removed;
             # regime alignment is single-counted inside institutional_confidence.
         )
@@ -391,13 +409,28 @@ class DecisionEngine:
         score: float,
         confidence_value: float,
         rr_summary: dict[str, Any],
+        gate_reason: str | None = None,
     ) -> str:
-        rationale = {
-            "BUY": "selected bullish thesis clears institutional confidence and risk/reward thresholds",
-            "SELL": "selected bearish thesis clears institutional confidence and risk/reward thresholds",
-            "HOLD": "selected thesis is neutral; no directional bias",
-            "NO_TRADE": "no thesis clears institutional confidence and risk/reward thresholds",
-        }[decision]
+        if decision == "NO_TRADE" and gate_reason == "confidence_below_threshold":
+            rationale = (
+                f"selected thesis {thesis.thesis_id} blocked by conviction gate: "
+                f"institutional_confidence={confidence_value} < "
+                f"{NO_TRADE_CONFIDENCE} threshold"
+            )
+        elif decision == "NO_TRADE" and gate_reason == "risk_reward_ratio_above_threshold":
+            rationale = (
+                f"selected thesis {thesis.thesis_id} blocked by risk/reward gate: "
+                f"ratio={rr_summary.get('risk_reward_ratio')} > "
+                f"{NO_TRADE_RR_RATIO} threshold"
+            )
+        elif decision == "NO_TRADE":
+            rationale = "selected thesis failed an institutional gate"
+        else:
+            rationale = {
+                "BUY": "selected bullish thesis clears institutional confidence and risk/reward thresholds",
+                "SELL": "selected bearish thesis clears institutional confidence and risk/reward thresholds",
+                "HOLD": "selected thesis is neutral; no directional bias",
+            }[decision]
         return (
             f"decision={decision}; selected_thesis={thesis.thesis_id} "
             f"({thesis.direction}); selected_scenario={scenario.scenario_id} "

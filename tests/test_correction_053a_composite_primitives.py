@@ -49,7 +49,6 @@ PRIMITIVE_KEYS = {
     "regime_alignment",
     "source_diversity",
     "knowledge_record_quality",
-    "temporal_recency",
     "counter_evidence_penalty",
     "missing_evidence_penalty",
     "internal_consistency_penalty",
@@ -244,7 +243,6 @@ class TestCorrection053AValueFidelity:
                 row["knowledge_record_quality"]
                 == comp["confidence_breakdown"]["knowledge_record_quality"]
             )
-            assert row["temporal_recency"] == comp["confidence_breakdown"]["temporal_recency"]
             assert (
                 row["counter_evidence_penalty"]
                 == comp["confidence_breakdown"]["counter_evidence"]
@@ -351,7 +349,9 @@ class TestCorrection053AAdditiveOnly:
         new_keys = set(payload.keys()) - LEGACY_FINALIZE_KEYS - {
             "thesis_historical_assessments"
         }
-        assert new_keys == {"composite_primitives"}
+        # Final Hardening: canonical_fact_registry (Group F) is a second
+        # additive observability key; legacy keys remain untouched.
+        assert new_keys == {"composite_primitives", "canonical_fact_registry"}
         # every legacy key remains present exactly as the stage defines it
         for key in LEGACY_FINALIZE_KEYS:
             assert key in payload

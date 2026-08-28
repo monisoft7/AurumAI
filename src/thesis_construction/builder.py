@@ -35,6 +35,7 @@ class ThesisBuilder:
         assessment: CounterEvidenceAssessment,
         supporting_set_ids: list[str],
         counter_set_ids: list[str],
+        technical_context: dict[str, Any] | None = None,
     ) -> InvestmentThesis:
         supporting_sets = [s for s in reasoning.evidence_sets if s.set_id in supporting_set_ids]
 
@@ -75,6 +76,12 @@ class ThesisBuilder:
         metadata: dict[str, Any] = {}
         if historical_assessment is not None:
             metadata["historical_assessment"] = historical_assessment
+        if technical_context:
+            # Final Hardening (Group F, D-07): the Technical Research Desk
+            # becomes a research-layer component via metadata.  Verbatim,
+            # non-scoring context -- confirmation/contradiction/structure
+            # information for the reasoning layer, never a vote.
+            metadata["technical_research"] = dict(technical_context)
 
         return InvestmentThesis(
             thesis_id=thesis_id,
