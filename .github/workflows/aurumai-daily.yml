@@ -91,3 +91,32 @@ jobs:
           path: outputs/
           retention-days: ${{ fromJSON(env.ARTIFACT_RETENTION_DAYS) }}
           if-no-files-found: warn
+
+      # Deterministic state recovery independent of the cache.
+      #
+      # The cache rolls state forward correctly, but its failures are
+      # silent: a failed/evicted snapshot makes the next run restore an
+      # older one, and >7 days without a run evicts CI-side state
+      # entirely.  This backup artifact (immutable, 90-day retention,
+      # always uploaded) is the authoritative recovery source: to
+      # recover, download the newest aurumai-state-backup-* artifact and
+      # unpack it over the workspace before a run.
+      #
+      # Recovery remains lossless because of the existing contracts:
+      # - outcome.evaluated.json records are immutable and deduplicated
+      #   by decision_id (no duplicates, no corruption on re-restore);
+      # - runtime/calibration.json is derived state, fully recomputed
+      #   from evaluated records by update_calibration_file();
+      # - runtime/run_registry.jsonl is append-only history.
+      - name: Upload operational state backup
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurumai-state-backup-${{ github.run_id }}
+          path: |
+            runtime/run_registry.jsonl
+            runtime/calibration.json
+            outputs/**/outcome.json
+            outputs/**/outcome.evaluated.json
+          retention-days: 90
+          if-no-files-found: warn

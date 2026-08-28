@@ -90,6 +90,27 @@ If the cache is ever lost, the system degrades safely: calibration returns
 `oos_ece: None` (pre-hardening behaviour) until ≥10 scored samples re-accrue,
 and the registry readers treat missing history as empty.
 
+### Deterministic state recovery
+
+The cache rolls state forward correctly, but its failures are silent (an
+evicted or failed snapshot makes the next run restore an older one, and >7
+days without a run evicts CI-side state). Therefore every run also uploads
+an immutable backup artifact `aurumai-state-backup-<run_id>` (90-day
+retention) containing:
+
+- `runtime/run_registry.jsonl`
+- `runtime/calibration.json`
+- `outputs/**/outcome.json`
+- `outputs/**/outcome.evaluated.json`
+
+To recover deterministically after cache loss:
+
+1. Download the newest `aurumai-state-backup-*` artifact from the Actions
+   tab (or `gh run download <run-id> -n aurumai-state-backup-<run-id>`).
+2. Unpack it over the repository checkout before the next run — restoring
+   is lossless because evaluated outcome records are immutable and
+   deduplicated by `decision_id`, and calibration is recomputed from them.
+
 ## Concurrency
 
 The `aurumai-daily-operations` concurrency group queues overlapping runs
