@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "artifact": "synthetic_data_index",
+  "purpose": "Files in this directory that are machine-generated rng-seeded placeholders, NOT observed market or macro data. Excluded from every live institutional computation (Final Hardening, D-03). Consumers: knowledge.regime.composite_score.load_synthetic_exclusions.",
+  "files": {
+    "PMI.csv": {
+      "generated_by": "src/simulation/historical_replay.py::_write_synthetic_csv",
+      "generator": "numpy.random.default_rng(42).normal(52.0, 4.0, 36)",
+      "start": "2022-01-31",
+      "reason": "ISM PMI history was never downloaded; this file was auto-generated as a replay filler and must not feed the macro regime composite.",
+      "excluded_from_live": true
+    },
+    "GDP.csv": {
+      "generated_by": "src/simulation/historical_replay.py::_write_synthetic_csv",
+      "generator": "numpy.random.default_rng(42).normal(2.5, 2.0, 26)",
+      "start": "2019-03-31",
+      "reason": "BEA GDP history was never downloaded; replay filler only. Not part of the composite indicator set; listed for completeness.",
+      "excluded_from_live": true
+    }
+  },
+  "notes": [
+    "Companion synthetic copies exist under data/history/economic/ (PMI.csv, GDP.csv) and data/calendar/FOMC.csv; the same generator produced them.",
+    "Removing real-data files or adding real replacements requires deleting the synthetic file AND its entry here in the same change."
+  ]
+}

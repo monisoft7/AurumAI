@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import re
+import math
 from datetime import datetime, timezone
 from typing import Any
 
@@ -31,6 +33,19 @@ GOLD_CLASS_INSTRUMENTS = frozenset(
 )
 
 
+def _deterministic_news_key(news: NewsItem) -> str:
+    """Stable content-derived key for a news observation.
+
+    Prefers the pipeline article_id (full provenance chain), falling back
+    to a sha256 over headline+source+published.  Never process-randomized.
+    """
+    prov = news.provenance if isinstance(news.provenance, dict) else None
+    if prov and prov.get("article_id"):
+        return str(prov["article_id"]).replace("nws_", "")
+    raw = f"{news.source}|{news.headline}|{news.published}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+
 class SignalAssessmentAssembler:
     """Transforms a W3 PreMarketBriefing into a W5 SignalAssessment.
 
@@ -56,8 +71,21 @@ class SignalAssessmentAssembler:
 
     def assemble(self, briefing: PreMarketBriefing) -> SignalAssessment:
         observations: list[ClassifiedObservation] = []
+        news_provenance: dict[str, dict[str, Any]] = {}
         news_headlines = [n.headline for n in briefing.news_items]
         positional = briefing.positioning_snapshot
+
+        def _pos_available(feed: str) -> bool:
+            # Final Hardening (D-11): unavailable positioning feeds must not
+            # be consumed as real measurements.  Missing availability map
+            # (legacy snapshots) keeps the legacy behaviour.
+            if positional is None:
+                return False
+            return positional.availability.get(feed, "available") == "available"
+
+        oi_available = _pos_available("open_interest")
+        etf_available = _pos_available("etf_flow")
+        cot_available = _pos_available("cot")
 
         for change in briefing.overnight_changes:
             changes_dict = {c.instrument: c.change_pct for c in briefing.overnight_changes}
@@ -73,9 +101,9 @@ class SignalAssessmentAssembler:
             )
             magnitude_criteria = CriterionScore(
                 criterion="magnitude",
-                score=min(abs(change.change_sigma) / 3.0, 1.0),
+                score=min(abs(change.change_sigma) / 3.0, 1.0) if math.isfinite(change.change_sigma) else 0.0,
                 threshold=2.0,
-                passed=abs(change.change_sigma) >= 2.0,
+                passed=math.isfinite(change.change_sigma) and abs(change.change_sigma) >= 2.0,
                 detail=f"z-score={change.change_sigma:.2f}",
             )
             narrative = self._narrative.evaluate(
@@ -86,9 +114,15 @@ class SignalAssessmentAssembler:
             volume_kwargs: dict[str, Any] = {}
             if positional is not None and change.instrument in GOLD_CLASS_INSTRUMENTS:
                 volume_kwargs = {
-                    "etf_flow_change_pct": positional.etf_flow_change_pct,
+                    "etf_flow_change_pct": (
+                        positional.etf_flow_change_pct if etf_available else 0.0
+                    ),
                     "etf_flow_momentum": positional.etf_flow_momentum,
-                    "open_interest_change_pct": positional.open_interest_change_pct,
+                    # unavailable OI is passed as None so the volume/flow
+                    # criterion never treats a masked 0.0 as a flat day
+                    "open_interest_change_pct": (
+                        positional.open_interest_change_pct if oi_available else None
+                    ),
                 }
             volume = self._volume.evaluate(
                 change_sigma=change.change_sigma,
@@ -122,15 +156,27 @@ class SignalAssessmentAssembler:
             ))
 
         if positional is not None:
+            cot_detail = (
+                f"COT z-score={positional.cot_z_score:.2f}"
+                if cot_available
+                else "COT unavailable (no data source)"
+            )
+            etf_detail = (
+                f"ETF flow {positional.etf_flow_change_pct:+.2f}%"
+                if etf_available
+                else "ETF flow unavailable"
+            )
             pos_criteria = CriterionScore(
                 criterion="persistence",
                 score=0.5,
                 threshold=0.5,
-                passed=abs(positional.cot_z_score) >= 1.0,
-                detail=f"COT z-score={positional.cot_z_score:.2f}",
+                passed=cot_available and abs(positional.cot_z_score) >= 1.0,
+                detail=cot_detail,
             )
             vol_criteria = self._volume.evaluate(
-                etf_flow_change_pct=positional.etf_flow_change_pct,
+                etf_flow_change_pct=(
+                    positional.etf_flow_change_pct if etf_available else 0.0
+                ),
                 etf_flow_momentum=positional.etf_flow_momentum,
             )
             label, confidence, reason = self._classifier.classify(
@@ -138,12 +184,24 @@ class SignalAssessmentAssembler:
                     "persistence": pos_criteria,
                     "breadth": CriterionScore(
                         "breadth",
-                        0.5 if abs(positional.etf_flow_change_pct) > ETF_FLOW_THRESHOLD_PCT else 0.0,
+                        (
+                            min(abs(positional.etf_flow_change_pct) / ETF_FLOW_THRESHOLD_PCT, 1.0)
+                            if etf_available
+                            and abs(positional.etf_flow_change_pct) > ETF_FLOW_THRESHOLD_PCT
+                            else 0.0
+                        ),
                         0.5,
-                        abs(positional.etf_flow_change_pct) > ETF_FLOW_THRESHOLD_PCT,
-                        f"ETF flow {positional.etf_flow_change_pct:+.2f}%",
+                        etf_available
+                        and abs(positional.etf_flow_change_pct) > ETF_FLOW_THRESHOLD_PCT,
+                        etf_detail,
                     ),
-                    "magnitude": CriterionScore("magnitude", min(abs(positional.cot_z_score) / 3.0, 1.0), 2.0, abs(positional.cot_z_score) >= 2.0, detail=f"COT z={positional.cot_z_score:.2f}"),
+                    "magnitude": CriterionScore(
+                        "magnitude",
+                        min(abs(positional.cot_z_score) / 3.0, 1.0) if cot_available else 0.0,
+                        2.0,
+                        cot_available and abs(positional.cot_z_score) >= 2.0,
+                        detail=cot_detail,
+                    ),
                     "narrative_fit": CriterionScore("narrative_fit", 0.0, 0.3, False, "no specific narrative for positioning"),
                     "volume_flow": vol_criteria,
                 },
@@ -207,8 +265,11 @@ class SignalAssessmentAssembler:
                     "volume_flow": news_criteria[4],
                 },
             )
+            # Sprint 058: deterministic content id (Python hash() is
+            # process-randomized for str and must never identify evidence).
+            observation_id = f"obs_news_{_deterministic_news_key(news)}"
             observations.append(ClassifiedObservation(
-                observation_id=f"obs_news_{hash(news.headline) % 10**8}",
+                observation_id=observation_id,
                 source="news",
                 classification=label,
                 confidence=confidence,
@@ -217,8 +278,57 @@ class SignalAssessmentAssembler:
                 evidence=tuple(news_criteria),
                 instrument=news.source,
             ))
+            if isinstance(news.provenance, dict) and news.provenance:
+                news_provenance[observation_id] = dict(news.provenance)
+                news_provenance[observation_id]["headline_hash"] = hashlib.sha256(
+                    news.headline.encode("utf-8")
+                ).hexdigest()[:16]
+                news_provenance[observation_id]["source_name"] = news.source
+
+        cpi_release = briefing.metadata.get("cpi_release")
+        if (
+            isinstance(cpi_release, dict)
+            and cpi_release.get("event_type") == "CPI"
+            and cpi_release.get("reference_period")
+        ):
+            impact = str(cpi_release.get("expected_impact", "medium")).lower()
+            impact_score = {"high": 0.9, "medium": 0.5, "low": 0.2}.get(impact, 0.5)
+            cpi_criteria = [
+                CriterionScore("persistence", 0.0, 0.5, False, "macro release, no persistence series"),
+                CriterionScore("breadth", 0.0, 0.5, False, "macro release, no breadth series"),
+                CriterionScore("magnitude", 0.0, 2.0, False, "no volatility z-score for macro release"),
+                CriterionScore("narrative_fit", impact_score, 0.3, impact_score >= 0.3, detail=f"expected_impact={impact}"),
+                CriterionScore("volume_flow", 0.0, 0.5, False, "macro release, no volume flow"),
+            ]
+            label, confidence, reason = self._classifier.classify(
+                criteria_scores={
+                    "persistence": cpi_criteria[0],
+                    "breadth": cpi_criteria[1],
+                    "magnitude": cpi_criteria[2],
+                    "narrative_fit": cpi_criteria[3],
+                    "volume_flow": cpi_criteria[4],
+                },
+            )
+            observations.append(ClassifiedObservation(
+                observation_id=f"obs_cpi_release_{cpi_release['reference_period']}",
+                source="cpi_release",
+                classification=label,
+                confidence=confidence,
+                regime=self._regime,
+                reason=reason,
+                evidence=tuple(cpi_criteria),
+                instrument="CPI Release",
+                value=float(cpi_release.get("value", 0.0)),
+                change_pct=float(cpi_release.get("cpi_change_pct", 0.0)),
+                change_sigma=0.0,
+            ))
 
         assessment_id = f"sa_{briefing.briefing_id.replace('premarket_', '')}"
+        metadata: dict[str, Any] = {}
+        if briefing.metadata.get("news_source_path"):
+            metadata["news_source_path"] = str(briefing.metadata["news_source_path"])
+        if news_provenance:
+            metadata["news_provenance"] = news_provenance
         return SignalAssessment(
             assessment_id=assessment_id,
             briefing_id=briefing.briefing_id,
@@ -226,4 +336,5 @@ class SignalAssessmentAssembler:
             regime=self._regime,
             regime_confidence=briefing.regime_confidence,
             observations=tuple(observations),
+            metadata=metadata,
         )

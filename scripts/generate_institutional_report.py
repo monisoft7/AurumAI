@@ -876,6 +876,249 @@ def build_sections(data: dict[str, Any]) -> list[Section]:
     )
     sections.append(Section(14, "Provenance Summary", "\n".join(md_14), html_14))
 
+    # Final Hardening (Group D): execution levels section.  The finalize
+    # payload carries the executable recommendation (entry/stop/target and
+    # the market-anchored risk summary) as a first-class artifact.
+    recommendation = finalize.get("trade_recommendation") or {}
+    if isinstance(recommendation, dict) and recommendation:
+        action = recommendation.get("recommendation_action", "")
+        levels_rows: list[list[str]] = []
+        if action in ("BUY", "SELL"):
+            entry_zone = recommendation.get("entry_zone") or ()
+            levels_rows.append(["Action", _md_escape(action), ""])
+            if len(entry_zone) >= 1:
+                levels_rows.append(["Entry zone", _md_escape(" - ".join(str(e) for e in entry_zone)), ""])
+            levels_rows.append(["Stop loss", _md_escape(recommendation.get("stop_loss", "")), ""])
+            levels_rows.append(["Take profit 1", _md_escape(recommendation.get("take_profit_1", "")), ""])
+            levels_rows.append(["Take profit 2", _md_escape(recommendation.get("take_profit_2", "")), ""])
+            levels_rows.append(["Risk %", str(recommendation.get("risk_pct", "")), ""])
+            levels_rows.append(
+                ["Holding days", str(recommendation.get("expected_holding_days", "")), ""]
+            )
+        metadata_14b = recommendation.get("metadata") or {}
+        market_summary = metadata_14b.get("market_risk_summary") or {}
+        levels_basis = metadata_14b.get("levels_basis", "unknown")
+        rr_market = market_summary.get("market_reward_risk_ratio")
+        conviction_rr = (decision.get("risk_reward_summary") or {}).get(
+            "risk_reward_ratio"
+        )
+        md_levels = [
+            f"**Recommendation:** {_md_escape(action or 'n/a')} "
+            f"(levels basis: {_md_escape(levels_basis)})",
+            "",
+            _md_table(
+                ["Level", "Value"],
+                [[row[0], row[1]] for row in levels_rows]
+                if levels_rows
+                else [["Levels", "none emitted for this decision class"]],
+            ),
+            "",
+            "**Risk / reward**",
+            "",
+            _md_table(
+                ["Measure", "Value", "Basis"],
+                [
+                    [
+                        "Market reward:risk",
+                        _md_escape(rr_market if rr_market is not None else "n/a"),
+                        "ATR-anchored levels",
+                    ],
+                    [
+                        "W12 conviction ratio",
+                        _md_escape(
+                            conviction_rr if conviction_rr is not None else "n/a"
+                        ),
+                        "conviction proxy (W12)",
+                    ],
+                ],
+            ),
+            "",
+            "The W12 conviction ratio measures thesis-conviction quality; the "
+            "market reward:risk ratio is computed from the actual ATR-anchored "
+            "entry/stop/target levels. They are different measures and are "
+            "reported side by side.",
+        ]
+        html_levels = (
+            "<h3>Recommendation</h3>"
+            + _html_table(
+                ["Level", "Value"],
+                [[row[0], row[1]] for row in levels_rows]
+                if levels_rows
+                else [["Levels", "none emitted for this decision class"]],
+            )
+            + "<h3>Risk / reward</h3>"
+            + _html_table(
+                ["Measure", "Value", "Basis"],
+                [
+                    [
+                        "Market reward:risk",
+                        str(rr_market if rr_market is not None else "n/a"),
+                        "ATR-anchored levels",
+                    ],
+                    [
+                        "W12 conviction ratio",
+                        str(conviction_rr if conviction_rr is not None else "n/a"),
+                        "conviction proxy (W12)",
+                    ],
+                ],
+            )
+        )
+        sections.append(
+            Section(15, "Execution Levels", "\n".join(md_levels), html_levels)
+        )
+
+    # 16 -- Sprint 058 news-intelligence observability (additive).  Rendered
+    # only when the ingest_news stage produced its explicit payload so an
+    # unavailable/filtered news day can never masquerade as a healthy empty
+    # feed in the human-readable report.
+    news_intel = finalize.get("news_intelligence") or {}
+    if news_intel.get("status"):
+        news_rows = [
+            ["Status", _fmt(news_intel.get("status"))],
+            ["Reason", _fmt(news_intel.get("reason")) or "—"],
+            ["Articles ingested", _fmt(len(news_intel.get("items") or []))],
+            ["Duplicates", _fmt(news_intel.get("duplicate_count"))],
+            ["Malformed skipped", _fmt(news_intel.get("malformed_count"))],
+            ["Excluded after as_of", _fmt(news_intel.get("excluded_after_asof_count"))],
+            ["FOMC status", _fmt(news_intel.get("fomc_status"))],
+            ["FOMC events", _fmt(len(news_intel.get("fomc_events") or []))],
+            ["Sentiment status", _fmt(news_intel.get("sentiment_status"))],
+        ]
+        fetch_errors = news_intel.get("fetch_errors") or []
+        if fetch_errors:
+            news_rows.append(
+                ["Fetch errors", "; ".join(str(e) for e in fetch_errors)]
+            )
+        md_16 = [
+            "News intelligence channel state (ingest_news stage payload, "
+            "verbatim). An explicit non-ok status means the news day is not "
+            "a healthy empty feed.",
+            "",
+            _md_table(["Field", "Value"], [[r[0], r[1]] for r in news_rows]),
+        ]
+        html_16 = _html_table(["Field", "Value"], news_rows)
+        sections.append(
+            Section(16, "News Intelligence", "\n".join(md_16), html_16)
+        )
+
+    # 17 -- Daily operational snapshot (additive measurement layer).
+    # Rendered from ``daily_operational_summary.json`` when the summary
+    # builder has produced it.  Values are copied verbatim from the
+    # summary contract; when the artifact is absent the section says so
+    # explicitly instead of pretending the day is healthy.
+    summary_payload = _load_json(
+        Path(str(data.get("run_dir", ""))) / "daily_operational_summary.json"
+    )
+    if not isinstance(summary_payload, dict):
+        summary_payload = {}
+    snapshot_rows: list[list[str]]
+    if summary_payload:
+        decision_s = summary_payload.get("decision") or {}
+        news_s = summary_payload.get("news") or {}
+        technical_s = summary_payload.get("technical") or {}
+        risk_s = summary_payload.get("risk") or {}
+        governance_s = summary_payload.get("governance") or {}
+        outcome_s = summary_payload.get("outcome") or {}
+        calibration_s = summary_payload.get("calibration") or {}
+
+        def _cell(value: Any) -> str:
+            if value is None:
+                return "unavailable"
+            return str(value)
+
+        snapshot_rows = [
+            ["What happened", _cell(summary_payload.get("event_type"))],
+            ["What AurumAI thinks (decision)", _cell(decision_s.get("action"))],
+            ["Confidence", _cell(decision_s.get("confidence"))],
+            ["Why (gate reason)", _cell(decision_s.get("gate_reason"))],
+            ["Selected thesis", _cell(decision_s.get("selected_thesis_id"))],
+            ["Regime", _cell(summary_payload.get("regime"))],
+            [
+                "Technical confirmations",
+                f"trend {_cell(technical_s.get('trend_direction'))} / "
+                f"momentum {_cell(technical_s.get('momentum_direction'))} / "
+                f"structure {_cell(technical_s.get('structure_state'))} "
+                f"(confidence {_cell(technical_s.get('technical_confidence'))})",
+            ],
+            [
+                "Technical conflicts",
+                "none recorded"
+                if technical_s.get("status") == "ok"
+                else _cell(technical_s.get("status")),
+            ],
+            [
+                "Market risk",
+                f"reference {_cell(risk_s.get('reference_price'))} | "
+                f"ATR {_cell(risk_s.get('atr'))} | "
+                f"market RR {_cell(risk_s.get('market_risk_reward'))} | "
+                f"risk gate {_cell(risk_s.get('risk_status'))}",
+            ],
+            [
+                "Execution",
+                (
+                    f"{_cell(risk_s.get('stop'))} | tp1 {_cell(risk_s.get('tp1'))} | "
+                    f"tp2 {_cell(risk_s.get('tp2'))}"
+                )
+                if risk_s.get("stop") is not None
+                else "no absolute levels emitted for this decision class",
+            ],
+            [
+                "News health",
+                f"status {_cell(news_s.get('status'))} | "
+                f"articles {_cell(news_s.get('article_count'))} | "
+                f"directional {_cell(news_s.get('directional_count'))} | "
+                f"unknown {_cell(news_s.get('unknown_count'))} | "
+                f"sentiment {_cell(news_s.get('sentiment_status'))}",
+            ],
+            [
+                "Calibration",
+                f"{_cell(calibration_s.get('calibration_status'))} "
+                f"(samples {_cell(calibration_s.get('sample_count'))}, "
+                f"OOS ECE {_cell(calibration_s.get('oos_ece'))})",
+            ],
+            [
+                "Bias / governance",
+                f"severity {_cell(governance_s.get('bias_severity'))} | "
+                f"human review {_cell(governance_s.get('bias_review_flag'))} | "
+                f"provenance {_cell(governance_s.get('provenance_status'))}",
+            ],
+            [
+                "Outcome tracking",
+                f"{_cell(outcome_s.get('status'))} | "
+                f"decision correct {_cell(outcome_s.get('decision_correct'))} | "
+                f"abstention verdict {_cell(outcome_s.get('abstention_verdict'))} | "
+                f"realized return {_cell(outcome_s.get('realized_return'))}",
+            ],
+            [
+                "What remains unobservable",
+                "outcome pending (horizon not elapsed)"
+                if outcome_s.get("status") == "pending"
+                else "none recorded in this summary",
+            ],
+            [
+                "Provenance",
+                f"git {_cell((summary_payload.get('provenance') or {}).get('git_commit'))} | "
+                f"run {_cell(summary_payload.get('run_id'))}",
+            ],
+        ]
+        md_17 = (
+            "One-page operational snapshot built from "
+            "``daily_operational_summary.json`` (additive; no decision "
+            "recalculation).\n\n"
+            + _md_table(["Question", "Answer"], snapshot_rows)
+        )
+        html_17 = _html_table(["Question", "Answer"], snapshot_rows)
+    else:
+        note = (
+            "daily_operational_summary.json not found in this run directory; "
+            "the operational snapshot is unavailable for this run."
+        )
+        md_17 = note
+        html_17 = _html_para(note)
+    sections.append(
+        Section(17, "DAILY INSTITUTIONAL SNAPSHOT", md_17, html_17)
+    )
+
     return sections
 
 
@@ -1011,6 +1254,7 @@ def main(argv: list[str] | None = None) -> int:
         "summary": summary,
         "finalize": finalize,
         "stages": stages,
+        "run_dir": str(run_dir),
     }
 
     sections = build_sections(data)

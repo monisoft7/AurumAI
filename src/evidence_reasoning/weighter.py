@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from collections import Counter
 from typing import Any
 
@@ -40,7 +41,14 @@ class EvidenceWeighter:
 
         raw = sum(e.composite_weight for e in evidence_group) / len(evidence_group)
 
-        avg_recency = sum(e.temporal_recency for e in evidence_group) / len(evidence_group)
+        finite_recencies = [
+            e.temporal_recency for e in evidence_group
+            if math.isfinite(e.temporal_recency)
+        ]
+        if finite_recencies:
+            avg_recency = sum(finite_recencies) / len(finite_recencies)
+        else:
+            avg_recency = 0.0
         recency_boost = avg_recency * self.WEIGHT_RECENCY_FACTOR
 
         has_provenance = sum(1 for e in evidence_group if e.provenance is not None)
@@ -55,6 +63,16 @@ class EvidenceWeighter:
         group: list[Evidence],
         majority_bias: str,
     ) -> tuple[float, float]:
+        """Consensus = share of the group actively supporting the majority
+        bias; conflict = share actively holding the opposite direction (or a
+        mixed bidirectional signal) against a directional majority.
+
+        Correction 060: neutral evidence has no proven directional polarity
+        (News Intelligence 058 semantics), so it is uninformative -- it is
+        counted neither as supporting nor as conflicting.  It still dilutes
+        consensus through the denominator because it does not reinforce the
+        majority direction either.
+        """
         if not group:
             return 0.0, 0.0
 
@@ -68,7 +86,7 @@ class EvidenceWeighter:
         conflicting = sum(
             1 for e in group
             if (opposite and e.bias == opposite)
-            or (majority_bias in {"bullish", "bearish"} and e.bias in {"neutral", "mixed"})
+            or (majority_bias in {"bullish", "bearish"} and e.bias == "mixed")
         )
         consensus = round(supporting / n, 4)
         conflict = round(conflicting / n, 4)

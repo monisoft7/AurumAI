@@ -72,6 +72,11 @@ class HistoricalSituationRetriever:
         evidence_query: EvidenceQuery | None,
         temporal_indexer: TemporalIndexer | None = None,
     ) -> list[SituationMatch]:
+        if query is None:
+            raise ValueError(
+                "HistoricalSituationRetriever.retrieve requires a "
+                "SituationQuery; a null query is a caller construction defect"
+            )
         if evidence_query is None:
             return []
 

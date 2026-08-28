@@ -39,6 +39,11 @@ class InstitutionalScenario:
     confirmation_conditions: tuple[str, ...] = ()
     invalidation_conditions: tuple[str, ...] = ()
     regime_path: tuple[str, ...] = ()
+    # Correction 052-A truthfulness: this block carries the W12 conviction
+    # proxy under the key "scenario_confidence" (source:
+    # institutional_support; type: conviction_proxy).  It is NOT W9
+    # final_confidence.  The deprecated legacy key "final_confidence" is
+    # accepted on deserialization only (see from_dict).
     confidence_inputs: dict[str, float] = field(default_factory=lambda: FrozenDict())
     provenance_chain: tuple[Provenance, ...] = ()
     metadata: dict[str, Any] = field(default_factory=lambda: FrozenDict())
@@ -77,6 +82,15 @@ class InstitutionalScenario:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> InstitutionalScenario:
+        inputs = dict(data.get("confidence_inputs", {}))
+        # Deprecated alias (Correction 052-A): pre-rename serialized
+        # payloads carry "final_confidence"; it is normalized to the
+        # truthful "scenario_confidence" key with identical numerics.  The
+        # legacy key is never written by ScenarioGenerator and the alias
+        # fires only when the truthful key is absent, so it cannot alter
+        # numerical behavior of any post-052-A chain.
+        if "scenario_confidence" not in inputs and "final_confidence" in inputs:
+            inputs["scenario_confidence"] = inputs["final_confidence"]
         return cls(
             scenario_id=str(data.get("scenario_id", "")),
             thesis_id=str(data.get("thesis_id", "")),
@@ -89,7 +103,7 @@ class InstitutionalScenario:
             confirmation_conditions=tuple(data.get("confirmation_conditions", ())),
             invalidation_conditions=tuple(data.get("invalidation_conditions", ())),
             regime_path=tuple(data.get("regime_path", ())),
-            confidence_inputs=dict(data.get("confidence_inputs", {})),
+            confidence_inputs=inputs,
             provenance_chain=tuple(
                 deserialize_provenance(p)
                 for p in data.get("provenance_chain", [])

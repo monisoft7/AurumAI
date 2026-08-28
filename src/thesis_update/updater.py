@@ -224,6 +224,25 @@ class ThesisUpdater:
             support_new,
             assessment,
         )
+        knowledge_chunk = ThesisBuilder._compose_knowledge_rationale(supporting_sets)
+        if knowledge_chunk:
+            explanation += f" | {knowledge_chunk}"
+        factor_chunk = ThesisBuilder._compose_factor_rationale(reasoning)
+        if factor_chunk:
+            explanation += f" | {factor_chunk}"
+        analogue_chunk = ThesisBuilder._compose_historical_analogue(reasoning)
+        if analogue_chunk:
+            explanation += f" | {analogue_chunk}"
+        adjudication_chunk = ThesisBuilder._compose_historical_adjudication(
+            reasoning, thesis.direction
+        )
+        if adjudication_chunk:
+            explanation += f" | {adjudication_chunk}"
+        contextual_chunk = ThesisBuilder._compose_contextual_historical_adjudication(
+            reasoning
+        )
+        if contextual_chunk:
+            explanation += f" | {contextual_chunk}"
         explanation += (
             f" | UPDATED v{new_version_number}: "
             f"evidence={len(updated_evidence)} | "

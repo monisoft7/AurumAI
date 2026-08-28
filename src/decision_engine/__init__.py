@@ -9,9 +9,6 @@ from decision_engine.contracts import (
 )
 from decision_engine.engine import (
     CONFIDENCE_WEIGHT,
-    COUNTER_EVIDENCE_WEIGHT,
-    EVIDENCE_WEIGHT,
-    HOLD_CONFIDENCE,
     MAX_RISK_REWARD_RATIO,
     NO_TRADE_CONFIDENCE,
     NO_TRADE_RR_RATIO,
@@ -23,10 +20,7 @@ from decision_engine.engine import (
 
 __all__ = [
     "CONFIDENCE_WEIGHT",
-    "COUNTER_EVIDENCE_WEIGHT",
     "DECISION_LABELS",
-    "EVIDENCE_WEIGHT",
-    "HOLD_CONFIDENCE",
     "MAX_RISK_REWARD_RATIO",
     "NO_TRADE_CONFIDENCE",
     "NO_TRADE_RR_RATIO",

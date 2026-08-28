@@ -37,6 +37,7 @@ if str(SRC) not in sys.path:
 
 from dotenv import load_dotenv  # noqa: E402
 
+from decision_engine.engine import NO_TRADE_CONFIDENCE, NO_TRADE_RR_RATIO  # noqa: E402
 from knowledge.events.registry import EventRegistry  # noqa: E402
 from orchestration.orchestrator import InstitutionalOrchestrator  # noqa: E402
 from runtime_registry.outputs import date_dir  # noqa: E402
@@ -265,6 +266,129 @@ def _decision_id(finalize: dict[str, Any]) -> str | None:
     return None
 
 
+def _decision_field(decision: Any, key: str) -> Any:
+    if isinstance(decision, dict):
+        return decision.get(key)
+    return getattr(decision, key, None)
+
+
+def _driver_value(decision: Any, name: str) -> float | None:
+    drivers = _decision_field(decision, "decision_drivers") or ()
+    for driver in drivers:
+        entry = driver.to_dict() if hasattr(driver, "to_dict") else driver
+        if isinstance(entry, dict) and entry.get("name") == name:
+            value = entry.get("value")
+            if isinstance(value, (int, float)):
+                return float(value)
+    return None
+
+
+def _best_rejected(decision: Any) -> dict[str, Any] | None:
+    """Best forgone directional candidate as recorded at decision time.
+
+    For abstentions the selected-but-gated thesis is the forgone trade and
+    takes precedence; otherwise the top entry of ``rejected_alternatives``
+    (already composite-sorted by W13) is used. Pure read; no recomputation.
+    """
+    label = _decision_label(decision)
+    if label == "NO_TRADE":
+        thesis_id = _decision_field(decision, "selected_thesis_id")
+        if thesis_id:
+            metadata = _decision_field(decision, "metadata") or {}
+            return {
+                "thesis_id": thesis_id,
+                "direction": metadata.get("selected_thesis_direction"),
+                "composite_score": metadata.get("composite_score"),
+            }
+    rejected = _decision_field(decision, "rejected_alternatives") or ()
+    for entry in rejected:
+        item = entry.to_dict() if hasattr(entry, "to_dict") else entry
+        if isinstance(item, dict):
+            return {
+                "thesis_id": item.get("thesis_id"),
+                "direction": item.get("thesis_direction"),
+                "composite_score": item.get("composite_score"),
+            }
+    return None
+
+
+def _load_published_oos_ece() -> float | None:
+    """Final Hardening (Group E, D-05): read runtime/calibration.json.
+
+    The file is produced by the outcome sweep (scripts/evaluate_outcome.py)
+    from immutable, point-in-time-safe evaluated records only.
+    """
+    from knowledge.learning.outcome_calibration import load_oos_ece
+
+    return load_oos_ece(ROOT / "runtime" / "calibration.json")
+
+
+def _gate_reasons(decision: Any) -> dict[str, Any]:
+    confidence = _decision_field(decision, "institutional_confidence")
+    rr_summary = _decision_field(decision, "risk_reward_summary") or {}
+    ratio = (
+        rr_summary.get("risk_reward_ratio")
+        if isinstance(rr_summary, dict)
+        else getattr(rr_summary, "risk_reward_ratio", None)
+    )
+    metadata = _decision_field(decision, "metadata") or {}
+    bias_review = (
+        metadata.get("bias_review")
+        if isinstance(metadata, dict)
+        else getattr(metadata, "bias_review", None)
+    ) or {}
+    blocked = (
+        bool(bias_review.get("human_review_flag"))
+        if isinstance(bias_review, dict)
+        else False
+    )
+    return {
+        "conviction_gate_pass": (
+            float(confidence) >= NO_TRADE_CONFIDENCE
+            if isinstance(confidence, (int, float))
+            else None
+        ),
+        "rr_gate_pass": (
+            float(ratio) <= NO_TRADE_RR_RATIO
+            if isinstance(ratio, (int, float))
+            else None
+        ),
+        "risk_reward_ratio": ratio,
+        "bias_review_blocked": blocked,
+    }
+
+
+def _evidence_snapshot(decision: Any) -> dict[str, Any]:
+    metadata = _decision_field(decision, "metadata") or {}
+    total = (
+        metadata.get("total_theses_evaluated")
+        if isinstance(metadata, dict)
+        else getattr(metadata, "total_theses_evaluated", None)
+    )
+    return {
+        "evidence_quality": _driver_value(decision, "evidence_quality"),
+        "counter_evidence_quality": _driver_value(
+            decision, "counter_evidence_quality"
+        ),
+        "scenario_probability_max": _driver_value(
+            decision, "scenario_probability"
+        ),
+        "total_theses_evaluated": total,
+    }
+
+
+def _decision_snapshot(decision: Any) -> dict[str, Any]:
+    """Decision-time facts frozen at emit time; never recomputed later."""
+    try:
+        return {
+            "best_rejected": _best_rejected(decision),
+            "gate_reasons": _gate_reasons(decision),
+            "evidence_snapshot": _evidence_snapshot(decision),
+        }
+    except Exception:  # pragma: no cover - defensive
+        return {"best_rejected": None, "gate_reasons": {}, "evidence_snapshot": {}}
+
+
 def _outcome_record(
     *,
     run_id: str,
@@ -276,9 +400,10 @@ def _outcome_record(
     decision: str,
     institutional_confidence: float | None,
     decision_id: str | None,
+    decision_snapshot: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "artifact": "decision_outcome",
         "status": "pending",
         "run_id": run_id,
@@ -294,6 +419,7 @@ def _outcome_record(
         "evaluation_timestamp": None,
         "notes": [],
         "decision_id": decision_id,
+        "decision_snapshot": decision_snapshot or {},
     }
 
 
@@ -388,6 +514,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if not args.no_refresh:
         _refresh_gold_before_run(config, run_dir)
+        _refresh_fred_yields_before_run()
+        _refresh_dxy_before_run()
 
     checkpoint_dir = config.get("checkpoint_dir")
     if checkpoint_dir is not None:
@@ -416,6 +544,16 @@ def main(argv: list[str] | None = None) -> int:
         value = config.get(key)
         if value:
             params[key] = str(ROOT / str(value))
+
+    # Final Hardening (Group E, D-05): consume the published outcome
+    # calibration error through the EXISTING W9 ``oos_ece`` cap channel.
+    # Only evaluated, point-in-time-safe outcomes feed the statistic; when
+    # no usable calibration exists the value stays absent and behaviour is
+    # exactly as before.
+    oos_ece = _load_published_oos_ece()
+    if oos_ece is not None:
+        params["oos_ece"] = oos_ece
+        LOG.info("Outcome calibration consumed: oos_ece=%.4f", oos_ece)
 
     LOG.info("Executing institutional run (pipeline_id=%s)", pipeline_id)
     t0 = time.monotonic()
@@ -480,6 +618,7 @@ def main(argv: list[str] | None = None) -> int:
             decision=decision_label,
             institutional_confidence=decision_confidence,
             decision_id=_decision_id(finalize),
+            decision_snapshot=_decision_snapshot(decision),
         ))
         LOG.info("Outcome record written to %s", run_dir / "outcome.json")
 
@@ -544,6 +683,93 @@ def _refresh_gold_before_run(config: dict[str, Any], run_dir: Path) -> None:
             "Gold data refresh failed (%s); proceeding with existing dataset",
             exc,
         )
+
+
+def _refresh_fred_yields_before_run() -> None:
+    """Warm FRED yield caches before a production run (fail-safe).
+
+    Refreshes a series only when its cached last observation is older than
+    ``FRED_DAILY_SERIES_MAX_AGE_DAYS``; fresh caches are used without any
+    network call. On refresh failure the stale cache is kept and recorded
+    as ``fallback_stale`` so it is never presented as current data.
+    """
+    from connectors.fred_client import (
+        FRED_DAILY_SERIES_MAX_AGE_DAYS,
+        FredClient,
+    )
+
+    series_ids = ("DFII10", "DGS10", "T5YIE")
+    client = FredClient()
+    for series_id in series_ids:
+        try:
+            client.get_series(
+                series_id, use_cache=True,
+                max_age_days=FRED_DAILY_SERIES_MAX_AGE_DAYS,
+            )
+        except Exception as exc:  # pragma: no cover - defensive
+            LOG.error(
+                "FRED %s fetch failed (%s); proceeding with cached data",
+                series_id, exc,
+            )
+    for series_id, record in client.freshness_report().items():
+        status = record.get("status")
+        if status == "fallback_stale":
+            LOG.warning(
+                "FRED freshness %s: status=fallback_stale "
+                "cache_last_date=%s cache_age_days=%s error=%s",
+                series_id, record.get("cache_last_date"),
+                record.get("cache_age_days"), record.get("error"),
+            )
+        else:
+            LOG.info(
+                "FRED freshness %s: status=%s cache_last_date=%s "
+                "cache_age_days=%s refreshed_last_date=%s",
+                series_id, status, record.get("cache_last_date"),
+                record.get("cache_age_days"),
+                record.get("refreshed_last_date"),
+            )
+
+
+def _refresh_dxy_before_run() -> None:
+    """Warm the DXY cache before a production run (fail-safe).
+
+    Follows the same freshness contract as FRED yields: a fresh cache is
+    used unchanged; a stale cache triggers a refresh; on refresh failure the
+    stale cache is kept and recorded as ``fallback_stale`` so it is never
+    presented as current data.
+    """
+    from connectors.dxy_fetcher import (
+        DXY_DAILY_SERIES_MAX_AGE_DAYS,
+        DXYFetcher,
+    )
+
+    fetcher = DXYFetcher()
+    try:
+        fetcher.get_series(
+            use_cache=True,
+            max_age_days=DXY_DAILY_SERIES_MAX_AGE_DAYS,
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        LOG.error(
+            "DXY fetch failed (%s); proceeding with cached data", exc,
+        )
+    for series_id, record in fetcher.freshness_report().items():
+        status = record.get("status")
+        if status == "fallback_stale":
+            LOG.warning(
+                "DXY freshness %s: status=fallback_stale "
+                "cache_last_date=%s cache_age_days=%s error=%s",
+                series_id, record.get("cache_last_date"),
+                record.get("cache_age_days"), record.get("error"),
+            )
+        else:
+            LOG.info(
+                "DXY freshness %s: status=%s cache_last_date=%s "
+                "cache_age_days=%s refreshed_last_date=%s",
+                series_id, status, record.get("cache_last_date"),
+                record.get("cache_age_days"),
+                record.get("refreshed_last_date"),
+            )
 
 
 if __name__ == "__main__":

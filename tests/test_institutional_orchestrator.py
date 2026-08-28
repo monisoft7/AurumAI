@@ -529,6 +529,27 @@ class TestOrchestratorLevels:
         assert level_of["build_legacy_pipeline"] < level_of["regime_diagnosis"]
         assert level_of["regime_diagnosis"] < level_of["pre_market_scan"]
 
+    def test_scenario_generation_depends_on_thesis_update(self) -> None:
+        """Correction 004: scenario_generation must consume thesis_update so
+        the thesis/scenario race is structurally impossible in the DAG.
+
+        Runtime 009 proved that scenario_generation and thesis_update could
+        execute at the same DAG level; scenario_generation then read a not
+        yet written thesis_update result and generated scenarios keyed to the
+        unversioned thesis, producing confidence=0.0 / "no eligible thesis"
+        in the DecisionEngine's exact thesis_id match. The dependency edge
+        below forces thesis_update to an earlier level than
+        scenario_generation.
+        """
+        orch = InstitutionalOrchestrator.with_default_pipeline()
+        levels = _topological_levels(orch._jobs)
+        level_of = {jid: i for i, level in enumerate(levels) for jid in level}
+
+        deps = orch._jobs["scenario_generation"].dependencies
+        assert "thesis_construction" in deps
+        assert "thesis_update" in deps
+        assert level_of["thesis_update"] < level_of["scenario_generation"]
+
     def test_no_circular_in_default_pipeline(self) -> None:
         orch = InstitutionalOrchestrator.with_default_pipeline()
         levels = _topological_levels(orch._jobs)
@@ -539,7 +560,12 @@ class TestOrchestratorLevels:
     def test_finalize_is_last(self) -> None:
         orch = InstitutionalOrchestrator.with_default_pipeline()
         levels = _topological_levels(orch._jobs)
-        assert "trade_recommendation" in levels[-1]
+        # Final Hardening (Group D): finalize consumes trade_recommendation,
+        # so finalize is the unique last level and the recommendation is
+        # executed strictly before it.
+        assert levels[-1] == ["finalize"]
+        assert "trade_recommendation" in levels[-2]
+        assert "finalize" not in levels[-2]
 
 
 # ===========================================================================
@@ -666,7 +692,7 @@ class TestDefaultPipeline:
             "regime_diagnosis",
             "forecast", "forecast_confidence", "forecast_validation",
             "build_context", "risk_measures", "position_sizing",
-            "risk_gate", "finalize",
+            "risk_gate", "finalize", "technical_research",
         }
         assert all_stage_ids == expected, f"Missing stages: {expected - all_stage_ids}"
 
@@ -1040,7 +1066,7 @@ encoding="utf-8",
             "regime_diagnosis",
             "forecast", "forecast_confidence", "forecast_validation",
             "build_context", "risk_measures", "position_sizing",
-            "risk_gate", "finalize",
+            "risk_gate", "finalize", "technical_research",
         }
         assert set(orch.list_jobs()) == expected_jobs
 
@@ -1171,7 +1197,10 @@ class TestKnowledgeGraphInstitutionalIntegration:
 
         assert collection.evidence_count > 0
         for ev in collection.items:
-            assert ev.source_kr_id.startswith("kr_synthetic_")
+            assert ev.source_kr_id.startswith("no_kr_")
+            assert ev.source_kr_id == ev.source_kr_node_id
+            assert ev.metadata["provenance_type"] == "observation"
+            assert ev.metadata["knowledge_record_id"] is None
 
     def test_params_knowledge_graph_still_honored_as_fallback(self) -> None:
         from orchestration.institutional_orchestrator import _evidence_collection
@@ -1184,5 +1213,271 @@ class TestKnowledgeGraphInstitutionalIntegration:
         for ev in collection.items:
             assert ev.source_kr_id == "CPI_GOLD_medium_12D"
             assert not ev.source_kr_id.startswith("kr_synthetic_")
+
+
+class TestThesisScenarioDAGDeterminism:
+    """Correction 004 determinism reproduction (Runtime 009).
+
+    Replicates the affected thesis_update -> scenario_generation ->
+    confidence_engine -> risk_reward_validation -> decision_engine chain with
+    the real stage functions and identical canned upstream inputs, executed
+    repeatedly with parallel workers. Proves the race is impossible through
+    the DAG dependency model and that identical inputs produce an identical
+    decision.
+    """
+
+    VERSIONED_THESIS_ID = "th_race.v2"
+
+    def _make_reasoning(self) -> "EvidenceReasoning":
+        from evidence_reasoning.contracts import EvidenceReasoning, EvidenceSet
+
+        return EvidenceReasoning(
+            reasoning_id="er_race",
+            collection_id="ec_race",
+            timestamp="2026-08-13T09:00:00",
+            regime="NORMAL_GROWTH",
+            evidence_sets=(
+                EvidenceSet(
+                    set_id="es_real_yield",
+                    event_type="REAL_YIELD",
+                    bias="bullish",
+                    supporting_evidence_ids=("ev1", "ev2"),
+                    net_institutional_weight=0.8,
+                    consensus_score=0.9,
+                    conflict_score=0.0,
+                    regime_dependency="NORMAL_GROWTH",
+                    confidence_contribution=0.8,
+                    explanation="real yield decline supports gold",
+                ),
+            ),
+            total_evidence_sets=1,
+            total_evidence_items=2,
+        )
+
+    def _make_assessment(self) -> "CounterEvidenceAssessment":
+        from counter_evidence.contracts import CounterEvidenceAssessment
+
+        return CounterEvidenceAssessment(
+            assessment_id="cea_race",
+            reasoning_id="er_race",
+            timestamp="2026-08-13T09:00:00",
+            regime="NORMAL_GROWTH",
+            contradicting_set_ids=(),
+            missing_evidence=(),
+            bias_flags=(),
+            conflict_severity=0.0,
+            confidence_penalty=0.0,
+            explanation="no counter-evidence",
+        )
+
+    def _make_construction(self) -> "ThesisConstruction":
+        from thesis_construction.contracts import InvestmentThesis, ThesisConstruction
+
+        thesis = InvestmentThesis(
+            thesis_id="th_race",
+            direction="bullish",
+            supporting_set_ids=("es_real_yield",),
+            counter_evidence_ids=(),
+            regime="NORMAL_GROWTH",
+            economic_mechanism="falling real yields support gold",
+            time_horizon_days=90,
+            invalidating_conditions=("real yields reverse",),
+            remaining_unknowns=("USD_FX",),
+            confidence_inputs={
+                "avg_supporting_weight": 0.8,
+                "avg_supporting_consensus": 0.9,
+                "conflict_severity": 0.0,
+                "confidence_penalty": 0.0,
+                "raw_support": 0.64,
+            },
+            institutional_support=0.8,
+            explanation="test thesis",
+        )
+        return ThesisConstruction(
+            construction_id="tc_race",
+            reasoning_id="er_race",
+            assessment_id="cea_race",
+            timestamp="2026-08-13T09:00:00",
+            regime="NORMAL_GROWTH",
+            theses=(thesis,),
+            ranked_thesis_ids=("th_race",),
+            total_theses=1,
+            primary_thesis_id="th_race",
+        )
+
+    def _build_orch(
+        self, checkpoint_dir: str | None = None
+    ) -> InstitutionalOrchestrator:
+        from orchestration.stages import (
+            _confidence_engine,
+            _decision_engine,
+            _risk_reward_validation,
+            _scenario_generation,
+            _thesis_update,
+        )
+
+        reasoning = self._make_reasoning()
+        assessment = self._make_assessment()
+        construction = self._make_construction()
+
+        orch = InstitutionalOrchestrator(
+            checkpoint_dir=checkpoint_dir,
+            max_workers=4,
+        )
+        orch.register(PipelineJob(
+            job_id="evidence_reasoning",
+            dependencies=(),
+            fn=lambda: reasoning,
+        ))
+        orch.register(PipelineJob(
+            job_id="counter_evidence",
+            dependencies=("evidence_reasoning",),
+            fn=lambda: assessment,
+        ))
+        orch.register(PipelineJob(
+            job_id="thesis_construction",
+            dependencies=("evidence_reasoning", "counter_evidence"),
+            fn=lambda: construction,
+        ))
+        orch.register(PipelineJob(
+            job_id="thesis_update",
+            dependencies=("thesis_construction", "evidence_reasoning",
+                          "counter_evidence"),
+            fn=orch._bind(_thesis_update),
+        ))
+        orch.register(PipelineJob(
+            job_id="scenario_generation",
+            dependencies=("thesis_construction", "thesis_update"),
+            fn=orch._bind(_scenario_generation),
+        ))
+        orch.register(PipelineJob(
+            job_id="confidence_engine",
+            dependencies=("thesis_update", "scenario_generation",
+                          "evidence_reasoning"),
+            fn=orch._bind(_confidence_engine),
+        ))
+        orch.register(PipelineJob(
+            job_id="risk_reward_validation",
+            dependencies=("scenario_generation",),
+            fn=orch._bind(_risk_reward_validation),
+        ))
+        orch.register(PipelineJob(
+            job_id="decision_engine",
+            dependencies=("thesis_construction", "confidence_engine",
+                          "scenario_generation", "risk_reward_validation"),
+            fn=orch._bind(_decision_engine),
+        ))
+        return orch
+
+    @staticmethod
+    def _decision_signature(decision) -> dict:
+        # decision_explanation embeds the random scenario_id (engine.py
+        # _explanation), so the id is normalized out; everything else must be
+        # bit-identical across runs.
+        import re
+
+        explanation = re.sub(
+            r"sc_[0-9a-f]{12}",
+            "sc_<id>",
+            decision.decision_explanation,
+        )
+        return {
+            "decision": decision.decision,
+            "selected_thesis_id": decision.selected_thesis_id,
+            "institutional_confidence": decision.institutional_confidence,
+            "decision_explanation": explanation,
+            "preconditions": tuple(decision.preconditions),
+            "invalidation_conditions": tuple(decision.invalidation_conditions),
+            "risk_reward_summary": decision.risk_reward_summary,
+        }
+
+    def test_race_free_determinism_repeated_identical_inputs(
+        self, tmp_path: Path
+    ) -> None:
+        orch = self._build_orch(str(tmp_path / "chk"))
+        levels = _topological_levels(orch._jobs)
+        level_of = {jid: i for i, level in enumerate(levels) for jid in level}
+        assert "thesis_update" in orch._jobs["scenario_generation"].dependencies
+        assert level_of["thesis_update"] < level_of["scenario_generation"]
+
+        signatures: list[dict] = []
+        scenario_fingerprints: list[dict] = []
+        confidence_map: list[dict] = []
+        stage_order: list[tuple[str, ...]] = []
+
+        for i in range(12):
+            assessment = orch.run_all(
+                trigger="race_repro",
+                pipeline_id=f"race_repro_{i}",
+                force=True,
+            )
+            assert assessment.errors == ()
+
+            outputs = assessment.outputs
+            update = outputs["thesis_update"]
+            generation = outputs["scenario_generation"]
+            confidence = outputs["confidence_engine"]
+            decision = outputs["decision_engine"]
+
+            assert not isinstance(update, dict) or "error" not in update
+            assert not isinstance(generation, dict) or "error" not in generation
+            assert not isinstance(confidence, dict) or "error" not in confidence
+            assert not isinstance(decision, dict) or "error" not in decision
+
+            # thesis_update always completed before scenario_generation:
+            # its stage record must appear in an earlier DAG level.
+            positions = {
+                s.stage_id: idx
+                for idx, s in enumerate(assessment.stages)
+            }
+            stage_order.append(tuple(
+                s.stage_id for s in assessment.stages
+                if s.stage_id in (
+                    "thesis_update", "scenario_generation",
+                    "confidence_engine", "decision_engine",
+                )
+            ))
+            assert positions["thesis_update"] < positions["scenario_generation"]
+
+            # scenario_generation consumed the update: scenarios are keyed to
+            # the versioned thesis produced by thesis_update, and the
+            # scenario generation is built from the update's construction.
+            scenario_ids = {s.thesis_id for s in generation.scenarios}
+            assert scenario_ids == {self.VERSIONED_THESIS_ID}
+            assert generation.construction_id == update.update_id
+
+            # confidence resolves the same versioned thesis.
+            conf_by_id = {
+                tc.thesis_id: tc.final_confidence
+                for tc in confidence.theses_confidence
+            }
+            assert self.VERSIONED_THESIS_ID in conf_by_id
+            assert conf_by_id[self.VERSIONED_THESIS_ID] > 0.0
+
+            # decision matches the same versioned thesis; no race-induced
+            # "no eligible thesis" NO_TRADE collapse is possible.
+            assert decision.selected_thesis_id == self.VERSIONED_THESIS_ID
+            assert decision.decision != "NO_TRADE"
+            assert decision.institutional_confidence > 0.0
+
+            fingerprints: dict = {}
+            for s in generation.scenarios:
+                fingerprints[(s.thesis_id, s.scenario_type)] = {
+                    "probability": s.probability,
+                    "confirmation_conditions": tuple(s.confirmation_conditions),
+                    "invalidation_conditions": tuple(s.invalidation_conditions),
+                }
+            scenario_fingerprints.append(fingerprints)
+            confidence_map.append(conf_by_id)
+            signatures.append(self._decision_signature(decision))
+
+        # Identical inputs -> identical scenario probabilities/conditions,
+        # identical confidence, and an identical decision across every run.
+        assert all(fp == scenario_fingerprints[0] for fp in scenario_fingerprints)
+        assert all(cm == confidence_map[0] for cm in confidence_map)
+        assert all(sig == signatures[0] for sig in signatures)
+        assert all(
+            order == stage_order[0] for order in stage_order
+        )
 
 

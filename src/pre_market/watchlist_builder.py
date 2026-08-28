@@ -24,13 +24,23 @@ class WatchlistBuilder:
 
     Prioritizes events into Tier 1 (high impact) through Tier 3 (routine).
     Can consume ReleaseCalendar CSV data if available.
+
+    Final Hardening (D-11): falling back to the undated DEFAULT_EVENTS is an
+    explicit state, never a silent substitution.  Use
+    :meth:`build_with_status` to obtain the availability status alongside
+    the items; ``build`` keeps the legacy signature.
     """
 
-    def build(
+    STATUS_CALENDAR = "calendar"
+    STATUS_DEFAULT_FALLBACK = "default_watchlist_fallback"
+    STATUS_CALENDAR_READ_FAILED = "calendar_read_failed"
+
+    def build_with_status(
         self,
         calendar_csv: str | Path | None = None,
-    ) -> list[WatchlistItem]:
+    ) -> tuple[list[WatchlistItem], str]:
         events: list[dict[str, Any]] = []
+        status = self.STATUS_CALENDAR
 
         if calendar_csv is not None:
             try:
@@ -48,10 +58,12 @@ class WatchlistBuilder:
                             "expected_impact": row.get("expected_impact", "low"),
                         })
             except Exception:
-                pass
+                status = self.STATUS_CALENDAR_READ_FAILED
 
         if not events:
             events = DEFAULT_EVENTS
+            if status != self.STATUS_CALENDAR_READ_FAILED:
+                status = self.STATUS_DEFAULT_FALLBACK
 
         items: list[WatchlistItem] = []
         for ev in events:
@@ -66,4 +78,11 @@ class WatchlistBuilder:
 
         tier_order = {"Tier 1": 0, "Tier 2": 1, "Tier 3": 2}
         items.sort(key=lambda x: tier_order.get(x.priority, 99))
+        return items, status
+
+    def build(
+        self,
+        calendar_csv: str | Path | None = None,
+    ) -> list[WatchlistItem]:
+        items, _status = self.build_with_status(calendar_csv)
         return items

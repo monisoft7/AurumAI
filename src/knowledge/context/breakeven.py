@@ -6,6 +6,15 @@ from pathlib import Path
 import pandas as pd
 
 
+from knowledge.context.trend_state import TREND_FLAT, TREND_RISING, TREND_FALLING, derive_trend_states
+
+_BREAKEVEN_TREND_BY_STATE: dict[str, str] = {
+    TREND_RISING: "breakeven_rising",
+    TREND_FALLING: "breakeven_falling",
+    TREND_FLAT: "breakeven_flat",
+}
+
+
 @dataclass(frozen=True)
 class BreakevenContextConfig:
     breakeven_path: Path
@@ -19,9 +28,10 @@ class BreakevenContextEnricher:
     """Attach 5-Year Breakeven Inflation (T5YIE) context to event lessons.
 
     Breakeven level is classified from the latest available value on or before
-    the event date. Breakeven trend compares that value with the latest
-    available value on or before `event_date - lookback_days`, expressed in
-    percentage points.
+    the event date. Breakeven trend is the Correction 029 state machine derived
+    from the 30-day change in percentage points: rising/falling are entered
+    only above the existing threshold and released only at a zero crossing
+    (see ``knowledge.context.trend_state``).
     """
 
     def __init__(self, config: BreakevenContextConfig):
@@ -30,12 +40,18 @@ class BreakevenContextEnricher:
     def enrich(self, lessons: pd.DataFrame) -> pd.DataFrame:
         self._require_columns(lessons, {"event_date"}, Path("<lessons>"))
         breakeven = self._load_breakeven(self.config.breakeven_path)
+        states = derive_trend_states(
+            breakeven["Date"],
+            breakeven["Value"] * 100.0,
+            self.config.lookback_days,
+            self.config.flat_change * 100.0,
+        )
 
         enriched = lessons.copy()
         enriched["event_date"] = pd.to_datetime(enriched["event_date"], errors="raise")
 
         context_rows = [
-            self._context_for_date(event_date, breakeven)
+            self._context_for_date(event_date, breakeven, states)
             for event_date in enriched["event_date"]
         ]
         context = pd.DataFrame(context_rows)
@@ -70,6 +86,7 @@ class BreakevenContextEnricher:
         self,
         event_date: pd.Timestamp,
         breakeven: pd.DataFrame,
+        states: list[str],
     ) -> dict[str, object]:
         current = self._latest_on_or_before(breakeven, event_date)
         lookback_date = event_date - pd.Timedelta(days=self.config.lookback_days)
@@ -92,7 +109,7 @@ class BreakevenContextEnricher:
         else:
             previous_value = float(previous["Value"])
             change = round(current_value - previous_value, 6)
-            trend = self._trend(change)
+            trend = self._trend_state(states, breakeven, event_date)
 
         return {
             "t5yie_value_at_event": round(current_value, 6),
@@ -121,12 +138,16 @@ class BreakevenContextEnricher:
             return "high_breakeven_regime"
         return "normal_breakeven_regime"
 
-    def _trend(self, change: float) -> str:
-        if change > self.config.flat_change:
-            return "breakeven_rising"
-        if change < -self.config.flat_change:
-            return "breakeven_falling"
-        return "breakeven_flat"
+    def _trend_state(
+        self,
+        states: list[str],
+        breakeven: pd.DataFrame,
+        event_date: pd.Timestamp,
+    ) -> str:
+        positions = breakeven["Date"].searchsorted(event_date, side="right")
+        if positions <= 0:
+            return "missing_breakeven_lookback"
+        return _BREAKEVEN_TREND_BY_STATE[states[int(positions) - 1]]
 
     def _require_columns(self, df: pd.DataFrame, required: set[str], path: Path) -> None:
         missing = required.difference(df.columns)

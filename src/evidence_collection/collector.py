@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import hashlib
+import math
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
 from evidence_collection.contracts import Evidence, EvidenceCollection
 from evidence_collection.strength import EvidenceStrengthComputer
-from knowledge.graph.graph import KnowledgeGraph
+from knowledge.evidence.query import EvidenceQuery
+from knowledge.graph.graph import KnowledgeGraph, GraphNode
 from knowledge.integrity.provenance import Provenance
+from signal_assessment.volume import ETF_FLOW_THRESHOLD_PCT
 from signal_assessment.contracts import (
     ClassificationLabel,
     ClassifiedObservation,
@@ -27,6 +31,7 @@ INSTRUMENT_TO_EVENT_TYPE: dict[str, str] = {
     "US10Y Real Yield": "REAL_YIELD",
     "US10Y Nominal Yield": "REAL_YIELD",
     "Breakeven Inflation": "INFLATION",
+    "CPI Release": "INFLATION",
     "S&P 500 Futures": "GENERAL",
     "Brent Crude": "GENERAL",
     "EUR/USD": "USD_FX",
@@ -56,6 +61,33 @@ EVENT_TYPE_TO_EVIDENCE_CLASS: dict[str, str] = {
     "ETF": "ETF_FLOW",
 }
 
+# Correction 051 (Trace 051 F-01): overnight evidence polarity follows the
+# OBSERVED move, not merely the instrument name.  sign(change_pct) resolves
+# the direction; each entry gives the gold implication for up / down moves.
+# Instruments absent from this mapping keep their static
+# INSTRUMENT_TO_REGIME_BIAS value ("US10Y Nominal Yield" has no production
+# rule defining a directional gold implication and stays neutral).
+DIRECTIONAL_INSTRUMENT_GOLD_BIAS: dict[str, dict[str, str]] = {
+    "XAU/USD": {"up": "bullish", "down": "bearish"},
+    "DXY": {"up": "bearish", "down": "bullish"},
+    "US10Y Real Yield": {"up": "bearish", "down": "bullish"},
+    "Breakeven Inflation": {"up": "bullish", "down": "bearish"},
+    "S&P 500 Futures": {"up": "bullish", "down": "bearish"},
+    "Brent Crude": {"up": "bullish", "down": "bearish"},
+    "EUR/USD": {"up": "bearish", "down": "bullish"},
+    "USD/JPY": {"up": "bearish", "down": "bullish"},
+}
+
+
+def _observation_provenance_anchor(observation_id: str) -> str:
+    """Deterministic sentinel for evidence with no valid KnowledgeRecord.
+
+    Explicitly namespaced as a non-knowledge-record anchor (Contract 4 rule 5),
+    derived from the observation identity so dedup semantics stay stable.
+    """
+    digest = hashlib.sha256(observation_id.encode("utf-8")).hexdigest()[:16]
+    return f"no_kr_{digest}"
+
 
 class EvidenceCollector:
     """Consumes SignalAssessment and transforms meaningful signals into Evidence.
@@ -77,6 +109,7 @@ class EvidenceCollector:
         self,
         assessment: SignalAssessment,
         regime_weight: float = 0.8,
+        cpi_condition: dict[str, str] | None = None,
     ) -> EvidenceCollection:
         evidence_items: list[Evidence] = []
         filtered_noise = 0
@@ -84,6 +117,9 @@ class EvidenceCollector:
         signals = 0
         weak_signals = 0
         watch = 0
+
+        if not (isinstance(cpi_condition, dict) and cpi_condition):
+            cpi_condition = None
 
         for obs in assessment.observations:
             if obs.classification == ClassificationLabel.NOISE.value:
@@ -100,10 +136,26 @@ class EvidenceCollector:
             elif obs.classification == ClassificationLabel.WATCH.value:
                 watch += 1
 
-            evidence = self._build_evidence(obs, assessment, regime_weight)
+            evidence = self._build_evidence(
+                obs, assessment, regime_weight, cpi_condition
+            )
             evidence_items.append(evidence)
 
         collection_id = f"ec_{uuid4().hex[:12]}"
+        collection_metadata: dict[str, Any] = {}
+        news_registry = assessment.metadata.get("news_provenance")
+        if isinstance(news_registry, dict) and news_registry:
+            collection_metadata["news_intelligence"] = {
+                "article_count": len(news_registry),
+                "observation_ids": sorted(news_registry.keys()),
+                "event_types": sorted(
+                    {
+                        str(entry.get("event_type"))
+                        for entry in news_registry.values()
+                        if isinstance(entry, dict) and entry.get("event_type")
+                    }
+                ),
+            }
         return EvidenceCollection(
             collection_id=collection_id,
             assessment_id=assessment.assessment_id,
@@ -116,6 +168,7 @@ class EvidenceCollector:
             watch_count=watch,
             filtered_noise_count=filtered_noise,
             filtered_ignore_count=filtered_ignore,
+            metadata=collection_metadata,
         )
 
     def _build_evidence(
@@ -123,15 +176,26 @@ class EvidenceCollector:
         obs: ClassifiedObservation,
         assessment: SignalAssessment,
         regime_weight: float,
+        cpi_condition: dict[str, str] | None = None,
     ) -> Evidence:
         event_type = INSTRUMENT_TO_EVENT_TYPE.get(obs.instrument, "GENERAL")
         bias = self._resolve_bias(obs, assessment.regime)
         base_confidence = obs.confidence
         cw = round(base_confidence * regime_weight, 4)
 
-        kr_ids, kr_nodes = self._query_knowledge_records(obs, event_type)
-        source_kr_id = kr_ids[0] if kr_ids else f"kr_synthetic_{obs.observation_id}"
-        source_kr_node_id = kr_nodes[0] if kr_nodes else source_kr_id
+        kr_ids, kr_nodes = self._query_knowledge_records(
+            obs, event_type, cpi_condition
+        )
+        if kr_ids:
+            source_kr_id = kr_ids[0]
+            source_kr_node_id = kr_nodes[0] if kr_nodes else kr_ids[0]
+            knowledge_record_id = source_kr_id
+            provenance_type = "knowledge_record"
+        else:
+            source_kr_id = _observation_provenance_anchor(obs.observation_id)
+            source_kr_node_id = source_kr_id
+            knowledge_record_id = None
+            provenance_type = "observation"
 
         supporting = self._get_supporting_observation_ids(obs)
         contradicting = self._get_contradicting_observation_ids(obs)
@@ -147,7 +211,30 @@ class EvidenceCollector:
             created_at=datetime.now(timezone.utc).isoformat(),
             created_by="W6 EvidenceCollector",
             entity_version="1.0.0",
+            metadata={"knowledge_record_link": knowledge_record_id},
         )
+
+        metadata: dict[str, Any] = {
+            "classification": obs.classification,
+            "criteria_count": len(obs.evidence),
+            "instrument": obs.instrument,
+            "change_pct": obs.change_pct,
+            "change_sigma": obs.change_sigma,
+            "provenance_type": provenance_type,
+            "knowledge_record_id": knowledge_record_id,
+        }
+        # Sprint 058 (W-5): news-derived observations carry their full
+        # article provenance (source, content id, timestamps, event
+        # classification, gold relevance, directional implication and its
+        # basis) so every news evidence item is traceable to a source.
+        news_prov = self._news_provenance_payload(obs, assessment)
+        if news_prov is not None:
+            metadata["news"] = news_prov
+        knowledge_semantics = self._knowledge_semantics_payload(
+            source_kr_node_id
+        )
+        if knowledge_semantics is not None:
+            metadata["knowledge_semantics"] = knowledge_semantics
 
         return Evidence(
             evidence_id=f"ev_{source_kr_id}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}",
@@ -166,21 +253,92 @@ class EvidenceCollector:
             contradicting_observation_ids=tuple(contradicting),
             mechanism=self._resolve_mechanism(obs.instrument),
             provenance=provenance,
-            temporal_recency=min(max(1.0 / (1.0 + abs(obs.change_sigma)), 0.1), 1.0),
-            metadata={
-                "classification": obs.classification,
-                "criteria_count": len(obs.evidence),
-                "instrument": obs.instrument,
-                "change_pct": obs.change_pct,
-                "change_sigma": obs.change_sigma,
-            },
+            temporal_recency=(min(max(1.0 / (1.0 + abs(obs.change_sigma)), 0.1), 1.0) if obs.change_sigma is not None and math.isfinite(obs.change_sigma) else float('nan')),
+            metadata=metadata,
         )
+
+    KNOWLEDGE_SEMANTICS_FIELDS: tuple[str, ...] = (
+        "horizon_days",
+        "sample_count",
+        "average_return_pct",
+        "confidence",
+        "positive_return_rate_pct",
+    )
+
+    @staticmethod
+    def _news_provenance_payload(
+        obs: ClassifiedObservation,
+        assessment: SignalAssessment,
+    ) -> dict[str, Any] | None:
+        """Copy the article provenance registered at W5 into Evidence.metadata.
+
+        Read-only: the payload is carried for downstream auditability and
+        feeds no scoring field.  Returns None for non-news observations or
+        when the assessment carries no news provenance registry.
+        """
+        if obs.source != "news":
+            return None
+        registry = assessment.metadata.get("news_provenance")
+        if not isinstance(registry, dict):
+            return None
+        entry = registry.get(obs.observation_id)
+        if not isinstance(entry, dict) or not entry:
+            return None
+        return dict(entry)
+
+    KNOWLEDGE_SEMANTICS_OPTIONAL_FIELDS: tuple[str, ...] = (
+        "bias",
+        "last_event_date",
+        "institutional_context",
+    )
+
+    def _knowledge_semantics_payload(
+        self, source_kr_node_id: str
+    ) -> dict[str, Any] | None:
+        """Copy the minimum KnowledgeRecord semantics into Evidence.metadata.
+
+        Read-only preservation (Correction 008-A): the payload is carried for
+        downstream reasoning but never used for scoring here.  It is returned
+        only when the resolved node is a real KnowledgeRecord node; otherwise
+        None so no historical values are fabricated for observation-anchored
+        evidence.  The KnowledgeRecord condition is kept distinct from the
+        Evidence.condition contract field (which remains the observation
+        instrument condition).
+        """
+        if self._kg is None or not source_kr_node_id:
+            return None
+        node = self._kg.get_node(source_kr_node_id)
+        if node is None or node.node_type != "knowledge_record":
+            return None
+        props = node.properties or {}
+        if "knowledge_id" not in props:
+            return None
+        semantics: dict[str, Any] = {}
+        condition = props.get("condition")
+        if isinstance(condition, dict) and condition:
+            semantics["condition"] = dict(condition)
+        for field in self.KNOWLEDGE_SEMANTICS_FIELDS:
+            if field in props and props[field] is not None:
+                semantics[field] = props[field]
+        for field in self.KNOWLEDGE_SEMANTICS_OPTIONAL_FIELDS:
+            if field in props and props[field] not in (None, "", {}):
+                semantics[field] = props[field]
+        return semantics or None
 
     def _query_knowledge_records(
         self,
         obs: ClassifiedObservation,
         event_type: str,
+        cpi_condition: dict[str, str] | None = None,
     ) -> tuple[list[str], list[str]]:
+        """Resolve KnowledgeRecord IDs linked to an observation.
+
+        When a valid current CPI condition is supplied and the lookup falls
+        back onto the CPI event class, the Legacy EvidenceQuery (exact
+        condition matching) is used instead of any condition-blind
+        ``nodes[:3]`` / insertion-order selection.  When no condition is
+        supplied the historical fallback behaviour is preserved unchanged.
+        """
         if self._kg is None:
             return [], []
         nodes = self._kg.filter_nodes(event_type=event_type)
@@ -190,6 +348,13 @@ class EvidenceCollector:
                 if cls == event_type
             ]
             for mapped_type in mapped_types:
+                if mapped_type == "CPI" and cpi_condition:
+                    nodes = self._filter_nodes_by_condition(
+                        "CPI", cpi_condition, self._kg
+                    )
+                    if nodes:
+                        break
+                    continue
                 nodes = self._kg.filter_nodes(event_type=mapped_type)
                 if nodes:
                     break
@@ -199,8 +364,44 @@ class EvidenceCollector:
         return kr_ids, kr_ids
 
     @staticmethod
+    def _filter_nodes_by_condition(
+        event_type: str,
+        condition: dict[str, str],
+        graph: KnowledgeGraph,
+    ) -> list[GraphNode]:
+        matched = EvidenceQuery(graph).matching(
+            event_type=event_type,
+            condition=condition,
+        )
+        nodes: list[GraphNode] = []
+        for item in matched:
+            node = graph.get_node(item.source_node_id)
+            if node is not None:
+                nodes.append(node)
+        return nodes
+
+    @staticmethod
     def _resolve_bias(obs: ClassifiedObservation, regime: str) -> str:
-        return INSTRUMENT_TO_REGIME_BIAS.get(obs.instrument, "neutral")
+        base = INSTRUMENT_TO_REGIME_BIAS.get(obs.instrument, "neutral")
+        if (
+            obs.instrument == "Gold Positioning"
+            and obs.change_pct is not None
+            and math.isfinite(obs.change_pct)
+        ):
+            # ETF proxy direction semantics: same +/-1.0% boundary as the
+            # accumulating/distributing momentum label in pre_market.positioning.
+            if abs(obs.change_pct) > ETF_FLOW_THRESHOLD_PCT:
+                return "bullish" if obs.change_pct > 0 else "bearish"
+            return "neutral"
+        directional = DIRECTIONAL_INSTRUMENT_GOLD_BIAS.get(obs.instrument)
+        if directional is not None:
+            change = obs.change_pct
+            # Correction 051: the observed move controls polarity.  Zero or
+            # missing change invents no direction and keeps the static
+            # mapping (news / anomaly observations carry no overnight move).
+            if change is not None and math.isfinite(change) and change != 0.0:
+                return directional["up"] if change > 0 else directional["down"]
+        return base
 
     @staticmethod
     def _get_supporting_observation_ids(obs: ClassifiedObservation) -> list[str]:

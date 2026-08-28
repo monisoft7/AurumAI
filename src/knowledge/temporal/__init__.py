@@ -33,7 +33,17 @@ from knowledge.temporal.state import (
 )
 from knowledge.temporal.indexer import TemporalIndexer
 from knowledge.temporal.repository import TemporalRepository
-from knowledge.temporal.adapter import TemporalEvidenceAdapter
+from knowledge.temporal.adapter import (
+    TemporalEvidenceAdapter,
+    EPISODE_CONDITION_KEYS,
+)
+from knowledge.temporal.lesson_index import (
+    LessonEpisodeQuery,
+    build_lesson_episode_index,
+    load_lesson_episode_index,
+    row_to_lesson_state,
+    save_lesson_episode_index,
+)
 
 __all__ = [
     "TimeContext",
@@ -66,4 +76,10 @@ __all__ = [
     "TemporalIndexer",
     "TemporalRepository",
     "TemporalEvidenceAdapter",
+    "EPISODE_CONDITION_KEYS",
+    "LessonEpisodeQuery",
+    "build_lesson_episode_index",
+    "load_lesson_episode_index",
+    "row_to_lesson_state",
+    "save_lesson_episode_index",
 ]

@@ -19,8 +19,14 @@ class RiskReportGenerator:
     """Compiles overnight P&L, exposure, VaR utilization, drawdown status.
 
     Reuses compute_var/compute_cvar/TailRiskDetector/DrawdownManager.
-    Returns RiskSnapshot with defaults when no portfolio data is available.
+
+    Final Hardening (D-03/D-11): when no portfolio returns are available the
+    report is an explicit ``unavailable`` snapshot -- the previous behaviour
+    fabricated 252 rng-seeded random returns and passed them off as a risk
+    snapshot.  No number in an unavailable snapshot is measured.
     """
+
+    UNAVAILABLE = "unavailable_no_portfolio_returns"
 
     def __init__(
         self,
@@ -40,7 +46,21 @@ class RiskReportGenerator:
         var_utilization_pct: float = 0.0,
     ) -> RiskSnapshot:
         if portfolio_returns is None or len(portfolio_returns) < 5:
-            portfolio_returns = np.random.default_rng(42).normal(0, 1, 252)
+            return RiskSnapshot(
+                pnl_daily=round(daily_pnl, 2),
+                pnl_unrealized=round(unrealized_pnl, 2),
+                var_95=0.0,
+                var_99=0.0,
+                cvar_95=0.0,
+                tail_index=None,
+                drawdown_pct=0.0,
+                drawdown_state="unknown",
+                var_utilization_pct=round(var_utilization_pct, 2),
+                exposure=round(exposure, 2),
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                status=self.UNAVAILABLE,
+                status_reason="no portfolio return series available; no risk number is measured",
+            )
 
         var_95 = float(compute_var(portfolio_returns, 0.95))
         var_99 = float(compute_var(portfolio_returns, 0.99))
@@ -64,4 +84,6 @@ class RiskReportGenerator:
             var_utilization_pct=round(var_utilization_pct, 2),
             exposure=round(exposure, 2),
             timestamp=datetime.now(timezone.utc).isoformat(),
+            status="ok",
+            status_reason="",
         )

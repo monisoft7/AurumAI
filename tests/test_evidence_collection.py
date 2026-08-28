@@ -6,7 +6,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from evidence_collection.collector import EvidenceCollector
+from evidence_collection.collector import (
+    EvidenceCollector,
+    INSTRUMENT_TO_REGIME_BIAS,
+)
 from evidence_collection.contracts import Evidence, EvidenceCollection
 from evidence_collection.strength import EvidenceStrengthComputer
 from knowledge.graph.graph import KnowledgeGraph
@@ -409,6 +412,339 @@ class TestEvidenceCollector:
         assert INSTRUMENT_TO_REGIME_BIAS["USD/JPY"] == "bullish"
 
 
+class TestEtfFlowDirectionSemantics:
+    """Correction 006: Gold Positioning/ETF proxy bias follows direction."""
+
+    def _collect_bias(self, change_pct: float, instrument: str = "Gold Positioning") -> str:
+        obs = _make_observation(
+            obs_id="obs_positioning_test",
+            source="positioning",
+            classification="Weak Signal",
+            confidence=0.5,
+            instrument=instrument,
+            change_pct=change_pct,
+            evidence_count=2,
+        )
+        assessment = _make_assessment([obs])
+        collection = EvidenceCollector().collect(assessment)
+        return collection.items[0].bias
+
+    def test_distributing_negative_flow_is_bearish(self):
+        assert self._collect_bias(-1.18) == "bearish"
+
+    def test_accumulating_positive_flow_is_bullish(self):
+        assert self._collect_bias(2.3) == "bullish"
+
+    def test_stable_positive_subthreshold_is_neutral(self):
+        assert self._collect_bias(0.5) == "neutral"
+
+    def test_stable_negative_subthreshold_is_neutral(self):
+        assert self._collect_bias(-0.5) == "neutral"
+
+    def test_zero_flow_is_neutral(self):
+        assert self._collect_bias(0.0) == "neutral"
+
+    def test_etf_flow_evidence_event_type_unchanged(self):
+        obs = _make_observation(
+            obs_id="obs_positioning_type",
+            source="positioning",
+            classification="Watch",
+            confidence=0.3,
+            instrument="Gold Positioning",
+            change_pct=-1.18,
+            evidence_count=2,
+        )
+        assessment = _make_assessment([obs])
+        collection = EvidenceCollector().collect(assessment)
+        assert collection.items[0].event_type == "ETF_FLOW"
+
+    def test_xau_usd_negative_move_no_longer_static_bullish(self):
+        # Correction 051 (Trace 051 F-01): a negative XAU/USD move must not
+        # inherit the static bullish instrument bias.
+        assert self._collect_bias(-2.0, instrument="XAU/USD") == "bearish"
+
+    def test_weight_formula_unchanged(self):
+        obs = _make_observation(
+            obs_id="obs_positioning_weight",
+            source="positioning",
+            classification="Weak Signal",
+            confidence=0.5,
+            instrument="Gold Positioning",
+            change_pct=-1.18,
+            evidence_count=2,
+        )
+        assessment = _make_assessment([obs])
+        collection = EvidenceCollector().collect(assessment, regime_weight=0.8)
+        ev = collection.items[0]
+        assert ev.base_confidence == 0.5
+        assert ev.composite_weight == pytest.approx(0.5 * 0.8, abs=1e-9)
+
+
+class TestCorrection051DirectionAwareOvernightBias:
+    """Correction 051 (Trace 051 F-01): overnight evidence polarity follows
+    the OBSERVED move via sign(change_pct), not merely the instrument name.
+
+    Approved semantics:
+        XAU/USD            up -> bullish   down -> bearish
+        DXY                up -> bearish   down -> bullish
+        US10Y Real Yield   up -> bearish   down -> bullish
+        Breakeven          up -> bullish   down -> bearish
+        S&P futures        up -> bullish   down -> bearish
+        Brent              up -> bullish   down -> bearish
+        EUR/USD            up -> bearish   down -> bullish
+        USD/JPY            up -> bearish   down -> bullish
+    Zero / missing change invents no direction (static mapping preserved).
+    """
+
+    UP_DOWN_BIAS = {
+        "XAU/USD": ("bullish", "bearish"),
+        "DXY": ("bearish", "bullish"),
+        "US10Y Real Yield": ("bearish", "bullish"),
+        "Breakeven Inflation": ("bullish", "bearish"),
+        "S&P 500 Futures": ("bullish", "bearish"),
+        "Brent Crude": ("bullish", "bearish"),
+        "EUR/USD": ("bearish", "bullish"),
+        "USD/JPY": ("bearish", "bullish"),
+    }
+
+    def _collect_bias(self, instrument: str, change_pct) -> str:
+        obs = _make_observation(
+            obs_id=f"obs_c051_{instrument}",
+            classification="Signal",
+            confidence=0.8,
+            instrument=instrument,
+            change_pct=change_pct,
+            change_sigma=1.5,
+        )
+        assessment = _make_assessment([obs])
+        collection = EvidenceCollector().collect(assessment)
+        assert collection.evidence_count == 1
+        return collection.items[0].bias
+
+    @pytest.mark.parametrize("instrument", list(UP_DOWN_BIAS.keys()))
+    def test_positive_move_maps_to_up_bias(self, instrument):
+        up_bias, _ = self.UP_DOWN_BIAS[instrument]
+        assert self._collect_bias(instrument, 1.4) == up_bias
+
+    @pytest.mark.parametrize("instrument", list(UP_DOWN_BIAS.keys()))
+    def test_negative_move_maps_to_down_bias(self, instrument):
+        _, down_bias = self.UP_DOWN_BIAS[instrument]
+        assert self._collect_bias(instrument, -1.4) == down_bias
+
+    @pytest.mark.parametrize("instrument", list(UP_DOWN_BIAS.keys()))
+    def test_sign_flip_flips_evidence_bias(self, instrument):
+        """Changing ONLY the sign of change_pct must flip evidence polarity."""
+        obs_id = f"obs_signflip_{instrument}"
+        positive = EvidenceCollector().collect(
+            _make_assessment([
+                _make_observation(
+                    obs_id=obs_id,
+                    classification="Signal",
+                    confidence=0.8,
+                    instrument=instrument,
+                    change_pct=1.1,
+                    change_sigma=1.5,
+                )
+            ])
+        ).items[0]
+        negative = EvidenceCollector().collect(
+            _make_assessment([
+                _make_observation(
+                    obs_id=obs_id,
+                    classification="Signal",
+                    confidence=0.8,
+                    instrument=instrument,
+                    change_pct=-1.1,
+                    change_sigma=1.5,
+                )
+            ])
+        ).items[0]
+        up_bias, down_bias = self.UP_DOWN_BIAS[instrument]
+        assert positive.bias == up_bias
+        assert negative.bias == down_bias
+        # identical magnitude/confidence/weights: polarity is the only delta
+        assert negative.base_confidence == positive.base_confidence
+        assert negative.composite_weight == positive.composite_weight
+
+    @pytest.mark.parametrize("instrument", list(UP_DOWN_BIAS.keys()))
+    @pytest.mark.parametrize("missing", [None, float("nan"), 0.0])
+    def test_zero_or_missing_change_invents_no_direction(self, instrument, missing):
+        legacy = INSTRUMENT_TO_REGIME_BIAS[instrument]
+        assert self._collect_bias(instrument, missing) == legacy
+
+    def test_us10y_nominal_yield_stays_neutral_on_directional_moves(self):
+        assert self._collect_bias("US10Y Nominal Yield", 2.5) == "neutral"
+        assert self._collect_bias("US10Y Nominal Yield", -2.5) == "neutral"
+
+    def test_absolute_change_sigma_never_drives_polarity(self):
+        # identical |sigma| on both sides, opposite moves -> opposite bias
+        assert self._collect_bias("XAU/USD", 0.9) == "bullish"
+        assert self._collect_bias("XAU/USD", -0.9) == "bearish"
+
+
+class TestCorrection051RegressionPreservation:
+    """Preserved behavior around the Correction-051 polarity change."""
+
+    def _bias_for(self, obs) -> str:
+        collection = EvidenceCollector().collect(_make_assessment([obs]))
+        return collection.items[0].bias
+
+    def test_gold_positioning_correction_006_unchanged(self):
+        assert self._bias_for(_make_observation(
+            obs_id="obs_pos_up",
+            source="positioning",
+            classification="Weak Signal",
+            confidence=0.5,
+            instrument="Gold Positioning",
+            change_pct=2.3,
+            evidence_count=2,
+        )) == "bullish"
+        assert self._bias_for(_make_observation(
+            obs_id="obs_pos_down",
+            source="positioning",
+            classification="Weak Signal",
+            confidence=0.5,
+            instrument="Gold Positioning",
+            change_pct=-1.18,
+            evidence_count=2,
+        )) == "bearish"
+        assert self._bias_for(_make_observation(
+            obs_id="obs_pos_flat",
+            source="positioning",
+            classification="Weak Signal",
+            confidence=0.5,
+            instrument="Gold Positioning",
+            change_pct=0.3,
+            evidence_count=2,
+        )) == "neutral"
+
+    def test_news_observations_remain_neutral(self):
+        news_obs = ClassifiedObservation(
+            observation_id="obs_news_corr051",
+            source="news",
+            classification="Watch",
+            confidence=0.35,
+            regime="NORMAL_GROWTH",
+            reason="news item",
+            instrument="Reuters",
+            change_pct=0.0,
+            change_sigma=0.0,
+        )
+        assert self._bias_for(news_obs) == "neutral"
+
+    def test_anomaly_zero_change_keeps_legacy_static_bias(self):
+        # Anomaly observations carry instrument names but no observed
+        # overnight move (change_pct == 0.0); their static mapping is kept.
+        anomaly = ClassifiedObservation(
+            observation_id="obs_anomaly_corr051",
+            source="anomaly_flag",
+            classification="Watch",
+            confidence=0.35,
+            regime="NORMAL_GROWTH",
+            reason="anomaly flag",
+            instrument="XAU/USD",
+            value=0.0,
+            change_pct=0.0,
+            change_sigma=1.9,
+        )
+        assert self._bias_for(anomaly) == "bullish"
+        dxy_anomaly = ClassifiedObservation(
+            observation_id="obs_anomaly_dxy_corr051",
+            source="anomaly_flag",
+            classification="Watch",
+            confidence=0.35,
+            regime="NORMAL_GROWTH",
+            reason="anomaly flag",
+            instrument="DXY",
+            value=0.0,
+            change_pct=0.0,
+            change_sigma=1.9,
+        )
+        assert self._bias_for(dxy_anomaly) == "bearish"
+
+    def test_cpi_release_stays_neutral_with_nonzero_change(self):
+        from signal_assessment.assembler import SignalAssessmentAssembler
+        from pre_market.contracts import PreMarketBriefing
+
+        briefing = PreMarketBriefing(
+            briefing_id="premarket_c051_cpi",
+            timestamp="2026-08-24T06:00:00",
+            regime="NORMAL_GROWTH",
+            regime_confidence=0.85,
+            overnight_changes=(),
+            metadata={"cpi_release": {
+                "event_type": "CPI",
+                "reference_period": "2026-07-01",
+                "value": 332.813,
+                "cpi_change_pct": 0.0737,
+                "expected_impact": "high",
+            }},
+        )
+        assessment = SignalAssessmentAssembler(regime="NORMAL_GROWTH").assemble(briefing)
+        collection = EvidenceCollector().collect(assessment)
+        cpi_ev = next(e for e in collection.items if e.source_label == "cpi_release")
+        assert cpi_ev.metadata["change_pct"] == pytest.approx(0.0737)
+        assert cpi_ev.bias == "neutral"
+
+
+class TestCorrection051TraceProductionRun:
+    """Trace-051 production-run regression fixture (2026-08-24 CPI run).
+
+    The run's pre-market scan observed XAU/USD LOWER while DXY moved in the
+    correlated opposite sense; under the previous static mapping both pieces
+    of evidence kept their name-implied polarity regardless of the observed
+    move.  This fixture locks only the corrected evidence polarities for the
+    observed-move scenario shape -- never the final decision outcome.
+    """
+
+    def test_observed_move_controls_polarity_in_full_assembly(self):
+        from signal_assessment.assembler import SignalAssessmentAssembler
+        from pre_market.contracts import OvernightPriceChange, PreMarketBriefing
+
+        briefing = PreMarketBriefing(
+            briefing_id="premarket_trace051_fixture",
+            timestamp="2026-08-24T06:00:00",
+            regime="INFLATIONARY",
+            regime_confidence=0.7,
+            overnight_changes=(
+                OvernightPriceChange(
+                    instrument="XAU/USD",
+                    previous_close=2000.0,
+                    current_price=1976.0,
+                    change_pct=-1.2,
+                    change_sigma=1.6,
+                    session="APAC",
+                ),
+                OvernightPriceChange(
+                    instrument="DXY",
+                    previous_close=98.0,
+                    current_price=98.6,
+                    change_pct=0.61,
+                    change_sigma=1.1,
+                    session="APAC",
+                ),
+            ),
+        )
+        assessment = SignalAssessmentAssembler(regime="INFLATIONARY").assemble(briefing)
+        collection = EvidenceCollector().collect(assessment)
+
+        by_instrument = {
+            ev.condition["instrument"]: ev.bias for ev in collection.items
+        }
+        # gold DOWN -> bearish evidence (was statically bullish before 051)
+        assert by_instrument["XAU/USD"] == "bearish"
+        # dollar UP -> bearish-for-gold evidence (was statically bearish)
+        assert by_instrument["DXY"] == "bearish"
+
+        # weights untouched by polarity resolution
+        xau_ev = next(
+            e for e in collection.items if e.condition["instrument"] == "XAU/USD"
+        )
+        assert xau_ev.composite_weight == pytest.approx(
+            round(xau_ev.base_confidence * 0.8, 4), abs=1e-9
+        )
+
+
 class TestKnowledgeRecordEventClassMapping:
     """Regression tests for the EVENT_TYPE_TO_EVIDENCE_CLASS mapping:
 
@@ -462,7 +798,10 @@ class TestKnowledgeRecordEventClassMapping:
 
         ev = collection.items[0]
         assert ev.event_type == "REAL_YIELD"
-        assert ev.source_kr_id.startswith("kr_synthetic_")
+        assert ev.source_kr_id.startswith("no_kr_")
+        assert ev.source_kr_id == ev.source_kr_node_id
+        assert ev.metadata["provenance_type"] == "observation"
+        assert ev.metadata["knowledge_record_id"] is None
 
     def test_general_fallback_unaffected_by_mapping(self):
         kg = self._graph(["CPI"])
@@ -473,7 +812,208 @@ class TestKnowledgeRecordEventClassMapping:
 
         ev = collection.items[0]
         assert ev.event_type == "GENERAL"
-        assert ev.source_kr_id.startswith("kr_synthetic_")
+        assert ev.source_kr_id.startswith("no_kr_")
+        assert ev.source_kr_id == ev.source_kr_node_id
+        assert ev.metadata["provenance_type"] == "observation"
+        assert ev.metadata["knowledge_record_id"] is None
+
+
+# =========================================================================
+# Correction 007: current CPI condition -> CPI KnowledgeRecords
+# =========================================================================
+
+
+def _cpi_knowledge_records() -> list[dict]:
+    """Realistic CPI KR records (mirrors runtime knowledge.json shape).
+
+    Down-condition records are listed first to prove selection is
+    condition-correct and not insertion-order-based.
+    """
+    records: list[dict] = []
+    for pressure, horizons in (
+        ("inflation_pressure_down", (1, 5, 20)),
+        ("inflation_pressure_up", (1, 5, 20)),
+    ):
+        for horizon in horizons:
+            records.append({
+                "knowledge_id": (
+                    f"CPI_XAU/USD_{pressure}_{horizon}D"
+                ),
+                "event_type": "CPI",
+                "condition": {"cpi_pressure": pressure},
+                "horizon_days": horizon,
+                "sample_count": 17,
+                "bias": "gold_positive_bias",
+            })
+    return records
+
+
+class TestCpiConditionMatching:
+    """Correction 007: current CPI condition selects the correct CPI KR family."""
+
+    def _collect(self, instrument: str, cpi_condition: dict | None = None):
+        obs = _make_observation(
+            obs_id=f"obs_{instrument}",
+            classification="Signal",
+            confidence=0.8,
+            instrument=instrument,
+            evidence_count=3,
+        )
+        assessment = _make_assessment([obs])
+        from knowledge.graph.builder import GraphBuilder
+
+        kg = GraphBuilder().build(_cpi_knowledge_records())
+        collector = EvidenceCollector(knowledge_graph=kg)
+        return collector.collect(
+            assessment, regime_weight=0.8, cpi_condition=cpi_condition
+        )
+
+    def test_up_condition_selects_only_up_cpi_krs(self):
+        collection = self._collect(
+            "Breakeven Inflation",
+            {"cpi_pressure": "inflation_pressure_up"},
+        )
+        assert collection.evidence_count == 1
+        ev = collection.items[0]
+        assert ev.source_kr_id == "CPI_XAU/USD_inflation_pressure_up_1D"
+        assert ev.event_type == "INFLATION"
+
+    def test_down_condition_selects_only_down_cpi_krs(self):
+        collection = self._collect(
+            "Breakeven Inflation",
+            {"cpi_pressure": "inflation_pressure_down"},
+        )
+        ev = collection.items[0]
+        assert ev.source_kr_id == "CPI_XAU/USD_inflation_pressure_down_1D"
+
+    def test_no_arbitrary_top3_cpi_selection(self):
+        collection = self._collect(
+            "Breakeven Inflation",
+            {"cpi_pressure": "inflation_pressure_up"},
+        )
+        ev = collection.items[0]
+        assert "inflation_pressure_down" not in ev.source_kr_id
+
+    def test_real_kr_provenance_fields(self):
+        collection = self._collect(
+            "Breakeven Inflation",
+            {"cpi_pressure": "inflation_pressure_up"},
+        )
+        ev = collection.items[0]
+        kr_id = "CPI_XAU/USD_inflation_pressure_up_1D"
+        assert ev.source_kr_id == kr_id
+        assert ev.source_kr_node_id == kr_id
+        assert ev.metadata["knowledge_record_id"] == kr_id
+        assert ev.metadata["provenance_type"] == "knowledge_record"
+        assert ev.provenance.metadata["knowledge_record_link"] == kr_id
+        assert not ev.source_kr_id.startswith(("kr_synthetic_", "no_kr_"))
+
+    def test_unrelated_event_types_unchanged_with_cpi_condition(self):
+        collection = self._collect(
+            "XAU/USD", {"cpi_pressure": "inflation_pressure_up"}
+        )
+        ev = collection.items[0]
+        assert ev.event_type == "GENERAL"
+        assert ev.source_kr_id.startswith("no_kr_")
+        assert ev.metadata["provenance_type"] == "observation"
+
+    def test_non_cpi_fallback_unchanged_without_condition(self):
+        collection = self._collect("Breakeven Inflation")
+        ev = collection.items[0]
+        assert ev.event_type == "INFLATION"
+        assert ev.source_kr_id.startswith("CPI_XAU/USD_")
+        assert ev.source_kr_node_id == ev.source_kr_id
+
+    def test_no_matching_cpi_kr_no_fabrication(self):
+        obs = _make_observation(
+            obs_id="obs_breakeven_flat",
+            classification="Signal",
+            confidence=0.8,
+            instrument="Breakeven Inflation",
+            evidence_count=3,
+        )
+        assessment = _make_assessment([obs])
+        from knowledge.graph.builder import GraphBuilder
+
+        records = [
+            r for r in _cpi_knowledge_records()
+            if r["condition"]["cpi_pressure"] == "inflation_pressure_up"
+        ]
+        kg = GraphBuilder().build(records)
+        collection = EvidenceCollector(knowledge_graph=kg).collect(
+            assessment,
+            cpi_condition={"cpi_pressure": "inflation_pressure_down"},
+        )
+        ev = collection.items[0]
+        assert ev.source_kr_id.startswith("no_kr_")
+        assert ev.source_kr_id == ev.source_kr_node_id
+        assert ev.metadata["provenance_type"] == "observation"
+        assert ev.metadata["knowledge_record_id"] is None
+
+    def test_evidence_contract_unchanged(self):
+        collection = self._collect(
+            "Breakeven Inflation",
+            {"cpi_pressure": "inflation_pressure_up"},
+        )
+        ev = collection.items[0]
+        assert not ev.validate()
+        assert ev.metadata["provenance_type"] == "knowledge_record"
+        assert ev.metadata["knowledge_record_id"].startswith("CPI_")
+        assert ev.metadata["instrument"] == "Breakeven Inflation"
+        assert collection.assessment_id == "sa_w5_test"
+        restored = Evidence.from_dict(json.loads(json.dumps(ev.to_dict())))
+        assert restored.source_kr_id == ev.source_kr_id
+        assert restored.composite_weight == ev.composite_weight
+
+
+class TestEvidenceCollectionCpiConditionStage:
+    """Correction 007: orchestration boundary passes only valid conditions."""
+
+    def _stage_collect(self, reasoning_condition):
+        from orchestration.stages import _evidence_collection
+        from knowledge.graph.builder import GraphBuilder
+
+        kg = GraphBuilder().build(_cpi_knowledge_records())
+        obs = _make_observation(
+            obs_id="obs_stage_cpi",
+            classification="Signal",
+            confidence=0.8,
+            instrument="Breakeven Inflation",
+            evidence_count=3,
+        )
+        assessment = _make_assessment([obs])
+        results = {
+            "signal_assessment": assessment.to_dict(),
+            "build_legacy_pipeline": {
+                "knowledge_graph": kg,
+                "reasoning_condition": reasoning_condition,
+            },
+        }
+        return _evidence_collection({}, results)
+
+    def test_valid_up_condition_reaches_collector(self):
+        collection = self._stage_collect(
+            {"cpi_pressure": "inflation_pressure_up"}
+        )
+        ev = collection.items[0]
+        assert ev.metadata["knowledge_record_id"] == (
+            "CPI_XAU/USD_inflation_pressure_up_1D"
+        )
+        assert ev.metadata["provenance_type"] == "knowledge_record"
+
+    def test_invalid_condition_ignored_at_boundary(self):
+        collection = self._stage_collect(
+            {"cpi_pressure": "inflation_pressure_flat"}
+        )
+        ev = collection.items[0]
+        assert ev.metadata["provenance_type"] == "knowledge_record"
+        assert "inflation_pressure" in ev.source_kr_id
+
+    def test_missing_condition_keeps_fallback(self):
+        collection = self._stage_collect(None)
+        ev = collection.items[0]
+        assert ev.metadata["provenance_type"] == "knowledge_record"
+        assert ev.source_kr_id.startswith("CPI_XAU/USD_inflation_pressure")
 
 
 # =========================================================================
@@ -618,3 +1158,243 @@ class TestAnomalyObservationDedup:
         assert len(collection.items) == 2
         assert len({e.source_kr_id for e in collection.items}) == 1
         assert reasoning.duplicates_removed == 1
+
+# =========================================================================
+# Correction 008-A: preserve minimum KnowledgeRecord semantics in Evidence
+# =========================================================================
+
+
+def _cpi_semantics_records() -> list[dict]:
+    """Full-fidelity CPI KR records (mirrors runtime knowledge.json shape).
+
+    Each family carries the approved minimum semantic payload with distinct
+    values so preservation can be asserted field-by-field.
+    """
+    base = {
+        "event_type": "CPI",
+        "asset": "XAU/USD",
+        "source_lesson_ids": ["CPI_GOLD_2015-03-01", "CPI_GOLD_2015-04-01"],
+        "source_artifact_path": "artifacts/lessons.csv",
+        "source_artifact_sha256": "cc450ddd8ad3067ad236c1a036c1df159e760a847425feca8c51061aa9f42694",
+        "median_return_pct": 0.3,
+        "min_return_pct": -3.2,
+        "max_return_pct": 2.9,
+        "negative_return_rate_pct": 38.0,
+        "first_event_date": "2015-03-01",
+    }
+    flavors = {
+        "inflation_pressure_down": {
+            "sample_count": 17,
+            "positive_return_rate_pct": 70.588235,
+            "average_return_pct": 0.706768,
+            "confidence": 0.545918,
+            "bias": "gold_positive_bias",
+            "last_event_date": "2026-06-01",
+            "institutional_context": {
+                "us10y_level": "low_yield_regime",
+                "dxy_level": "normal_dxy_regime",
+            },
+        },
+        "inflation_pressure_up": {
+            "sample_count": 118,
+            "positive_return_rate_pct": 51.694915,
+            "average_return_pct": -0.033338,
+            "confidence": 0.511503,
+            "bias": "mixed_or_context_dependent",
+            "last_event_date": "2026-05-01",
+            "institutional_context": {
+                "us10y_level": "low_yield_regime",
+                "t5yie_level": "normal_breakeven_regime",
+            },
+        },
+    }
+    records: list[dict] = []
+    for pressure, horizon in (
+        ("inflation_pressure_down", 1),
+        ("inflation_pressure_down", 5),
+        ("inflation_pressure_down", 20),
+        ("inflation_pressure_up", 1),
+    ):
+        record = dict(base)
+        record.update(flavors[pressure])
+        record.update({
+            "knowledge_id": f"CPI_XAU/USD_{pressure}_{horizon}D",
+            "condition": {"cpi_pressure": pressure},
+            "horizon_days": horizon,
+        })
+        records.append(record)
+    return records
+
+
+class TestKnowledgeSemanticsPreservation:
+    """Correction 008-A: minimum KR semantics preserved, nothing active yet."""
+
+    def _collect_cpi(self):
+        from knowledge.graph.builder import GraphBuilder
+
+        obs = _make_observation(
+            obs_id="obs_semantics_cpi",
+            classification="Signal",
+            confidence=0.8,
+            instrument="Breakeven Inflation",
+            evidence_count=3,
+        )
+        assessment = _make_assessment([obs])
+        kg = GraphBuilder().build(_cpi_semantics_records())
+        collector = EvidenceCollector(knowledge_graph=kg)
+        return collector.collect(
+            assessment,
+            regime_weight=0.8,
+            cpi_condition={"cpi_pressure": "inflation_pressure_up"},
+        )
+
+    def test_real_cpi_kr_produces_all_six_semantic_fields(self):
+        collection = self._collect_cpi()
+        ev = collection.items[0]
+        semantics = ev.metadata["knowledge_semantics"]
+        assert set(semantics) >= {
+            "condition",
+            "horizon_days",
+            "sample_count",
+            "average_return_pct",
+            "confidence",
+            "positive_return_rate_pct",
+        }
+        assert semantics["sample_count"] == 118
+        assert semantics["average_return_pct"] == -0.033338
+        assert semantics["positive_return_rate_pct"] == 51.694915
+
+    def test_values_match_knowledge_record_node_exactly(self):
+        from knowledge.graph.builder import GraphBuilder
+
+        records = _cpi_semantics_records()
+        graph = GraphBuilder().build(records)
+        selected_id = "CPI_XAU/USD_inflation_pressure_up_1D"
+        node_props = graph.get_node(selected_id).properties
+
+        collection = self._collect_cpi()
+        ev = collection.items[0]
+        semantics = ev.metadata["knowledge_semantics"]
+        assert ev.source_kr_node_id == selected_id
+        for field in (
+            "condition",
+            "horizon_days",
+            "sample_count",
+            "average_return_pct",
+            "confidence",
+            "positive_return_rate_pct",
+            "bias",
+            "last_event_date",
+            "institutional_context",
+        ):
+            assert semantics[field] == node_props[field]
+
+    def test_wrong_condition_kr_not_selected(self):
+        collection = self._collect_cpi()
+        ev = collection.items[0]
+        semantics = ev.metadata["knowledge_semantics"]
+        assert semantics["condition"] == {"cpi_pressure": "inflation_pressure_up"}
+        assert "inflation_pressure_down" not in ev.source_kr_id
+        assert semantics["sample_count"] != 17
+
+    def test_no_kr_evidence_does_not_fabricate_semantics(self):
+        assessment = _make_assessment()
+        collection = EvidenceCollector().collect(assessment)
+        for ev in collection.items:
+            assert ev.metadata["provenance_type"] == "observation"
+            assert "knowledge_semantics" not in ev.metadata
+
+        kg = KnowledgeGraph()
+        kg.add_node(GraphNode(
+            node_id="KR-plain", node_type="knowledge_record",
+            properties={"event_type": "REAL_YIELD", "title": "no knowledge_id"},
+        ))
+        obs = _make_observation(instrument="US10Y Real Yield")
+        collection = EvidenceCollector(knowledge_graph=kg).collect(
+            _make_assessment([obs])
+        )
+        ev = collection.items[0]
+        assert "knowledge_semantics" not in ev.metadata
+
+    def test_serialization_roundtrip_preserves_semantics(self):
+        collection = self._collect_cpi()
+        ev = collection.items[0]
+        raw = json.dumps(collection.to_dict())
+        restored = EvidenceCollection.from_dict(json.loads(raw))
+        restored_ev = restored.items[0]
+        assert (
+            restored_ev.metadata["knowledge_semantics"]
+            == ev.metadata["knowledge_semantics"]
+        )
+        assert restored_ev.source_kr_id == ev.source_kr_id
+        assert restored_ev.source_kr_node_id == ev.source_kr_node_id
+
+    def test_evidence_scoring_behaviorally_unchanged(self):
+        obs = _make_observation(
+            obs_id="obs_scoring_cpi",
+            classification="Signal",
+            confidence=0.8,
+            instrument="Breakeven Inflation",
+            evidence_count=3,
+        )
+        assessment = _make_assessment([obs])
+
+        from knowledge.graph.builder import GraphBuilder
+
+        kg = GraphBuilder().build(_cpi_semantics_records())
+        with_graph = EvidenceCollector(knowledge_graph=kg).collect(
+            assessment,
+            regime_weight=0.8,
+            cpi_condition={"cpi_pressure": "inflation_pressure_up"},
+        ).items[0]
+        without_graph = EvidenceCollector().collect(assessment).items[0]
+
+        assert with_graph.base_confidence == without_graph.base_confidence
+        assert with_graph.composite_weight == without_graph.composite_weight
+        assert with_graph.temporal_recency == without_graph.temporal_recency
+        assert with_graph.bias == without_graph.bias
+        assert with_graph.event_type == without_graph.event_type
+        assert with_graph.condition == without_graph.condition
+        assert with_graph.mechanism == without_graph.mechanism
+
+    def test_reasoning_consumption_neutral_to_payload(self):
+        from evidence_reasoning.reasoner import EvidenceReasoner
+
+        collection = self._collect_cpi()
+        ev = collection.items[0]
+        plain = Evidence(
+            evidence_id=ev.evidence_id,
+            source_kr_id=ev.source_kr_id,
+            source_kr_node_id=ev.source_kr_node_id,
+            event_type=ev.event_type,
+            condition={"instrument": ev.condition["instrument"]},
+            bias=ev.bias,
+            base_confidence=ev.base_confidence,
+            regime_weight=ev.regime_weight,
+            composite_weight=ev.composite_weight,
+explanation=ev.explanation,
+            regime=ev.regime,
+            source_label=ev.source_label,
+            mechanism=ev.mechanism,
+            provenance=ev.provenance,
+            temporal_recency=ev.temporal_recency,
+            metadata={k: v for k, v in ev.metadata.items()
+                      if k != "knowledge_semantics"},
+        )
+        rich_set = EvidenceReasoner().reason(
+            EvidenceCollection.from_dict(collection.to_dict())
+        ).evidence_sets[0]
+        plain_set = EvidenceReasoner().reason(
+            EvidenceCollection(
+                collection_id="ec_neutral",
+                assessment_id=collection.assessment_id,
+                timestamp=collection.timestamp,
+                regime=collection.regime,
+                items=(plain,),
+            )
+        ).evidence_sets[0]
+        assert rich_set.set_id == plain_set.set_id
+        assert rich_set.bias == plain_set.bias
+        assert rich_set.net_institutional_weight == plain_set.net_institutional_weight
+        assert rich_set.consensus_score == plain_set.consensus_score
+        assert rich_set.confidence_contribution == plain_set.confidence_contribution

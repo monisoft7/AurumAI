@@ -22,12 +22,14 @@ def _make_thesis(
     support: float = 0.48,
     time_horizon_days: int = 90,
     explanation: str = "test thesis",
+    direction: str = "bullish",
+    regime: str = "NORMAL_GROWTH",
 ) -> InvestmentThesis:
     return InvestmentThesis(
         thesis_id=thesis_id,
-        direction="bullish",
+        direction=direction,
         supporting_set_ids=supporting_set_ids,
-        regime="NORMAL_GROWTH",
+        regime=regime,
         economic_mechanism=economic_mechanism,
         time_horizon_days=time_horizon_days,
         invalidating_conditions=invalidating,
@@ -212,12 +214,23 @@ def test_single_source_cleared_by_diverse_sources():
     assert "single_source_bias" not in [f.bias_name for f in review.findings]
 
 
-def test_regime_blindness_detected_when_regime_signal_ignored():
+def test_regime_blindness_detected_when_thesis_contradicts_regime():
+    """Correction 050: fires on thesis-direction opposition, not set conflict."""
+    thesis = _make_thesis(direction="bearish", regime="INFLATIONARY")
     assessment = _make_assessment(regime_conflict=True)
-    review = _review(assessment=assessment)
+    review = _review(update=_make_update(thesis=thesis), assessment=assessment)
     assert "regime_blindness" in [f.bias_name for f in review.findings]
     finding = next(f for f in review.findings if f.bias_name == "regime_blindness")
     assert finding.severity == "critical"
+
+
+def test_regime_blindness_not_fired_for_aligned_thesis_despite_set_conflict():
+    """Correction 050: aligned directional thesis is never regime-blind."""
+    thesis = _make_thesis(direction="bullish", regime="NORMAL_GROWTH")
+    assessment = _make_assessment(regime_conflict=True)
+    update = _make_update(thesis=thesis)
+    review = _review(update=update, assessment=assessment)
+    assert "regime_blindness" not in [f.bias_name for f in review.findings]
 
 
 def test_regime_blindness_cleared_when_action_follows_signal():
@@ -262,6 +275,8 @@ def test_severity_and_impact_aggregation():
         economic_mechanism="Inflation premium channel",
         weight=0.4,
         support=0.32,
+        direction="bearish",
+        regime="NORMAL_GROWTH",
     )
     confidence = _make_confidence(final_confidence=0.8)
     assessment = _make_assessment(regime_conflict=True)
@@ -392,8 +407,46 @@ def test_stage_integration():
             "confidence_engine": _make_confidence().to_dict(),
         },
     )
-    assert isinstance(result, BiasReview)
-    assert result.review_id == "bias-th_test.v2"
+    # Final Hardening (Group A): the stage returns a serialized payload whose
+    # primary review still round-trips through BiasReview.from_dict.
+    assert isinstance(result, dict)
+    review = BiasReview.from_dict(result)
+    assert review.review_id == "bias-th_test.v2"
+
+
+def test_stage_reviews_every_candidate():
+    # Final Hardening (Group A, D-04): with thesis_construction available the
+    # stage emits a per-candidate review map so the decision can be gated by
+    # the review of the thesis it was actually made on.
+    from thesis_construction.contracts import ThesisConstruction
+
+    thesis = _make_update().updated_thesis
+    construction = ThesisConstruction(
+        construction_id="c1",
+        reasoning_id="rsn-1",
+        assessment_id="cae-1",
+        timestamp=TIMESTAMP,
+        regime="NORMAL_GROWTH",
+        theses=(thesis,),
+        ranked_thesis_ids=(thesis.thesis_id,),
+        total_theses=1,
+        primary_thesis_id=thesis.thesis_id,
+    )
+    result = _bias_prevention(
+        {},
+        {
+            "thesis_update": _make_update().to_dict(),
+            "counter_evidence": _make_assessment().to_dict(),
+            "confidence_engine": _make_confidence().to_dict(),
+            "thesis_construction": construction.to_dict(),
+        },
+    )
+    assert "reviews_by_thesis" in result
+    assert set(result["reviews_by_thesis"]) == {thesis.thesis_id}
+    assert (
+        result["reviews_by_thesis"][thesis.thesis_id]["metadata"]["update_scope"]
+        is True
+    )
 
 
 def test_stage_missing_inputs_returns_error():
@@ -494,7 +547,7 @@ def test_decision_stage_consumes_clean_bias_review():
             "counter_evidence": assessment.to_dict(),
             "confidence_engine": _make_confidence().to_dict(),
         },
-    ).to_dict()
+    )
     result = _decision_engine({}, results)
     assert isinstance(result, InstitutionalDecision)
     assert result.decision == "BUY"
@@ -522,7 +575,7 @@ def test_decision_stage_gates_on_human_review():
             "counter_evidence": _make_assessment().to_dict(),
             "confidence_engine": confidence.to_dict(),
         },
-    ).to_dict()
+    )
     from thesis_construction.contracts import ThesisConstruction
 
     results["thesis_construction"] = ThesisConstruction(

@@ -452,13 +452,22 @@ class HistoricalReplayEngine:
         errors: list[str] = []
         synthetic_tmp: Path | None = None
 
-        # Synthetic CSV files for event types that have no historical file
+        # Final Hardening (D-03): synthetic fillers are generated into a
+        # temp workspace and consumed FROM THERE -- the repository data
+        # tree is never overwritten with synthetic files.  Files already
+        # listed in synthetic_data_index.json stay untouched on disk.
         synthetic_tmp = HistoricalReplayEngine._ensure_synthetic_csvs(self._data_dir)
+        synthetic_lookup: dict[str, Path] = {}
+        if synthetic_tmp is not None:
+            for event_type, spec in _SYNTHETIC_EVENTS.items():
+                candidate = synthetic_tmp / spec["csv"]
+                if candidate.exists():
+                    synthetic_lookup[spec["csv"]] = candidate
 
         for event_type in self._iter_event_types():
             spec = _BUILTIN_EVENTS.get(event_type) or _SYNTHETIC_EVENTS.get(event_type)
             csv_rel = spec["csv"]
-            csv_path = self._data_dir / csv_rel
+            csv_path = synthetic_lookup.get(csv_rel) or (self._data_dir / csv_rel)
             if not csv_path.exists():
                 errors.append(f"{event_type}: data file not found at {csv_path}")
                 continue
@@ -480,9 +489,11 @@ class HistoricalReplayEngine:
     @staticmethod
     def _ensure_synthetic_csvs(data_dir: Path) -> Path | None:
         """Write synthetic CSV files for event types that have no real data
-        file in ``data/``.  Returns the temp directory path if any files were
-        created, else ``None``."""
-        import shutil
+        file in ``data/`` into a TEMP WORKSPACE (never into the repository
+        data tree -- Final Hardening D-03).
+
+        Returns the temp directory path if any files were created, else
+        ``None``."""
         import tempfile
 
         tmp: Path | None = None
@@ -502,8 +513,6 @@ class HistoricalReplayEngine:
                 mean=spec["_synthetic_mean"],
                 std=spec["_synthetic_std"],
             )
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(str(fake_path), str(target))
         return tmp
 
     @staticmethod
@@ -746,6 +755,12 @@ class HistoricalReplayEngine:
                     asset="XAU/USD",
                     horizon=self._horizon,
                     release_calendar_path=str(calendar_path),
+                    # No-lookahead: news/FOMC channels are anchored to the
+                    # release timestamp, so articles or meetings published
+                    # after ``as_of`` are excluded and counted, never
+                    # silently folded into a historical decision.
+                    news_as_of=as_of.isoformat(),
+                    fomc_as_of=as_of.date().isoformat(),
                 )
                 release_elapsed = (time.perf_counter() - t0) * 1000.0
 
@@ -1579,6 +1594,10 @@ class _EvalReplayEngine:
                     release_calendar_path=str(calendar_path),
                     prebuilt_lessons_path=self._prebuilt_lessons_path,
                     yield_data_path=self._yield_data_path,
+                    # No-lookahead: mirror the release-by-release replay --
+                    # news/FOMC channels anchored to the release timestamp.
+                    news_as_of=as_of.isoformat(),
+                    fomc_as_of=as_of.date().isoformat(),
                 )
                 release_elapsed = (time.perf_counter() - t0) * 1000.0
 

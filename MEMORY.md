@@ -52,7 +52,7 @@ Priority: NORTH_STAR > CONSTITUTION > CURRENT_STATE > ROADMAP > PROJECT_STATUS >
 - **INSUFFICIENT_EVIDENCE** is produced by the normal orchestration flow when evidence is absent
 - **Lineage canonical path:** Decision → ReasoningChain → Evidence → KnowledgeRecord → Lesson → SourceData (traceable backward from any decision)
 - **LineageRegistry now wired in production pipeline** (`stages.py` creates and passes it to `InferencePipeline.run()`)
-- **Full reproducibility verified** — all IDs content-derived, no uuid4, RNG fixed seed 42
+- **Full reproducibility verified** — all IDs content-derived, no uuid4, RNG fixed seed 42. Scope qualifier: applies to the frozen legacy core; institutional W-stage runtime objects embedding uuid4/clock-time IDs were not part of this assessment (see `docs/audit/Architecture-Audit-A2.md` F-10).
 
 ## Architecture Overview (Updated)
 
@@ -101,10 +101,7 @@ Event + Context
 
 ## Test Status
 
-1593 tests collected — 1591 functional (2 legacy scaffolded test files fail collection:
-`test_dummy_event.py` and `test_test_event_event.py` reference removed scaffolding modules).
-Exclude with `py -3 -m pytest -q --ignore=tests/test_dummy_event.py --ignore=tests/test_test_event_event.py`.
-Full pass: 1537+ (verified).
+Dated snapshot 2026-08-09: 2759 tests collected, 0 collection errors (`py -3 -m pytest tests --collect-only`). The legacy scaffolded files `test_dummy_event.py` and `test_test_event_event.py` no longer exist; the earlier exclusion command and the "1537+ verified" claim refer to an older suite and are obsolete.
 
 ## Lineage Chain (Complete + Production Active)
 

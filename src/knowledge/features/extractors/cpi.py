@@ -30,7 +30,7 @@ class CPIFeatureExtractor(FeatureExtractor):
 
     def extract(self, raw: pd.DataFrame) -> FeatureSet:
         df = raw.copy()
-        df["previous_value"] = df["Value"].shift(1)
+        df["previous_value"] = df["Value"].shift(1).ffill()
         df["cpi_change_pct"] = (
             (df["Value"] - df["previous_value"]) / df["previous_value"]
         ) * 100.0

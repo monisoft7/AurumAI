@@ -50,6 +50,7 @@ class NewsItem:
     sentiment_confidence: float
     relevance_score: float
     topics: tuple[str, ...] = ()
+    provenance: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -60,10 +61,12 @@ class NewsItem:
             "sentiment_confidence": self.sentiment_confidence,
             "relevance_score": self.relevance_score,
             "topics": list(self.topics),
+            "provenance": dict(self.provenance) if self.provenance else None,
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> NewsItem:
+        prov = data.get("provenance")
         return cls(
             headline=str(data.get("headline", "")),
             source=str(data.get("source", "")),
@@ -72,6 +75,7 @@ class NewsItem:
             sentiment_confidence=float(data.get("sentiment_confidence", 0.0)),
             relevance_score=float(data.get("relevance_score", 0.0)),
             topics=tuple(data.get("topics", ())),
+            provenance=dict(prov) if isinstance(prov, dict) and prov else None,
         )
 
 
@@ -88,6 +92,10 @@ class RiskSnapshot:
     var_utilization_pct: float
     exposure: float
     timestamp: str = ""
+    # Final Hardening (D-03/D-11): explicit availability state.  When
+    # status != "ok", the numeric fields carry NO measured values.
+    status: str = "ok"
+    status_reason: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -102,6 +110,8 @@ class RiskSnapshot:
             "var_utilization_pct": self.var_utilization_pct,
             "exposure": self.exposure,
             "timestamp": self.timestamp,
+            "status": self.status,
+            "status_reason": self.status_reason,
         }
 
     @classmethod
@@ -118,6 +128,8 @@ class RiskSnapshot:
             var_utilization_pct=float(data.get("var_utilization_pct", 0.0)),
             exposure=float(data.get("exposure", 0.0)),
             timestamp=str(data.get("timestamp", "")),
+            status=str(data.get("status", "ok")),
+            status_reason=str(data.get("status_reason", "")),
         )
 
 
@@ -130,6 +142,11 @@ class PositioningSnapshot:
     open_interest_change_pct: float
     gofo_rate: float
     timestamp: str = ""
+    # Final Hardening (D-11): per-feed availability states so a failed fetch
+    # is never serialized as a fake "stable"/0.0 measurement.  Values:
+    # "available", "unavailable_no_data_source", "unavailable_fetch_failed",
+    # "unavailable_no_previous_state".
+    availability: dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -140,10 +157,12 @@ class PositioningSnapshot:
             "open_interest_change_pct": self.open_interest_change_pct,
             "gofo_rate": self.gofo_rate,
             "timestamp": self.timestamp,
+            "availability": dict(self.availability),
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> PositioningSnapshot:
+        availability = data.get("availability")
         return cls(
             cot_z_score=float(data.get("cot_z_score", 0.0)),
             cot_regime=str(data.get("cot_regime", "neutral")),
@@ -152,6 +171,7 @@ class PositioningSnapshot:
             open_interest_change_pct=float(data.get("open_interest_change_pct", 0.0)),
             gofo_rate=float(data.get("gofo_rate", 0.0)),
             timestamp=str(data.get("timestamp", "")),
+            availability=dict(availability) if isinstance(availability, dict) else {},
         )
 
 

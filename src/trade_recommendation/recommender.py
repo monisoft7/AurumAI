@@ -20,6 +20,15 @@ BASE_HOLDING_DAYS = 120
 
 SUPPORTING_DRIVER_MIN = 0.5
 
+# Final Hardening (Group C, D-01): market-anchored stop/target widths.
+# Stop  = 1.5 x ATR(14) from the reference price; target = 3.0 x ATR(14)
+# (tp1 halfway).  A 1.5R structural stop is the institutional convention the
+# conviction-heuristic widths could never provide: those fixed linear maps of
+# W12 conviction indices are unrelated to market volatility and are kept only
+# as an explicitly-labeled fallback when ATR is unavailable.
+ATR_STOP_MULTIPLE = 1.5
+ATR_TARGET_MULTIPLE = 3.0
+
 
 class RecommendationEngine:
     """Produces exactly one recommendation per decision; the action always
@@ -30,6 +39,9 @@ class RecommendationEngine:
         decision: InstitutionalDecision,
         instrument: str = DEFAULT_INSTRUMENT,
         reference_price: float | None = None,
+        reference_provenance: dict[str, Any] | None = None,
+        atr: float | None = None,
+        atr_provenance: dict[str, Any] | None = None,
     ) -> InstitutionalTradeRecommendation:
         prov = Provenance(
             created_at=datetime.now(timezone.utc).isoformat(),
@@ -45,7 +57,7 @@ class RecommendationEngine:
 
         action = decision.decision
         if action in {"BUY", "SELL"}:
-            levels = self._trading_levels(decision, action, reference_price)
+            levels = self._trading_levels(decision, action, reference_price, atr)
             risk_pct = min(
                 round(0.25 + 1.0 * decision.institutional_confidence, 2),
                 MAX_RISK_PCT,
@@ -82,11 +94,14 @@ class RecommendationEngine:
                 invalidation_conditions=decision.invalidation_conditions,
                 monitoring_conditions=self._monitoring_conditions(decision),
                 provenance_chain=tuple(chain),
-                metadata={
-                    "selected_thesis_id": decision.selected_thesis_id,
-                    "selected_scenario_id": decision.selected_scenario_id,
-                    "reference_price": reference_price,
-                },
+                metadata=self._metadata(
+                    decision,
+                    reference_price,
+                    reference_provenance,
+                    levels=levels,
+                    atr=atr,
+                    atr_provenance=atr_provenance,
+                ),
             )
 
         return InstitutionalTradeRecommendation(
@@ -110,35 +125,108 @@ class RecommendationEngine:
             invalidation_conditions=decision.invalidation_conditions,
             monitoring_conditions=self._monitoring_conditions(decision),
             provenance_chain=tuple(chain),
-            metadata={
-                "selected_thesis_id": decision.selected_thesis_id,
-                "selected_scenario_id": decision.selected_scenario_id,
-                "reference_price": reference_price,
-            },
+            metadata=self._metadata(
+                decision,
+                reference_price,
+                reference_provenance,
+                levels=None,
+                atr=atr,
+                atr_provenance=atr_provenance,
+            ),
         )
 
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _metadata(
+        decision: InstitutionalDecision,
+        reference_price: float | None,
+        reference_provenance: dict[str, Any] | None,
+        levels: dict[str, Any] | None = None,
+        atr: float | None = None,
+        atr_provenance: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        metadata: dict[str, Any] = {
+            "selected_thesis_id": decision.selected_thesis_id,
+            "selected_scenario_id": decision.selected_scenario_id,
+            "reference_price": reference_price,
+        }
+        if reference_provenance is not None:
+            metadata["reference_price_provenance"] = dict(reference_provenance)
+        if atr_provenance is not None:
+            metadata["atr_provenance"] = dict(atr_provenance)
+        if levels is None:
+            metadata["levels_basis"] = "not_applicable_no_levels"
+            return metadata
+        metadata["levels_basis"] = levels.get("basis", "unknown")
+        market_summary = levels.get("market_risk_summary")
+        if market_summary is not None:
+            metadata["market_risk_summary"] = market_summary
+        return metadata
+
     def _trading_levels(
         self,
         decision: InstitutionalDecision,
         action: str,
         reference_price: float | None,
+        atr: float | None = None,
     ) -> dict[str, Any]:
-        rr = decision.risk_reward_summary or {}
-        maximum_downside = float(rr.get("maximum_downside", 0.0))
-        expected_upside = float(rr.get("expected_upside", 0.0))
-        stop_pct = round(0.5 + 1.5 * maximum_downside, 2)
-        upside_pct = round(0.75 + 2.25 * expected_upside, 2)
-        tp1_pct = round(0.5 * upside_pct, 2)
+        market_anchor = (
+            reference_price is not None
+            and atr is not None
+            and atr > 0.0
+            and reference_price > 0.0
+        )
+        if market_anchor:
+            # Final Hardening (Group C, D-01): widths are market-derived --
+            # ATR(14) fractions of the reference price, not conviction maps.
+            stop_pct = round(ATR_STOP_MULTIPLE * atr / reference_price * 100.0, 2)
+            upside_pct = round(ATR_TARGET_MULTIPLE * atr / reference_price * 100.0, 2)
+            tp1_pct = round(0.5 * upside_pct, 2)
+            basis = "atr"
+        else:
+            rr = decision.risk_reward_summary or {}
+            maximum_downside = float(rr.get("maximum_downside", 0.0))
+            expected_upside = float(rr.get("expected_upside", 0.0))
+            stop_pct = round(0.5 + 1.5 * maximum_downside, 2)
+            upside_pct = round(0.75 + 2.25 * expected_upside, 2)
+            tp1_pct = round(0.5 * upside_pct, 2)
+            basis = "conviction_heuristic_fallback"
 
         def level(base_pct: float) -> str:
             if reference_price is not None:
                 return f"{reference_price * (1.0 + base_pct / 100.0):.2f}"
             prefix = "+" if base_pct >= 0.0 else "-"
             return f"anchor {prefix}{abs(base_pct)}%"
+
+        market_risk_summary: dict[str, Any] | None = None
+        if market_anchor:
+            if action == "BUY":
+                entry = reference_price
+                stop_level = reference_price * (1.0 - stop_pct / 100.0)
+                target_level = reference_price * (1.0 + upside_pct / 100.0)
+            else:
+                entry = reference_price
+                stop_level = reference_price * (1.0 + stop_pct / 100.0)
+                target_level = reference_price * (1.0 - upside_pct / 100.0)
+            risk_per_unit = abs(entry - stop_level)
+            reward_per_unit = abs(target_level - entry)
+            market_risk_summary = {
+                "basis": "atr",
+                "atr_14": round(float(atr), 6),
+                "entry": round(entry, 6),
+                "stop_loss": round(stop_level, 6),
+                "take_profit_2": round(target_level, 6),
+                "risk_per_unit": round(risk_per_unit, 6),
+                "reward_per_unit": round(reward_per_unit, 6),
+                "market_reward_risk_ratio": (
+                    round(reward_per_unit / risk_per_unit, 4)
+                    if risk_per_unit > 0
+                    else None
+                ),
+            }
 
         if action == "BUY":
             entry_zone = (level(0.0), level(ENTRY_BUFFER_PCT))
@@ -147,6 +235,8 @@ class RecommendationEngine:
                 "stop_loss": level(-stop_pct),
                 "take_profit_1": level(tp1_pct),
                 "take_profit_2": level(upside_pct),
+                "basis": basis,
+                "market_risk_summary": market_risk_summary,
             }
         entry_zone = (level(-ENTRY_BUFFER_PCT), level(0.0))
         return {
@@ -154,6 +244,8 @@ class RecommendationEngine:
             "stop_loss": level(stop_pct),
             "take_profit_1": level(-tp1_pct),
             "take_profit_2": level(-upside_pct),
+            "basis": basis,
+            "market_risk_summary": market_risk_summary,
         }
 
     @staticmethod

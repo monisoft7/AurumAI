@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import re
 
+from counter_evidence.detector import REGIME_EXPECTED_BIAS
 from confidence_engine.contracts import InstitutionalConfidence, ThesisConfidence
 from counter_evidence.contracts import CounterEvidenceAssessment
 from knowledge.integrity.provenance import Provenance
@@ -121,7 +122,51 @@ class BiasReviewer:
         assessment: CounterEvidenceAssessment,
         confidence: InstitutionalConfidence,
     ) -> BiasReview:
-        thesis = update.updated_thesis
+        return self._review_thesis(
+            thesis=update.updated_thesis,
+            update=update,
+            assessment=assessment,
+            confidence=confidence,
+            update_scope=True,
+        )
+
+    def review_candidates(
+        self,
+        construction,  # ThesisConstruction (typed loosely to avoid an import cycle)
+        update: ThesisUpdate,
+        assessment: CounterEvidenceAssessment,
+        confidence: InstitutionalConfidence,
+    ) -> dict[str, BiasReview]:
+        """Final Hardening (Group A, D-04): one review PER candidate thesis.
+
+        The decision must be gated by the review of the thesis it was
+        actually made on.  The W10-updated primary receives the full
+        update-cycle checks; every other candidate receives a scoped review
+        whose update-dependent checks (recency_bias, regime_blindness,
+        attribution_error) are out of scope -- the update cycle only touched
+        the primary -- and this scoping is declared in the review metadata.
+        """
+        updated_id = update.updated_thesis.thesis_id
+        reviews: dict[str, BiasReview] = {}
+        for thesis in construction.theses:
+            reviews[thesis.thesis_id] = self._review_thesis(
+                thesis=thesis,
+                update=update,
+                assessment=assessment,
+                confidence=confidence,
+                update_scope=(thesis.thesis_id == updated_id),
+            )
+        return reviews
+
+    def _review_thesis(
+        self,
+        thesis: InvestmentThesis,
+        update: ThesisUpdate,
+        assessment: CounterEvidenceAssessment,
+        confidence: InstitutionalConfidence,
+        *,
+        update_scope: bool,
+    ) -> BiasReview:
         tc = self._find_confidence(confidence, thesis.thesis_id)
         invalidating = tuple(thesis.invalidating_conditions)
         has_explicit = self._has_explicit_invalidating_conditions(invalidating)
@@ -139,16 +184,22 @@ class BiasReviewer:
         findings = [
             self._check_confirmation_bias(has_explicit, disconfirming, assessment),
             self._check_anchoring(has_explicit),
-            self._check_recency_bias(update, thesis, temporal_recency),
+            self._check_recency_bias(update, thesis, temporal_recency)
+            if update_scope
+            else None,
             self._check_narrative_bias(thesis, evidence_strength),
             self._check_overconfidence(final_confidence, evidence_strength, tc),
             self._check_single_source_bias(thesis, assessment),
-            self._check_regime_blindness(update, assessment),
+            self._check_regime_blindness(thesis, update, assessment)
+            if update_scope
+            else None,
             self._check_base_rate_neglect(thesis),
-            self._check_attribution_error(update),
+            self._check_attribution_error(update) if update_scope else None,
             self._check_groupthink(thesis, assessment),
             self._check_false_precision(thesis),
-            self._check_this_time_is_different(update, thesis),
+            self._check_this_time_is_different(
+                update if update_scope else None, thesis
+            ),
         ]
         findings = [f for f in findings if f is not None]
 
@@ -190,6 +241,7 @@ class BiasReviewer:
             metadata={
                 "created_by": self.created_by,
                 "findings_count": len(findings),
+                "update_scope": update_scope,
             },
         )
 
@@ -321,23 +373,33 @@ class BiasReviewer:
 
     def _check_regime_blindness(
         self,
+        thesis: InvestmentThesis,
         update: ThesisUpdate,
         assessment: CounterEvidenceAssessment,
     ) -> BiasFinding | None:
-        regime_signal = assessment.regime_conflict or update.trigger_type == "regime_break"
-        if not regime_signal or update.action not in ("no_change", "scale", "hedge"):
+        # Correction 050: regime blindness is THESIS-DIRECTIONAL.  It fires
+        # only when the reviewed thesis itself is directional and CONTRADICTS
+        # REGIME_EXPECTED_BIAS[regime] while the update leaves the position
+        # in place (no_change / scale / hedge).  Set-level evidence conflict
+        # alone (W7.regime_conflict) no longer implicates an aligned or
+        # neutral thesis; validated offline in Traces 050-A/050-B
+        # (current firing 8/8 candidates -> directional firing 3/8).
+        direction = thesis.direction
+        if direction not in ("bullish", "bearish"):
             return None
-        severity = (
-            "critical"
-            if assessment.regime_conflict and update.action == "no_change"
-            else "high"
-        )
+        expected_bias = REGIME_EXPECTED_BIAS.get(thesis.regime)
+        if expected_bias not in ("bullish", "bearish") or direction == expected_bias:
+            return None
+        if update.action not in ("no_change", "scale", "hedge"):
+            return None
+        severity = "critical" if update.action == "no_change" else "high"
         return BiasFinding(
             bias_name="regime_blindness",
             severity=severity,
             evidence=(
-                f"regime signal present (regime_conflict={assessment.regime_conflict}, "
-                f"trigger={update.trigger_type}) but update action is {update.action}"
+                f"thesis direction {direction} contradicts expected regime bias "
+                f"{expected_bias} for regime {thesis.regime} while update "
+                f"action is {update.action}"
             ),
             required_action="Reassess the thesis under the new regime before any action",
             confidence_impact=SEVERITY_IMPACT[severity],
@@ -415,10 +477,12 @@ class BiasReviewer:
 
     def _check_this_time_is_different(
         self,
-        update: ThesisUpdate,
+        update: ThesisUpdate | None,
         thesis: InvestmentThesis,
     ) -> BiasFinding | None:
-        text = self._thesis_text(thesis) + " " + (update.change_summary or "")
+        text = self._thesis_text(thesis) + " " + (
+            (update.change_summary or "") if update is not None else ""
+        )
         if not self._contains_any(text, DISCONTINUITY_KEYWORDS):
             return None
         if self._contains_any(text, HISTORICAL_ANALOGUE_KEYWORDS):
@@ -450,10 +514,14 @@ class BiasReviewer:
         confidence: InstitutionalConfidence,
         thesis_id: str,
     ) -> ThesisConfidence | None:
+        # Final Hardening (Group A): removed the theses_confidence[0]
+        # fallback -- reviewing a thesis with ANOTHER thesis's confidence
+        # produced dishonest overconfidence findings.  A missing confidence
+        # entry now yields None and the checks treat it as unknown.
         for tc in confidence.theses_confidence:
             if tc.thesis_id == thesis_id:
                 return tc
-        return confidence.theses_confidence[0] if confidence.theses_confidence else None
+        return None
 
     @staticmethod
     def _contains_any(text: str, keywords: tuple[str, ...]) -> bool:

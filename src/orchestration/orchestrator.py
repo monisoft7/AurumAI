@@ -39,6 +39,7 @@ from orchestration.stages import (
     _risk_reward_validation,
     _scenario_generation,
     _signal_assessment,
+    _technical_research,
     _thesis_construction,
     _thesis_update,
     _trade_recommendation,
@@ -234,7 +235,9 @@ class InstitutionalOrchestrator:
 
         orch.register(PipelineJob(
             job_id="pre_market_scan",
-            dependencies=("regime_diagnosis",),
+            # Sprint 058: W3 consumes the ingest_news stage output (single
+            # ingestion, full provenance) -- the dependency is real.
+            dependencies=("regime_diagnosis", "ingest_news"),
             fn=orch._bind(_pre_market_scan),
             cache_ttl=1800,
             checkpoint=True,
@@ -282,7 +285,10 @@ class InstitutionalOrchestrator:
 
         orch.register(PipelineJob(
             job_id="thesis_construction",
-            dependencies=("evidence_reasoning", "counter_evidence"),
+            # Final Hardening (Group F): technical_research is a real
+            # dependency -- its non-scoring research context (confirmations /
+            # contradictions / structure) rides on each candidate thesis.
+            dependencies=("evidence_reasoning", "counter_evidence", "technical_research"),
             fn=orch._bind(_thesis_construction),
             cache_ttl=600,
             checkpoint=True,
@@ -306,7 +312,7 @@ class InstitutionalOrchestrator:
 
         orch.register(PipelineJob(
             job_id="scenario_generation",
-            dependencies=("thesis_construction",),
+            dependencies=("thesis_construction", "thesis_update"),
             fn=orch._bind(_scenario_generation),
             cache_ttl=600,
             checkpoint=True,
@@ -322,7 +328,11 @@ class InstitutionalOrchestrator:
 
         orch.register(PipelineJob(
             job_id="bias_prevention",
-            dependencies=("thesis_update", "counter_evidence", "confidence_engine"),
+            # Final Hardening (Group A): thesis_construction is a real
+            # dependency now -- the stage reviews every candidate thesis so
+            # the decision can be gated by the review of the thesis it was
+            # actually made on.
+            dependencies=("thesis_construction", "thesis_update", "counter_evidence", "confidence_engine"),
             fn=orch._bind(_bias_prevention),
             cache_ttl=600,
             checkpoint=True,
@@ -346,6 +356,14 @@ class InstitutionalOrchestrator:
             job_id="trade_recommendation",
             dependencies=("decision_engine",),
             fn=orch._bind(_trade_recommendation),
+            cache_ttl=600,
+            checkpoint=True,
+        ))
+
+        orch.register(PipelineJob(
+            job_id="technical_research",
+            dependencies=("build_legacy_pipeline",),
+            fn=orch._bind(_technical_research),
             cache_ttl=600,
             checkpoint=True,
         ))
@@ -408,7 +426,10 @@ class InstitutionalOrchestrator:
 
         orch.register(PipelineJob(
             job_id="build_context",
-            dependencies=("forecast", "ingest_news"),
+            # Sprint 058: the decorative ingest_news edge was removed --
+            # _build_context never consumed it.  The real news consumer is
+            # pre_market_scan (see above).
+            dependencies=("forecast",),
             fn=orch._bind(_build_context),
             cache_ttl=600,
             checkpoint=True,
@@ -441,8 +462,12 @@ class InstitutionalOrchestrator:
 
         orch.register(PipelineJob(
             job_id="finalize",
+            # Final Hardening (Group D): trade_recommendation is a real
+            # finalize dependency -- the executable levels are part of the
+            # final artifact, not an in-memory leaf.
             dependencies=("risk_gate", "position_sizing", "forecast_confidence",
-                          "forecast_validation", "decision_engine"),
+                          "forecast_validation", "decision_engine",
+                          "trade_recommendation"),
             fn=orch._bind(_finalize),
             cache_ttl=None,
             checkpoint=True,

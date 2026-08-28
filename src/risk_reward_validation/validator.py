@@ -1,5 +1,15 @@
 """W12 Institutional Risk / Reward Validation: validates every W12 scenario
-and classifies it as acceptable, borderline, or reject."""
+and classifies it as acceptable, borderline, or reject.
+
+Correction 052-A truthfulness: every metric produced here is a
+deterministic function of the scenario conviction proxy
+(``scenario_confidence`` = W8 institutional_support), direction alignment,
+regime path and horizon.  No market price, realized/forecast volatility,
+ATR, VaR/CVaR, drawdown, scenario price or expected move enters this
+module; the legacy field names (tail_risk, volatility_impact,
+liquidity_risk, maximum_downside) are retained for contract stability but
+carry conviction-derived indices, not market-risk measurements.
+"""
 
 from __future__ import annotations
 
@@ -70,7 +80,19 @@ class RiskRewardValidator:
         scenario: InstitutionalScenario,
         provenance: Provenance,
     ) -> InstitutionalRiskValidation:
-        conf = float(scenario.confidence_inputs.get("final_confidence", 0.0))
+        # Correction 052-A: read the truthful scenario-confidence key.  The
+        # deprecated "final_confidence" fallback exists ONLY for scenarios
+        # constructed from pre-052-A serialized payloads; it can never alter
+        # numerics for ScenarioGenerator output, which always writes the new
+        # key.  All quantities below are deterministic conviction-derived
+        # functions of that proxy plus direction/regime/horizon -- no
+        # market-risk observation enters this validator.
+        conf = float(
+            scenario.confidence_inputs.get(
+                "scenario_confidence",
+                scenario.confidence_inputs.get("final_confidence", 0.0),
+            )
+        )
         unc = float(scenario.confidence_inputs.get("remaining_uncertainty", 1.0))
         reliability = str(
             scenario.confidence_inputs.get("reliability_category", "very_low")
@@ -154,6 +176,16 @@ class RiskRewardValidator:
                     "scenario_label", scenario.scenario_type
                 ),
                 "probability": scenario.probability,
+                # Correction 052-A truthfulness: these metrics are
+                # deterministic functions of the W12 conviction proxy
+                # (institutional_support), direction alignment, regime path
+                # and horizon -- they are NOT market-risk measurements.
+                "metrics_basis": "conviction_proxy",
+                "derivation": (
+                    "deterministic function of scenario_confidence "
+                    "(institutional_support), direction, regime_path, "
+                    "time_horizon_days; no market-risk inputs"
+                ),
             },
         )
 
@@ -206,6 +238,7 @@ class RiskRewardValidator:
             f"status={status}",
             f"scenario={scenario.scenario_type}",
             f"direction={scenario.expected_direction}",
+            "basis=conviction_proxy (no market-risk inputs)",
             f"expected_reward={expected_reward}",
             f"expected_risk={expected_risk}",
             f"risk_reward_ratio={risk_reward_ratio}",

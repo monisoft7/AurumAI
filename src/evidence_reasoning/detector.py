@@ -12,7 +12,11 @@ class EvidenceDetector:
 
     For a group of evidence items with the same event_type:
     - Supporting: bias matches the majority bias of the set
-    - Contradicting: bias is the opposite of majority bias
+    - Contradicting: bias is the opposite of majority bias (or mixed against a
+      directional majority)
+    - Uninformative: neutral bias carries no proven directional polarity
+      (Correction 060, aligned with News Intelligence 058 semantics), so it
+      is neither supporting nor contradicting -- it never votes either way
     - Correlated: evidence from the same instrument across different event_types
     """
 
@@ -51,8 +55,12 @@ class EvidenceDetector:
                 supporting_ids.append(ev.evidence_id)
             elif opposite and ev.bias == opposite:
                 contradicting_ids.append(ev.evidence_id)
-            elif majority_bias in {"bullish", "bearish"} and ev.bias in {"neutral", "mixed"}:
+            elif majority_bias in {"bullish", "bearish"} and ev.bias == "mixed":
                 contradicting_ids.append(ev.evidence_id)
+            elif ev.bias == "neutral":
+                # Correction 060: neutral = uninformative.  No directional
+                # vote in either direction; excluded from both id lists.
+                pass
             else:
                 supporting_ids.append(ev.evidence_id)
 

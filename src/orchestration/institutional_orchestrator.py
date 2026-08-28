@@ -29,6 +29,7 @@ from orchestration.stages import (
     _risk_reward_validation,
     _scenario_generation,
     _signal_assessment,
+    _technical_research,
     _thesis_construction,
     _thesis_update,
     _trade_recommendation,
@@ -67,5 +68,6 @@ __all__ = [
     "_risk_reward_validation",
     "_decision_engine",
     "_trade_recommendation",
+    "_technical_research",
     "_finalize",
 ]

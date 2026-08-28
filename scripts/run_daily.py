@@ -4,16 +4,22 @@ Runs the complete daily institutional workflow:
 
 1. Execute ``run.py`` (the runtime entry point) and wait for completion.
 2. Generate the Institutional Daily Report from the fresh run outputs.
+2b. Build the daily operational summary artifact
+    (``daily_operational_summary.json``) from the existing run artifacts
+    (additive measurement layer; failure never affects the pipeline).
 3. Verify the run: exit code 0, ``institutional_report.md`` exists, and a
    new immutable record was appended to the run registry.
 4. Send the report to Telegram (output channel only; failures never affect
    the pipeline).
-5. Print a concise execution summary and exit with a proper exit code.
+5. Evaluate elapsed outcome horizons across all runs via
+   ``scripts/evaluate_outcome.py --all-pending`` (additive evaluation layer
+   only; failures never affect the pipeline result or exit code).
+6. Print a concise execution summary and exit with a proper exit code.
 
 This file is the scheduling/runtime layer only. It executes the existing
-``run.py`` and ``scripts/generate_institutional_report.py`` as subprocesses;
-it does not modify any workflow, algorithm, contract, report, or registry
-behavior.
+``run.py``, ``scripts/generate_institutional_report.py`` and
+``scripts/evaluate_outcome.py`` as subprocesses; it does not modify any
+workflow, algorithm, contract, report, or registry behavior.
 
 Usage:
     python scripts/run_daily.py
@@ -40,12 +46,20 @@ if str(SRC) not in sys.path:
 
 from runtime_registry.outputs import latest_run_dir  # noqa: E402
 
+from operational_summary import (  # noqa: E402
+    SUMMARY_FILENAME,
+    build_summary,
+    format_telegram_compact,
+    write_summary,
+)
+
 EXIT_OK = 0
 EXIT_RUN_FAILED = 1
 EXIT_CONFIG_ERROR = 2
 
 PIPELINE_SCRIPT = ROOT / "run.py"
 REPORT_SCRIPT = ROOT / "scripts" / "generate_institutional_report.py"
+EVALUATE_SCRIPT = ROOT / "scripts" / "evaluate_outcome.py"
 REGISTRY_PATH = ROOT / "runtime" / "run_registry.jsonl"
 
 
@@ -103,8 +117,42 @@ def _refresh_gold() -> None:
         )
 
 
+def _refresh_yields() -> None:
+    """Warm FRED yield caches before the pipeline (fail-safe, idempotent).
+
+    Mirrors ``run.py``'s pre-run step because ``run.py`` is invoked with
+    ``--no-refresh`` from this scheduler.
+    """
+    try:
+        from connectors.fred_client import (
+            FRED_DAILY_SERIES_MAX_AGE_DAYS,
+            FredClient,
+        )
+
+        client = FredClient()
+        for series_id in ("DFII10", "DGS10", "T5YIE"):
+            client.get_series(
+                series_id, use_cache=True,
+                max_age_days=FRED_DAILY_SERIES_MAX_AGE_DAYS,
+            )
+        for series_id, record in client.freshness_report().items():
+            print(
+                f"run_daily: FRED freshness {series_id}: status="
+                f"{record.get('status')} cache_last_date="
+                f"{record.get('cache_last_date')} cache_age_days="
+                f"{record.get('cache_age_days')}"
+            )
+    except Exception as exc:  # pragma: no cover - defensive
+        print(
+            f"run_daily: FRED yield refresh failed ({exc}); "
+            "proceeding with cached data",
+            file=sys.stderr,
+        )
+
+
 def _run_pipeline() -> int:
     _refresh_gold()
+    _refresh_yields()
     return subprocess.run(
         [sys.executable, str(PIPELINE_SCRIPT), "--no-refresh"],
         cwd=str(ROOT),
@@ -134,6 +182,19 @@ def _load_summary(run_dir: Path) -> dict[str, Any]:
     return summary if isinstance(summary, dict) else {}
 
 
+def _build_summary_artifact(run_dir: Path) -> tuple[bool, str]:
+    """Build and write the daily operational summary (additive, fail-safe).
+
+    Reads only existing run artifacts; never mutates them.  A failure here
+    never affects the pipeline result or the daily exit code.
+    """
+    try:
+        path = write_summary(run_dir, ROOT)
+        return True, str(path)
+    except Exception as exc:  # pragma: no cover - defensive
+        return False, f"failed (pipeline unaffected): {exc}"
+
+
 def _send_telegram(run_dir: Path) -> tuple[bool, str]:
     """Send the report to Telegram. Never raises; never affects the pipeline."""
     sys.path.insert(0, str(ROOT / "src"))
@@ -149,8 +210,74 @@ def _send_telegram(run_dir: Path) -> tuple[bool, str]:
         return False, f"failed (pipeline unaffected): {exc}"
 
 
-def _print_summary(run_dir: Path, rc: int, report_ok: bool,
-                   registry_ok: bool, telegram_note: str, success: bool) -> None:
+def _send_telegram_compact(run_dir: Path) -> tuple[bool, str]:
+    """Send the compact daily snapshot to Telegram (fail-safe, additive).
+
+    Reuses the existing notifier's ``send_message`` primitive; no sender
+    rebuild.  Sends no raw JSON -- only the compact phone-readable text.
+    """
+    summary_path = run_dir / SUMMARY_FILENAME
+    if not summary_path.exists():
+        return False, "compact snapshot skipped (summary artifact missing)"
+    summary = _load_json(summary_path)
+    if not isinstance(summary, dict):
+        return False, "compact snapshot skipped (summary artifact unreadable)"
+    try:
+        from notifications.telegram_notifier import (
+            TelegramConfigurationError,
+            escape_markdown_v2,
+            load_credentials,
+            send_message,
+        )
+
+        token, chat_id = load_credentials(ROOT)
+        text = escape_markdown_v2(format_telegram_compact(summary))
+        send_message(token, chat_id, text)
+        return True, "compact snapshot sent"
+    except TelegramConfigurationError:
+        return False, "compact snapshot skipped (Telegram not configured)"
+    except Exception as exc:  # pragma: no cover - defensive
+        return False, f"compact snapshot failed (pipeline unaffected): {exc}"
+
+
+def _load_json(path: Path) -> dict[str, Any] | None:
+    try:
+        parsed = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _evaluate_outcomes() -> tuple[bool, str]:
+    """Evaluate elapsed outcome horizons across all runs (fail-safe).
+
+    Invokes the existing evaluator's ``--all-pending`` sweep as a
+    subprocess. Never raises and never affects the pipeline result or
+    the daily exit code.
+    """
+    if not EVALUATE_SCRIPT.exists():
+        return False, "evaluator script missing (pipeline unaffected)"
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(EVALUATE_SCRIPT), "--all-pending"],
+            cwd=str(ROOT),
+            capture_output=True,
+            text=True,
+            timeout=600,
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        return False, f"failed (pipeline unaffected): {exc}"
+    if proc.returncode != 0:
+        detail = (proc.stderr or "").strip().splitlines()
+        reason = detail[-1] if detail else f"exit code {proc.returncode}"
+        return False, f"failed ({reason}; pipeline unaffected)"
+    lines = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+    return True, lines[-1] if lines else "ok"
+
+
+def _print_summary(run_dir: Path, rc: int, report_ok: bool, registry_ok: bool,
+                   telegram_note: str, telegram_compact_note: str,
+                   success: bool) -> None:
     summary = _load_summary(run_dir)
     decision = summary.get("decision", "n/a")
     confidence = summary.get("decision_confidence")
@@ -171,6 +298,7 @@ def _print_summary(run_dir: Path, rc: int, report_ok: bool,
     print(f"Verification       : exit_code={rc == 0}, report={report_ok}, "
           f"registry={registry_ok}")
     print(f"Telegram           : {telegram_note}")
+    print(f"Telegram compact   : {telegram_compact_note}")
     print(f"Result             : {'SUCCESS' if success else 'FAILED'}")
     print("=" * 60)
 
@@ -196,6 +324,9 @@ def main(argv: list[str] | None = None) -> int:
     run_dir = _resolve_run_dir(run_date) or _run_dir(run_date)
 
     if rc == 0:
+        summary_ok, summary_note = _build_summary_artifact(run_dir)
+        print(f"Operational summary : {summary_note}")
+
         report_rc = _generate_report(run_dir)
         report_ok = report_rc == 0 and _report_exists(run_dir)
 
@@ -210,9 +341,23 @@ def main(argv: list[str] | None = None) -> int:
     success = rc == 0 and report_ok and registry_ok
 
     telegram_note = "skipped (run not verified)"
+    telegram_compact_note = "skipped (run not verified)"
     if success:
         telegram_sent, telegram_note = _send_telegram(run_dir)
-    _print_summary(run_dir, rc, report_ok, registry_ok, telegram_note, success)
+        _, telegram_compact_note = _send_telegram_compact(run_dir)
+
+    evaluation_ok, evaluation_note = _evaluate_outcomes()
+    print(f"Outcome evaluation : {evaluation_note}")
+
+    # Refresh the operational summary after the outcome sweep so the
+    # stored daily artifact reflects the post-evaluation outcome and
+    # calibration state (rewrites only the summary file itself).
+    if success:
+        _, summary_refresh_note = _build_summary_artifact(run_dir)
+        print(f"Summary refresh    : {summary_refresh_note}")
+
+    _print_summary(run_dir, rc, report_ok, registry_ok, telegram_note,
+                   telegram_compact_note, success)
 
     return EXIT_OK if success else EXIT_RUN_FAILED
 

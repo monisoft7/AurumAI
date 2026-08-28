@@ -48,6 +48,7 @@ def full_context() -> ForecastContext:
         context_timestamp="2026-07-18T12:00:00+00:00",
         source_variable="CPI",
         data_date_range=("2020-01-01", "2026-06-30"),
+        institutional_regime="NORMAL_GROWTH",
     )
 
 
@@ -94,6 +95,7 @@ class TestForecastContext:
         assert full_context.context_timestamp == "2026-07-18T12:00:00+00:00"
         assert full_context.source_variable == "CPI"
         assert full_context.data_date_range == ("2020-01-01", "2026-06-30")
+        assert full_context.institutional_regime == "NORMAL_GROWTH"
 
     def test_fields_default_to_none(self) -> None:
         ctx = ForecastContext(
@@ -145,6 +147,7 @@ class TestSerialization:
             "current_regime", "regime_confidence", "recent_events",
             "news_mood", "news_confidence", "fomc_mood", "fomc_confidence",
             "context_timestamp", "source_variable", "data_date_range",
+            "institutional_regime",
         }
         assert set(d) == expected
 
@@ -199,6 +202,7 @@ class TestSerialization:
         assert ctx.context_timestamp == "12345"
         assert ctx.source_variable == "42"
         assert ctx.data_date_range == ("2020-01", "2026-06")
+        assert ctx.institutional_regime is None
 
 
 # ---------------------------------------------------------------------------
@@ -477,3 +481,117 @@ class TestRegimeConfidence:
         # Latest label is CONTRACTION; confidence is frequency of that label
         assert ctx.current_regime == "CONTRACTION"
         assert ctx.regime_confidence == 0.2
+
+
+# ---------------------------------------------------------------------------
+# Correction 031 — forecast/institutional regime traceability
+# ---------------------------------------------------------------------------
+
+
+class TestInstitutionalRegimeTranslation:
+
+    @pytest.mark.parametrize(
+        "raw, institutional",
+        [
+            ("LATE_CYCLE", "INFLATIONARY"),
+            ("EXPANSION", "NORMAL_GROWTH"),
+            ("RECOVERY", "STAGFLATIONARY"),
+            ("CONTRACTION", "DEFLATIONARY_CRISIS"),
+        ],
+    )
+    def test_mapping(self, raw: str, institutional: str, sample_data: pd.DataFrame) -> None:
+        builder = ForecastContextBuilder(regime_detector=_MockRegimeDetector(raw))
+        ctx = builder.build(source_variable="CPI", training_data=sample_data, _timestamp=_PINNED_TS)
+        assert ctx.current_regime == raw
+        assert ctx.institutional_regime == institutional
+
+    def test_unknown_raw_regime_is_none(self, sample_data: pd.DataFrame) -> None:
+        builder = ForecastContextBuilder(regime_detector=_MockRegimeDetector("SOMETHING_ELSE"))
+        ctx = builder.build(source_variable="CPI", training_data=sample_data, _timestamp=_PINNED_TS)
+        assert ctx.current_regime == "SOMETHING_ELSE"
+        assert ctx.institutional_regime is None
+
+    def test_no_detector_is_none(self, sample_data: pd.DataFrame) -> None:
+        builder = ForecastContextBuilder()
+        ctx = builder.build(source_variable="CPI", training_data=sample_data)
+        assert ctx.current_regime is None
+        assert ctx.institutional_regime is None
+
+    def test_round_trip_preserves_both_fields(self, sample_data: pd.DataFrame) -> None:
+        builder = ForecastContextBuilder(regime_detector=_MockRegimeDetector("LATE_CYCLE"))
+        ctx = builder.build(source_variable="CPI", training_data=sample_data, _timestamp=_PINNED_TS)
+        restored = ForecastContext.from_dict(ctx.to_dict())
+        assert restored == ctx
+        assert restored.current_regime == "LATE_CYCLE"
+        assert restored.institutional_regime == "INFLATIONARY"
+
+    def test_deterministic_repeated_construction(self, sample_data: pd.DataFrame) -> None:
+        builder = ForecastContextBuilder(regime_detector=_MockRegimeDetector("RECOVERY"))
+        ctx1 = builder.build(source_variable="CPI", training_data=sample_data, _timestamp=_PINNED_TS)
+        ctx2 = builder.build(source_variable="CPI", training_data=sample_data, _timestamp=_PINNED_TS)
+        assert ctx1 == ctx2
+        assert ctx1.institutional_regime == "STAGFLATIONARY"
+        assert ctx2.institutional_regime == "STAGFLATIONARY"
+
+    def test_finalize_context_exposes_both_fields(self, sample_data: pd.DataFrame) -> None:
+        import json
+
+        builder = ForecastContextBuilder(regime_detector=_MockRegimeDetector("LATE_CYCLE"))
+        ctx = builder.build(source_variable="CPI", training_data=sample_data, _timestamp=_PINNED_TS)
+        payload = json.dumps(ctx.to_dict())
+        d = json.loads(payload)
+        assert d["current_regime"] == "LATE_CYCLE"
+        assert d["institutional_regime"] == "INFLATIONARY"
+
+
+class TestForecastRiskBoundaryPreserved:
+
+    def test_overlay_receives_raw_4_state_current_regime(self, sample_data: pd.DataFrame) -> None:
+        from forecasting.decision_gate import RegimeRiskOverlay
+
+        builder = ForecastContextBuilder(regime_detector=_MockRegimeDetector("LATE_CYCLE"))
+        ctx = builder.build(source_variable="CPI", training_data=sample_data, _timestamp=_PINNED_TS)
+        overlay = RegimeRiskOverlay()
+        regime_info = overlay.evaluate(ctx.current_regime, ctx.regime_confidence)
+        assert ctx.current_regime == "LATE_CYCLE"
+        assert ctx.institutional_regime == "INFLATIONARY"
+        assert regime_info["regime"] == "LATE_CYCLE"
+
+    @pytest.mark.parametrize(
+        "raw, multiplier",
+        [
+            ("EXPANSION", 1.0),
+            ("LATE_CYCLE", 0.75),
+            ("RECOVERY", 0.75),
+            ("CONTRACTION", 0.50),
+        ],
+    )
+    def test_risk_multiplier_unchanged(
+        self, raw: str, multiplier: float, sample_data: pd.DataFrame
+    ) -> None:
+        from forecasting.decision_gate import RegimeRiskOverlay
+
+        builder = ForecastContextBuilder(regime_detector=_MockRegimeDetector(raw))
+        ctx = builder.build(source_variable="CPI", training_data=sample_data, _timestamp=_PINNED_TS)
+        regime_info = RegimeRiskOverlay().evaluate(ctx.current_regime, ctx.regime_confidence)
+        assert regime_info["base_multiplier"] == multiplier
+        assert regime_info["adjusted_multiplier"] == round(multiplier * ctx.regime_confidence, 6)
+
+    def test_forecast_reasoning_still_uses_raw_current_regime(self, sample_data: pd.DataFrame) -> None:
+        from forecasting.evidence import ForecastEvidenceBuilder
+
+        builder = ForecastContextBuilder(regime_detector=_MockRegimeDetector("LATE_CYCLE"))
+        ctx = builder.build(source_variable="CPI", training_data=sample_data, _timestamp=_PINNED_TS)
+        supporting = ForecastEvidenceBuilder._build_supporting_context(ctx)
+        assert supporting["current_regime"] == "LATE_CYCLE"
+        assert "institutional_regime" not in supporting
+
+    def test_no_numeric_changes(self, sample_data: pd.DataFrame) -> None:
+        builder = ForecastContextBuilder(regime_detector=_MockRegimeDetector("LATE_CYCLE"))
+        ctx = builder.build(source_variable="CPI", training_data=sample_data, _timestamp=_PINNED_TS)
+        assert ctx.regime_confidence == 1.0
+        d = ctx.to_dict()
+        restored = ForecastContext.from_dict(d)
+        assert restored.regime_confidence == ctx.regime_confidence
+        assert restored.current_regime == ctx.current_regime
+        assert ctx.to_dict()["regime_confidence"] == d["regime_confidence"]

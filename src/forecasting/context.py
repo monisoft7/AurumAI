@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
+from knowledge.regime.institutional_regime_detector import ECONOMIC_REGIME_LABELS
+
 if TYPE_CHECKING:
     from knowledge.regime.macro_regime_detector import MacroRegimeDetector
     from nlp.news_sentiment import NewsSentimentAnalyzer
@@ -33,6 +35,7 @@ class ForecastContext:
     context_timestamp: str
     source_variable: str
     data_date_range: tuple[str, str]
+    institutional_regime: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -55,6 +58,7 @@ class ForecastContext:
             "context_timestamp": self.context_timestamp,
             "source_variable": self.source_variable,
             "data_date_range": list(self.data_date_range),
+            "institutional_regime": self.institutional_regime,
         }
 
     @classmethod
@@ -72,6 +76,9 @@ class ForecastContext:
         ddr = data.get("data_date_range", ["", ""])
         if isinstance(ddr, list):
             ddr = (str(ddr[0]) if len(ddr) > 0 else "", str(ddr[1]) if len(ddr) > 1 else "")
+        institutional = data.get("institutional_regime")
+        if institutional is not None:
+            institutional = str(institutional)
         return cls(
             current_regime=data.get("current_regime"),
             regime_confidence=float(data.get("regime_confidence", 0.0)),
@@ -83,6 +90,7 @@ class ForecastContext:
             context_timestamp=str(data.get("context_timestamp", "")),
             source_variable=str(data.get("source_variable", "")),
             data_date_range=ddr,
+            institutional_regime=institutional,
         )
 
 
@@ -129,20 +137,26 @@ class ForecastContextBuilder:
             context_timestamp=_timestamp or datetime.datetime.now(datetime.timezone.utc).isoformat(),
             source_variable=source_variable,
             data_date_range=date_range,
+            institutional_regime=regime.get("institutional_regime"),
         )
 
     def _resolve_regime(self) -> dict[str, Any]:
         if self._regime_detector is None:
-            return {"label": None, "confidence": 0.0}
+            return {"label": None, "confidence": 0.0, "institutional_regime": None}
         labels = self._regime_detector.regime_labels
         if labels is None or labels.empty:
-            return {"label": None, "confidence": 0.0}
+            return {"label": None, "confidence": 0.0, "institutional_regime": None}
         latest_label = labels.iloc[-1]
         regime_counts = labels.value_counts()
         total = regime_counts.sum()
         latest_count = regime_counts.get(latest_label, 0)
         confidence = round(latest_count / total, 4) if total > 0 else 0.0
-        return {"label": str(latest_label), "confidence": confidence}
+        label = str(latest_label)
+        return {
+            "label": label,
+            "confidence": confidence,
+            "institutional_regime": ECONOMIC_REGIME_LABELS.get(label),
+        }
 
     def _resolve_news_sentiment(self, texts: list[str] | None) -> dict[str, Any]:
         if self._news_analyzer is None or not texts:

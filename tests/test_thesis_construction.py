@@ -471,7 +471,59 @@ class TestThesisConstructor:
         assert "bearish" in directions
         assert "neutral" in directions
 
-    def test_construct_empty_reasoning(self):
+    def test_construct_distributing_etf_contradicts_bullish_supports_bearish(self):
+        es_etf = _make_evidence_set(
+            set_id="es_etf_flow",
+            event_type="ETF_FLOW",
+            bias="bearish",
+            net_weight=0.65,
+            evidence_ids=("ev_etf_dist",),
+        )
+        es_general = _make_evidence_set(
+            set_id="es_general",
+            event_type="GENERAL",
+            bias="bullish",
+            net_weight=0.4,
+            evidence_ids=("ev_spot",),
+        )
+        reasoning = _make_reasoning(sets=(es_general, es_etf))
+        assessment = _make_assessment()
+        construction = ThesisConstructor().construct(reasoning, assessment)
+
+        theses = {t.direction: t for t in construction.theses}
+        assert "bullish" in theses and "bearish" in theses
+
+        bullish = theses["bullish"]
+        assert "es_general" in bullish.supporting_set_ids
+        assert "es_etf_flow" not in bullish.supporting_set_ids
+        assert any(
+            "Counter-evidence from sets es_etf_flow strengthens" in c
+            for c in bullish.invalidating_conditions
+        )
+
+        bearish = theses["bearish"]
+        assert "es_etf_flow" in bearish.supporting_set_ids
+        assert any(
+            "Counter-evidence from sets es_general strengthens" in c
+            for c in bearish.invalidating_conditions
+        )
+
+    def test_construct_accumulating_etf_supports_bullish(self):
+        es_etf = _make_evidence_set(
+            set_id="es_etf_flow",
+            event_type="ETF_FLOW",
+            bias="bullish",
+            net_weight=0.65,
+            evidence_ids=("ev_etf_acc",),
+        )
+        reasoning = _make_reasoning(sets=(es_etf,))
+        assessment = _make_assessment()
+        construction = ThesisConstructor().construct(reasoning, assessment)
+
+        theses = {t.direction: t for t in construction.theses}
+        assert "bullish" in theses
+        assert "es_etf_flow" in theses["bullish"].supporting_set_ids
+
         reasoning = _make_reasoning(())
         assessment = _make_assessment()
         constructor = ThesisConstructor()

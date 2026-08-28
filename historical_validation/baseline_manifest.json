@@ -1,0 +1,63 @@
+{
+  "baseline_id": "run001-trace044b-v1",
+  "git_commit": "cdbb55bb7032638f3ab892d29ea6655d610be36f",
+  "cohort_id": "trace044b-round-137-26-positional",
+  "total_episodes": 137,
+  "episode_ids": [
+    "CPI_GOLD_2015-06-01",
+    "CPI_GOLD_2015-12-01",
+    "CPI_GOLD_2016-05-01",
+    "CPI_GOLD_2016-10-01",
+    "CPI_GOLD_2017-03-01",
+    "CPI_GOLD_2017-09-01",
+    "CPI_GOLD_2018-02-01",
+    "CPI_GOLD_2018-07-01",
+    "CPI_GOLD_2018-12-01",
+    "CPI_GOLD_2019-06-01",
+    "CPI_GOLD_2019-11-01",
+    "CPI_GOLD_2020-04-01",
+    "CPI_GOLD_2020-09-01",
+    "CPI_GOLD_2021-03-01",
+    "CPI_GOLD_2021-08-01",
+    "CPI_GOLD_2022-01-01",
+    "CPI_GOLD_2022-07-01",
+    "CPI_GOLD_2022-12-01",
+    "CPI_GOLD_2023-05-01",
+    "CPI_GOLD_2023-10-01",
+    "CPI_GOLD_2024-04-01",
+    "CPI_GOLD_2024-09-01",
+    "CPI_GOLD_2025-02-01",
+    "CPI_GOLD_2025-07-01",
+    "CPI_GOLD_2026-02-01"
+  ],
+  "input_artifact_hashes": {
+    "data/lessons/cpi_gold_lessons.csv": "e70de048319917439e192a0388ecb305f8beba99250adc2552c70881db160f77",
+    "data/history/gold/gold.csv": "77be36677016f7d5d739cbcb192f3e6e0aad57d04975252812c3d4832665e6f2",
+    "data/context/dxy/dxy.csv": "268cb5442a0cfb9455689a2566a8a58726b6692d206e87b97d94e702e82f2be8",
+    "data/economic/CPIAUCSL.csv": "a2a36d518762dc7f1a8606551fc62c013b742e62355fb485dbcb516df9bcd78d",
+    "data/economic/DFII10.csv": "c919bf99715f123b035408112e74f08808a7babac9504e3a04b18a2cf587eb25",
+    "data/economic/DGS10.csv": "6db3d1f5f37c1fc6e8311a411ea79cab3a0fc2ea44acfbac879dde8817525443",
+    "data/economic/T5YIE.csv": "594bc2002c573af8f8c05b0fe69efd88f491a2395cafef91c7d29bffcdf4c719",
+    "data/calendar/cpi_releases.csv": "87d3956055dd72b480884fef29550fbead338bc9b67e8fefc24a07ef7c7fc8a2"
+  },
+  "code_version": "historical_validation package as committed with this manifest; parent production source vintage cdbb55b",
+  "historical_assumptions": {
+    "cohort_rule": "chronological sort by event_date; positions round(137*i/26), i=1..25 (Trace 044-B)",
+    "knowledge_view": "derived in-memory as-of D via the existing LessonSummaryAggregator over lessons with event_date <= D",
+    "analogue_cutoff": "strictly < evaluation_date; current episode excluded",
+    "outcome_isolation": "future gold outcomes evaluation_only by construction",
+    "t5yie": "not part of the live historical query (CPI + US10Y trend + DXY trend + regime)",
+    "regime": "CompositeScoreBuilder z-scores sliced <= D; InstitutionalRegimeDetector(random_state=42)",
+    "regime_hardening_note": "Final Hardening (D-03): files listed in data/economic/synthetic_data_index.json (PMI.csv) are excluded from the composite on BOTH the live path and this as-of replay, so validation semantics match the hardened live semantics. Cohort identity (positions, content witness, lessons hash) is unchanged.",
+    "episode_index": "rebuilt in-memory per run; persisted global index unused"
+  },
+  "random_seed": 42,
+  "library_versions": {
+    "python": "3.14.4",
+    "pandas": "2.3.3",
+    "numpy": "2.4.4",
+    "scikit-learn": "1.8.0",
+    "statsmodels": "0.14.6",
+    "scipy": "1.17.1"
+  }
+}

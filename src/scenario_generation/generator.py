@@ -1,6 +1,13 @@
 """W12 Institutional Scenario Generation: builds base/bull/bear scenarios
 for every thesis from ThesisConstruction (W8) using a deterministic
-thesis-derived confidence proxy."""
+thesis-derived confidence proxy.
+
+Correction 052-A truthfulness: the proxy is exposed as
+``scenario_confidence`` with explicit provenance
+(``scenario_confidence_source="institutional_support"``,
+``scenario_confidence_type="conviction_proxy"``).  It is never W9
+final_confidence and no market-risk observation enters W12.
+"""
 
 from __future__ import annotations
 
@@ -107,6 +114,11 @@ class ScenarioGenerator:
                 "total_theses_covered": len(thesis_ids),
                 "scenarios_per_thesis": 3,
                 "confidence_source": confidence_source,
+                # Correction 052-A provenance: scenario probabilities and all
+                # downstream W12 metrics derive from the W8 conviction proxy,
+                # never from market-risk observations or W9 output.
+                "scenario_confidence_source": "institutional_support",
+                "scenario_confidence_type": "conviction_proxy",
             },
         )
 
@@ -123,6 +135,11 @@ class ScenarioGenerator:
         avg_supporting_weight x (1 - confidence_penalty)).  The raw
         evidence-set weight fallback (avg_supporting_weight) is preserved
         only when that penalty-adjusted value is absent from the bundle.
+
+        Correction 052-A: the returned value is a conviction proxy derived
+        from W8 institutional_support; it is exposed to consumers under the
+        truthful key ``scenario_confidence`` with explicit source/type
+        provenance.  It is NOT W9 final_confidence.
         Returns the confidence value and a deterministic source label.
         """
         support = thesis.institutional_support
@@ -191,12 +208,17 @@ class ScenarioGenerator:
             ),
             regime_path=regime_path,
             confidence_inputs={
-                "final_confidence": confidence_value,
+                # Correction 052-A truthfulness: this value IS the W8
+                # institutional_support conviction proxy, NOT W9
+                # final_confidence (W12 runs before W9 by frozen spec).
+                "scenario_confidence": confidence_value,
                 "remaining_uncertainty": round(1.0 - confidence_value, 4),
                 "institutional_support": thesis.institutional_support,
                 "reliability_category": ConfidenceComputer().reliability_category(
                     confidence_value
                 ),
+                "scenario_confidence_source": "institutional_support",
+                "scenario_confidence_type": "conviction_proxy",
             },
             provenance_chain=tuple(base_chain),
             metadata={
