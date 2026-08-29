@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import re
 
-from counter_evidence.detector import REGIME_EXPECTED_BIAS
 from confidence_engine.contracts import InstitutionalConfidence, ThesisConfidence
 from counter_evidence.contracts import CounterEvidenceAssessment
 from knowledge.integrity.provenance import Provenance
@@ -377,33 +376,16 @@ class BiasReviewer:
         update: ThesisUpdate,
         assessment: CounterEvidenceAssessment,
     ) -> BiasFinding | None:
-        # Correction 050: regime blindness is THESIS-DIRECTIONAL.  It fires
-        # only when the reviewed thesis itself is directional and CONTRADICTS
-        # REGIME_EXPECTED_BIAS[regime] while the update leaves the position
-        # in place (no_change / scale / hedge).  Set-level evidence conflict
-        # alone (W7.regime_conflict) no longer implicates an aligned or
-        # neutral thesis; validated offline in Traces 050-A/050-B
-        # (current firing 8/8 candidates -> directional firing 3/8).
-        direction = thesis.direction
-        if direction not in ("bullish", "bearish"):
-            return None
-        expected_bias = REGIME_EXPECTED_BIAS.get(thesis.regime)
-        if expected_bias not in ("bullish", "bearish") or direction == expected_bias:
-            return None
-        if update.action not in ("no_change", "scale", "hedge"):
-            return None
-        severity = "critical" if update.action == "no_change" else "high"
-        return BiasFinding(
-            bias_name="regime_blindness",
-            severity=severity,
-            evidence=(
-                f"thesis direction {direction} contradicts expected regime bias "
-                f"{expected_bias} for regime {thesis.regime} while update "
-                f"action is {update.action}"
-            ),
-            required_action="Reassess the thesis under the new regime before any action",
-            confidence_impact=SEVERITY_IMPACT[severity],
-        )
+        # Run-003 repair (Phase 7): NEUTRALIZED.  Correction 050 fired this
+        # check when a directional thesis contradicted the fixed
+        # REGIME_EXPECTED_BIAS prior.  That prior has no as-of validation
+        # (no regime-conditional outcome archive exists in the repository),
+        # so treating contradiction of it as "blindness" systematically
+        # blocked one side -- e.g. every bearish thesis in INFLATIONARY
+        # regimes.  Until a validated regime directional prior exists, the
+        # check is disabled; regime remains context.  See the archived
+        # REGIME_EXPECTED_BIAS docstring in counter_evidence.detector.
+        return None
 
     def _check_base_rate_neglect(self, thesis: InvestmentThesis) -> BiasFinding | None:
         text = self._thesis_text(thesis)

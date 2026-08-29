@@ -568,9 +568,12 @@ class TestRuntimeIntegration:
             if "technical_research" in j.dependencies
         ]
         # Final Hardening (Group F): thesis_construction consumes the desk's
-        # NON-SCORING research context (metadata only).  The desk remains
-        # fully excluded from every decision-scoring path.
-        assert consumers == ["thesis_construction"]
+        # NON-SCORING research context (metadata only).
+        # Run-003 repair (Phase 9): evidence_collection additionally projects
+        # a directional desk reading onto ONE TECHNICAL-channel Evidence item
+        # through the shared desk-evidence adapter -- the desk remains
+        # fully excluded from the decision/finalize wiring.
+        assert sorted(consumers) == ["evidence_collection", "thesis_construction"]
         assert "technical_research" not in orch._jobs["finalize"].dependencies
         assert "technical_research" not in orch._jobs["decision_engine"].dependencies
 

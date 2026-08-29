@@ -33,7 +33,11 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from bias_prevention.contracts import apply_bias_review
+from bias_prevention.contracts import (
+    SEVERITY_IMPACT,
+    apply_bias_review,
+)
+from bias_prevention.contracts import BiasFinding, BiasReview
 from bias_prevention.detector import BiasReviewer
 from confidence_engine.contracts import InstitutionalConfidence, ThesisConfidence
 from counter_evidence.contracts import CounterEvidenceAssessment
@@ -173,17 +177,20 @@ def test_aligned_bearish_in_bearish_regime_not_flagged():
 
 
 def test_opposed_bullish_in_bearish_regime_critical():
+    # Run-003 repair (Phase 7): the fixed REGIME_EXPECTED_BIAS prior had no
+    # as-of validation, so contradiction of it is no longer "blindness".
+    # Direction opposed to the hardcoded regime bias carries NO finding.
     finding, _ = _rb(
         _update("bullish", "DEFLATIONARY_CRISIS"), _assessment("DEFLATIONARY_CRISIS")
     )
-    assert finding is not None and finding.severity == "critical"
+    assert finding is None
 
 
 def test_opposed_bearish_in_bullish_regime_critical():
     finding, _ = _rb(
         _update("bearish", "INFLATIONARY"), _assessment("INFLATIONARY")
     )
-    assert finding is not None and finding.severity == "critical"
+    assert finding is None
 
 
 # ---------------------------------------------------------------------------
@@ -205,12 +212,11 @@ def test_neutral_never_regime_blind_on_set_conflict(regime):
 
 @pytest.mark.parametrize("action", ["scale", "hedge"])
 def test_opposed_with_scale_or_hedge_is_high_not_critical(action):
+    # Run-003 repair (Phase 7): neutralized -- no finding in any action.
     finding, _ = _rb(
         _update("bearish", "INFLATIONARY", action=action), _assessment("INFLATIONARY")
     )
-    assert finding is not None
-    assert finding.severity == "high"
-    assert finding.confidence_impact == 0.25
+    assert finding is None
 
 
 def test_exit_action_clears_regime_blindness():
@@ -252,14 +258,15 @@ TRACE_050B_CANDIDATES = (
 
 
 def test_trace050b_eight_candidate_regression():
+    # Run-003 repair (Phase 7): regime_blindness is neutralized -- NONE of
+    # the eight candidates may carry the finding, including the three the
+    # pre-repair prior used to block critical.
     fired = []
-    for case, direction, regime, action, expected in TRACE_050B_CANDIDATES:
+    for case, direction, regime, action, _expected in TRACE_050B_CANDIDATES:
         finding, _ = _rb(_update(direction, regime, action), _assessment(regime))
         got = finding.severity if finding is not None else None
-        assert got == expected, (case, direction, regime, got, expected)
-        if got is not None:
-            fired.append((case, direction))
-    assert len(fired) == 3, fired
+        assert got is None, (case, direction, regime, got)
+    assert len(fired) == 0, fired
 
 
 # ---------------------------------------------------------------------------
@@ -323,15 +330,45 @@ def test_single_source_sibling_still_fires():
 # ---------------------------------------------------------------------------
 
 
+def _human_review_review() -> BiasReview:
+    """A review carrying a human-review-severity finding.
+
+    Run-003 repair (Phase 7): regime_blindness no longer fires (the fixed
+    regime prior had no as-of validation), so the D-04 gate semantics below
+    are exercised with a directly-constructed review -- the gate contract
+    depends on ``human_review_flag``, not on which check raised it.
+    """
+    return BiasReview(
+        review_id="bias-th_c050",
+        thesis_id="th_c050",
+        update_id="tu_c050",
+        confidence_id="cf_c050",
+        assessment_id="cea_c050",
+        timestamp=TIMESTAMP,
+        regime="INFLATIONARY",
+        findings=(
+            BiasFinding(
+                bias_name="single_source_bias",
+                severity="high",
+                evidence="only a single supporting evidence source informs the thesis",
+                required_action="Diversify evidence sources before committing capital",
+                confidence_impact=SEVERITY_IMPACT["high"],
+            ),
+        ),
+        overall_severity="high",
+        total_confidence_impact=SEVERITY_IMPACT["high"],
+        required_actions=("Diversify evidence sources before committing capital",),
+        human_review_flag=True,
+    )
+
+
 def test_human_review_flag_and_gate_semantics_unchanged():
-    update = _update("bearish", "INFLATIONARY")
-    review = BiasReviewer().review(update, _assessment("INFLATIONARY"), _confidence())
-    assert review.human_review_flag is True
     # Final Hardening (Group A, D-04): the gate applies when the reviewed
     # thesis IS the selected thesis.  (The pre-hardening version of this
     # test asserted a block even when the review targeted a different
     # candidate than the selected thesis -- the cross-thesis veto that the
     # hardening wave removed.)
+    review = _human_review_review()
     decision = InstitutionalDecision(
         decision_id="dec-c050",
         decision="BUY",
@@ -349,9 +386,7 @@ def test_review_of_non_selected_candidate_is_advisory_only():
     # Final Hardening (Group A, D-04): a human-review finding on a
     # candidate that was NOT selected must not veto the decision made on
     # a different thesis; it is recorded as an explicit advisory.
-    update = _update("bearish", "INFLATIONARY")
-    review = BiasReviewer().review(update, _assessment("INFLATIONARY"), _confidence())
-    assert review.human_review_flag is True
+    review = _human_review_review()
     decision = InstitutionalDecision(
         decision_id="dec-c050-b",
         decision="BUY",

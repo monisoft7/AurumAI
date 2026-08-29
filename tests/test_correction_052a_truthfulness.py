@@ -332,15 +332,22 @@ class TestCorrection052AProvenance:
             ci = s.confidence_inputs
             assert "final_confidence" not in ci
             assert ci["scenario_confidence"] == SUPPORT
-            assert ci["scenario_confidence_source"] == "institutional_support"
+            # Run-003 (Phase 4/11): the per-scenario label carries the
+            # ACTUAL selection source ("thesis_support" for penalty-adjusted
+            # institutional support).
+            assert ci["scenario_confidence_source"] == "thesis_support"
             assert ci["scenario_confidence_type"] == "conviction_proxy"
 
     def test_validator_declares_conviction_basis(self):
         _, validation, _ = _run_chain()
         for v in validation.validations:
-            assert v.metadata["metrics_basis"] == "conviction_proxy"
+            # Run-003 repair (Phase 6): the chain runs with no market
+            # context here, so the basis is the EXPLICIT conviction
+            # fallback -- same numbers, truthful labeling.
+            assert v.metadata["metrics_basis"] == "conviction_fallback"
             assert "no market-risk inputs" in v.metadata["derivation"]
-            assert "basis=conviction_proxy" in v.validation_explanation
+            assert "basis=conviction_fallback" in v.validation_explanation
+        assert validation.metadata["risk_basis"] == "conviction_fallback"
 
 
 # =========================================================================

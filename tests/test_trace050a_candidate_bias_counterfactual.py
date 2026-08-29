@@ -280,7 +280,11 @@ def bundle(no_network):
                 ref_ser["bias_prevention"]["total_confidence_impact"]
             ),
             "primary_row": next(r for r in rows if r["is_production_target"]),
-            "selected_row": next(r for r in rows if r["is_selected"]),
+            # Run-003 repair: weak-evidence cases now abstain (NO_TRADE)
+            # with NO selected thesis; selected_row is then None.
+            "selected_row": next(
+                (r for r in rows if r["is_selected"]), None
+            ),
             "ref_rr_statuses": sorted(
                 v.get("validation_status")
                 for v in (ref_ser["risk_reward_validation"].get("validations") or [])
@@ -306,7 +310,9 @@ def test_all_candidates_reviewed_independently(bundle, lid):
     rows = bundle[lid]["rows"]
     assert len(rows) >= 2
     assert sum(1 for r in rows if r["is_production_target"]) == 1
-    assert sum(1 for r in rows if r["is_selected"]) == 1
+    # Run-003 repair: a case may abstain (NO_TRADE with no selected thesis)
+    # when no candidate clears the gates -- selection is then 0 or 1.
+    assert sum(1 for r in rows if r["is_selected"]) in (0, 1)
     for r in rows:
         assert isinstance(r["findings"], list)
         assert r["total_impact"] >= 0.0
@@ -396,33 +402,17 @@ def test_rr_unchanged(bundle, lid):
 
 
 @pytest.mark.parametrize("lid", SMOKE_IDS)
-def test_regime_blindness_directional_after_correction_050(bundle, lid):
-    """Correction 050: RB fires ONLY on direction-opposed candidates.
-
-    Updated from the pre-050 observation (all candidates flagged critical)
-    to the validated directional semantics: regime-aligned directional
-    candidates and neutral candidates carry no regime_blindness finding;
-    opposed directional candidates keep severity critical.
-    """
-    from counter_evidence.detector import REGIME_EXPECTED_BIAS
-
+def test_regime_blindness_neutralized_after_run003(bundle, lid):
+    """Run-003 repair (Phase 7): the fixed REGIME_EXPECTED_BIAS prior had no
+    as-of validation, so the Correction-050 directional blindness finding is
+    neutralized.  NO candidate in ANY regime may carry regime_blindness;
+    regime remains context only."""
     for row in bundle[lid]["rows"]:
-        direction = row["direction"]
-        regime = row["regime"]
-        expected = REGIME_EXPECTED_BIAS.get(regime)
-        opposed = (
-            direction in ("bullish", "bearish")
-            and expected in ("bullish", "bearish")
-            and direction != expected
-        )
         rb = next(
             (f for f in row["findings"] if f["name"] == "regime_blindness"),
             None,
         )
-        if opposed:
-            assert rb is not None and rb["severity"] == "critical", lid
-        else:
-            assert rb is None, (lid, direction, regime)
+        assert rb is None, (lid, row["direction"], row["regime"])
 
 
 @pytest.mark.parametrize("lid", SMOKE_IDS)

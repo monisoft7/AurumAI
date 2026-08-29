@@ -242,8 +242,13 @@ def _splice_update(update, original_construction):
 # ---------------------------------------------------------------------------
 
 
-def _run_inference_chain(collection, regime, payload) -> dict[str, Any]:
-    """Existing W6-W13 production engines over directly-supplied inputs."""
+def _run_inference_chain(collection, regime, payload, market_context=None) -> dict[str, Any]:
+    """Existing W6-W13 production engines over directly-supplied inputs.
+
+    ``market_context`` (Run-003 repair, Phase 6) is an optional as-of
+    ``MarketContext`` threaded into the existing W12 validator; when None
+    the validator keeps its explicitly labeled conviction fallback.
+    """
     from counter_evidence.assessor import CounterEvidenceAssessor
     from confidence_engine.engine import ConfidenceEngine
     from decision_engine.engine import DecisionEngine
@@ -263,7 +268,9 @@ def _run_inference_chain(collection, regime, payload) -> dict[str, Any]:
     update = ThesisUpdater().update(construction, reasoning, counter)
     construction_v2 = _splice_update(update, construction)
     generation = ScenarioGenerator().generate(construction_v2)
-    rr_validation = RiskRewardValidator().validate(generation)
+    rr_validation = RiskRewardValidator().validate(
+        generation, market_context=market_context
+    )
     confidence = ConfidenceEngine().evaluate(
         construction_v2, reasoning=reasoning, generation=generation
     )

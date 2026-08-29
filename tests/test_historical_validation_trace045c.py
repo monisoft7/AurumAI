@@ -88,9 +88,16 @@ def test_historical_signal_assessment_reaches_w4_w5(guarded_bundle) -> None:
     ev = r["evidence_summary"]
     assert ev["item_count"] >= 1
     assert ev["knowledge_record_nodes"] >= 1
-    # The reasoning stage consumed exactly these evidence items.
+    # The reasoning stage consumed exactly these evidence items PLUS the
+    # single bounded HISTORICAL_MEMORY item (Run-003 Phase 8, FULL only).
     reasoning = r["serialized_outputs"]["evidence_reasoning"]
-    assert reasoning["metadata"]["collection_items"] == ev["item_count"]
+    assert reasoning["metadata"]["collection_items"] == ev["item_count"] + 1
+    mem_sets = [
+        s
+        for s in reasoning["evidence_sets"]
+        if s["event_type"] == "HISTORICAL_MEMORY"
+    ]
+    assert len(mem_sets) == 1
     # CORE instruments propagated into the collection.
     instruments = {i["instrument"] for i in ev["items"]}
     assert {"XAU/USD", "DXY"} <= instruments
@@ -145,21 +152,31 @@ def test_no_production_filesystem_mutation(guarded_bundle) -> None:
 
 def test_candidate_directions_driven_by_reconstructed_evidence(guarded_bundle) -> None:
     r = guarded_bundle["full_a"]
-    biases = set(r["evidence_summary"]["biases"])
-    assert biases <= {"bullish", "bearish", "neutral"}
-    assert {"bullish", "bearish"} & biases, "expected directional evidence"
-    # The existing constructor maps bias coverage onto the candidate set.
+    # Run-003 repair: candidate directions are driven by SET biases (which
+    # now include the memory desk's set), not raw item biases.
+    reasoning = r["serialized_outputs"]["evidence_reasoning"]
+    set_biases = {s["bias"] for s in reasoning["evidence_sets"] if s["bias"]}
+    assert set_biases <= {"bullish", "bearish", "neutral", "mixed"}
+    assert {"bullish", "bearish"} & set_biases, "expected directional evidence"
     expected = ["bearish", "bullish", "neutral"]
-    if "bearish" not in biases:
+    if "bearish" not in set_biases:
         expected.remove("bearish")
-    if "bullish" not in biases:
+    if "bullish" not in set_biases:
         expected.remove("bullish")
     assert r["evaluated_thesis_directions"] == expected
     supports = r["institutional_support_by_direction"]
     assert len(supports) == len(r["evaluated_thesis_directions"])
-    assert all(v > 0 for v in supports.values())
-    # Selected direction must be the max-support candidate.
-    assert r["selected_thesis_direction"] == max(supports, key=supports.get)
+    for direction, value in supports.items():
+        if direction == "neutral":
+            # Run-003 Phase 4: a neutral thesis is an absence claim with
+            # ZERO institutional support -- it can no longer win on
+            # uninformative-set weight.
+            assert value == 0.0
+        else:
+            assert value > 0.0
+    # Selected direction must be directional whenever one exists.
+    if set(expected) - {"neutral"}:
+        assert r["selected_thesis_direction"] != "neutral"
 
 
 # ---------------------------------------------------------------------------
@@ -208,23 +225,42 @@ def test_no_lookahead_green(guarded_bundle, case) -> None:
 
 
 def test_numeric_full_vs_no_history_comparison(guarded_bundle) -> None:
+    # Run-003 repair (Phase 8): memory feeds ONE bounded HISTORICAL_MEMORY
+    # evidence set in FULL, so numeric identity between variants no longer
+    # holds by design.  The pinned contract is now structural: exactly one
+    # memory set in FULL, none in NO_HISTORY, identical shared evidence,
+    # and the recorded comparison booleans reflecting the measured payloads.
+    a, n = guarded_bundle["full_a"], guarded_bundle["no_history"]
     cmp = guarded_bundle["comparison"]
-    assert cmp["numeric_leaf_count_full"] == cmp["numeric_leaf_count_no_history"]
-    assert cmp["numeric_diff_paths"] == []
-    assert cmp["numeric_only_in_full"] == []
-    assert cmp["numeric_only_in_no_history"] == []
-    assert cmp["history_changed_thesis"] is False
-    assert cmp["history_changed_confidence"] is False
-    assert cmp["history_changed_composite"] is False
-    assert cmp["history_changed_decision"] is False
+    full_sets = a["serialized_outputs"]["evidence_reasoning"]["evidence_sets"]
+    nohist_sets = n["serialized_outputs"]["evidence_reasoning"]["evidence_sets"]
+    mem = [s for s in full_sets if s["event_type"] == "HISTORICAL_MEMORY"]
+    assert len(mem) == 1
+    assert all(s["event_type"] != "HISTORICAL_MEMORY" for s in nohist_sets)
+    nonmem_full = {
+        s["set_id"]: s for s in full_sets if s["event_type"] != "HISTORICAL_MEMORY"
+    }
+    nonmem_nohist = {s["set_id"]: s for s in nohist_sets}
+    assert set(nonmem_full) == set(nonmem_nohist)
+    for sid, s in nonmem_full.items():
+        assert s["net_institutional_weight"] == nonmem_nohist[sid]["net_institutional_weight"]
+        assert s["consensus_score"] == nonmem_nohist[sid]["consensus_score"]
+        assert s["bias"] == nonmem_nohist[sid]["bias"]
+    assert cmp["history_changed_thesis"] is (
+        a["selected_thesis_direction"] != n["selected_thesis_direction"]
+        or a["evaluated_thesis_directions"] != n["evaluated_thesis_directions"]
+        or a["institutional_support_by_direction"]
+        != n["institutional_support_by_direction"]
+        or a["confidence_payload_summary"] != n["confidence_payload_summary"]
+    )
+    assert cmp["history_changed_decision"] is (
+        a["decision"] != n["decision"]
+        or a["decision_risk_reward_summary"] != n["decision_risk_reward_summary"]
+    )
     # Historical payloads exist ONLY in FULL.
-    assert guarded_bundle["full_a"]["historical_metadata_present"][
-        "historical_analogue"
-    ] is True
-    assert guarded_bundle["no_history"]["historical_metadata_present"][
-        "historical_analogue"
-    ] is False
-    full_assessments = guarded_bundle["full_a"]["candidate_historical_assessments"]
+    assert a["historical_metadata_present"]["historical_analogue"] is True
+    assert n["historical_metadata_present"]["historical_analogue"] is False
+    full_assessments = a["candidate_historical_assessments"]
     assert full_assessments and any(
         e.get("historical_assessment") for e in full_assessments
     )

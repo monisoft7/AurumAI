@@ -377,6 +377,38 @@ def _only_narrative_changed(old, new) -> bool:
     return True
 
 
+class _StubPositioningFetcher:
+    """Hermetic stand-in for PositioningDataFetcher: no network, no writes."""
+
+    def fetch(self):
+        from pre_market.contracts import PositioningSnapshot
+
+        return PositioningSnapshot(
+            cot_z_score=0.0,
+            cot_regime="unavailable",
+            etf_flow_momentum="unknown",
+            etf_flow_change_pct=0.0,
+            open_interest_change_pct=0.0,
+            gofo_rate=0.0,
+            timestamp=NOW.isoformat(),
+            availability={
+                "cot": "unavailable_no_data_source",
+                "etf_flow": "unavailable_fetch_failed",
+                "open_interest": "unavailable_no_previous_state",
+                "gofo": "unavailable_no_data_source",
+            },
+        )
+
+
+@pytest.fixture(autouse=True)
+def _hermetic_positioning(monkeypatch):
+    """No live network, no production writes from any test in this file."""
+    monkeypatch.setattr(
+        "pre_market.positioning.PositioningDataFetcher.fetch",
+        lambda self: _StubPositioningFetcher().fetch(),
+    )
+
+
 def _briefing(news_items, metadata_extra=None) -> PreMarketBriefing:
     return PreMarketBriefing(
         briefing_id="premarket_test058",
@@ -394,7 +426,7 @@ def _briefing(news_items, metadata_extra=None) -> PreMarketBriefing:
         ),
         news_items=tuple(news_items),
         risk_snapshot=RiskReportGenerator().generate(),
-        positioning_snapshot=PositioningDataFetcher().fetch(),
+        positioning_snapshot=_StubPositioningFetcher().fetch(),
         anomaly_flags=(),
         watchlist=(),
         metadata={"news_source_path": "ingest_news_stage", **(metadata_extra or {})},
@@ -535,7 +567,10 @@ class TestDagIntegration:
         ingestion.ingest_with_status.return_value = ([], "no_articles")
         from pre_market.briefing_assembler import PreMarketBriefingAssembler
 
-        assembler = PreMarketBriefingAssembler(news_ingestion=ingestion)
+        assembler = PreMarketBriefingAssembler(
+            news_ingestion=ingestion,
+            positioning_fetcher=_StubPositioningFetcher(),
+        )
         briefing = assembler.assemble(briefing_id="premarket_solo")
         assert briefing.metadata["news_source_path"].startswith("legacy_internal_ingestion:")
         ingestion.ingest_with_status.assert_called_once()
@@ -624,10 +659,12 @@ class TestIsolationGuarantees:
             if "technical_research" in job.dependencies
         ]
         # Final Hardening (Group F): the technical desk joined the research
-        # layer via thesis_construction (non-scoring metadata context).  It
-        # remains fully isolated from the NEWS path and from every
+        # layer via thesis_construction (non-scoring metadata context).
+        # Run-003 repair (Phase 9): evidence_collection additionally consumes
+        # the desk reading as ONE TECHNICAL-channel evidence item.
+        # It remains fully isolated from the NEWS path and from every
         # decision-scoring module.
-        assert consumers == ["thesis_construction"]
+        assert sorted(consumers) == ["evidence_collection", "thesis_construction"]
         news_job = orch._jobs["ingest_news"]
         assert "technical_research" not in news_job.dependencies
 

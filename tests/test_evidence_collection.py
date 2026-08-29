@@ -1137,10 +1137,17 @@ class TestAnomalyObservationDedup:
         collection = EvidenceCollector().collect(assessment)
         reasoning = EvidenceReasoner().reason(collection)
 
+        # Both interpretations survive as distinct W5 evidence items with
+        # distinct provenance identities.
         assert len(collection.items) == 2
         assert len({e.source_kr_id for e in collection.items}) == 2
         assert len({e.evidence_id for e in collection.items}) == 2
-        assert reasoning.duplicates_removed == 0
+        # Run-003 repair (Phase 3): both items assert the SAME canonical
+        # fact (same instrument, same event_type, same as-of date), so W6
+        # recognizes one fact with one vote -- same-fact repetition cannot
+        # manufacture consensus.  (Previously: 0 duplicates, two votes.)
+        assert reasoning.duplicates_removed == 1
+        assert reasoning.total_evidence_items == 1
 
     def test_genuinely_identical_anomaly_observations_still_deduplicate(self):
         from pre_market.contracts import AnomalyFlag

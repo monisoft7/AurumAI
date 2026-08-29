@@ -346,9 +346,11 @@ class TestEvidenceWeighter:
         weighter = EvidenceWeighter()
         result = weighter.weight_set(raw_set, items)
         assert 0.0 <= result.net_institutional_weight <= 1.0
-        assert result.consensus_score == 1.0
+        # Run-003 repair: consensus is the Beta(1,1)-shrunk weighted
+        # agreement.  Homogeneous agreement no longer saturates at 1.0:
+        # masses bull=1.4/bear=0 -> (1.4+1)/(1.4+2) = 0.7059.
+        assert result.consensus_score == round((1.4 + 1.0) / (1.4 + 2.0), 4)
         assert result.conflict_score == 0.0
-        assert result.confidence_contribution == result.net_institutional_weight
 
     def test_weight_set_with_conflict(self):
         ev1 = _make_evidence("ev_1", bias="bullish", composite_weight=0.8)
@@ -357,8 +359,11 @@ class TestEvidenceWeighter:
         raw_set = EvidenceDetector.analyze_group(items, "es_reallyield", "REAL_YIELD", [])
         weighter = EvidenceWeighter()
         result = weighter.weight_set(raw_set, items)
-        assert result.consensus_score == 0.5
-        assert result.conflict_score == 0.5
+        # Run-003 repair: weighted masses bull=0.8/bear=0.6 -> shrunk
+        # consensus (0.8+1)/(1.4+2) = 0.5294; conflict is the observed
+        # opposition share 0.6/1.4 = 0.4286 (not prior uncertainty).
+        assert result.consensus_score == round((0.8 + 1.0) / (1.4 + 2.0), 4)
+        assert result.conflict_score == round(0.6 / 1.4, 4)
 
     def test_weight_set_empty_group(self):
         es = EvidenceSet(set_id="es_empty", event_type="REAL_YIELD", bias="neutral")
@@ -426,7 +431,10 @@ class TestEvidenceReasoner:
         result = reasoner.reason(collection)
         assert result.total_evidence_sets == 1
         es = result.evidence_sets[0]
-        assert es.consensus_score == 1.0
+        # Same source KR -> the two items are one fact; the surviving
+        # assertion's consensus is Beta(1,1)-shrunk (0.68+1)/(0.68+2),
+        # never a mechanical 1.0 (Run-003 repair).
+        assert es.consensus_score == round((0.68 + 1.0) / (0.68 + 2.0), 4)
         assert es.conflict_score == 0.0
 
     def test_reason_mixed_bias(self):
@@ -439,6 +447,8 @@ class TestEvidenceReasoner:
         result = reasoner.reason(collection)
         assert result.total_evidence_sets == 1
         es = result.evidence_sets[0]
+        # Weighted masses 0.68 vs 0.68: shrunk consensus = 1.68/3.36 = 0.5,
+        # observed conflict = 0.68/1.36 = 0.5 (Run-003 repair formulas).
         assert es.consensus_score == 0.5
         assert es.conflict_score == 0.5
 

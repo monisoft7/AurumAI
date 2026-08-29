@@ -110,7 +110,17 @@ class EvidenceCollector:
         assessment: SignalAssessment,
         regime_weight: float = 0.8,
         cpi_condition: dict[str, str] | None = None,
+        technical_assessment: Any = None,
     ) -> EvidenceCollection:
+        """Collect observation evidence and, when supplied, the independent
+        TechnicalResearchDesk reading (Run-003 repair, Phase 9).
+
+        The technical assessment is projected through the shared
+        ``build_technical_evidence`` adapter onto one Evidence item in the
+        dedicated ``TECHNICAL`` channel.  A missing or non-directional desk
+        reading contributes no item -- the desk's unavailability stays
+        explicit rather than being replaced by an invented vote.
+        """
         evidence_items: list[Evidence] = []
         filtered_noise = 0
         filtered_ignore = 0
@@ -141,6 +151,12 @@ class EvidenceCollector:
             )
             evidence_items.append(evidence)
 
+        technical_item = None
+        if technical_assessment is not None:
+            from evidence_collection.desk_evidence import build_technical_evidence
+
+            technical_item = build_technical_evidence(technical_assessment)
+
         collection_id = f"ec_{uuid4().hex[:12]}"
         collection_metadata: dict[str, Any] = {}
         news_registry = assessment.metadata.get("news_provenance")
@@ -156,6 +172,22 @@ class EvidenceCollector:
                     }
                 ),
             }
+        if technical_assessment is not None:
+            # Run-003 repair (Phase 9): record the desk-reading availability
+            # explicitly -- a None item means no directional desk reading,
+            # never a silent drop.
+            def _ta_field(name: str, default: Any = None) -> Any:
+                if isinstance(technical_assessment, dict):
+                    return technical_assessment.get(name, default)
+                return getattr(technical_assessment, name, default)
+
+            collection_metadata["technical_desk"] = {
+                "evidence_emitted": technical_item is not None,
+                "assessment_id": _ta_field("assessment_id"),
+                "as_of": _ta_field("as_of"),
+            }
+        if technical_item is not None:
+            evidence_items.append(technical_item)
         return EvidenceCollection(
             collection_id=collection_id,
             assessment_id=assessment.assessment_id,
@@ -223,6 +255,18 @@ class EvidenceCollector:
             "provenance_type": provenance_type,
             "knowledge_record_id": knowledge_record_id,
         }
+        # Run-003 repair (Phase 3): stamp the deterministic canonical fact
+        # identity (existing primitive_fact_id machinery) so W6 can recognize
+        # same-fact repetition across producers and prevent it from
+        # manufacturing consensus.
+        from evidence_collection.desk_evidence import (
+            _assessment_date,
+            canonical_fact_identity,
+        )
+
+        metadata["canonical_fact_id"] = canonical_fact_identity(
+            obs.instrument, event_type, _assessment_date(assessment.timestamp)
+        )
         # Sprint 058 (W-5): news-derived observations carry their full
         # article provenance (source, content id, timestamps, event
         # classification, gold relevance, directional implication and its

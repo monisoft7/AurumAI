@@ -195,26 +195,42 @@ class TestConflictDetector:
         assert sorted(supp) == ["es_1", "es_2"]
 
     def test_cross_set_conflicts_with_opposing(self):
+        # Run-003 repair: the majority is weighted by net_institutional_weight.
+        # A strictly heavier side wins and the opposite set contradicts.
         sets = (
-            _make_evidence_set("es_1", bias="bullish"),
-            _make_evidence_set("es_2", bias="bearish"),
+            _make_evidence_set("es_1", bias="bullish", net_weight=0.8),
+            _make_evidence_set("es_2", bias="bearish", net_weight=0.5),
         )
         contra, supp, _ = ConflictDetector.cross_set_conflicts(sets)
         assert "es_2" in contra
         assert "es_1" in supp
+
+    def test_cross_set_conflicts_exact_mass_balance(self):
+        # Run-003 repair: equal-weight opposition has no insertion-order
+        # tie-break -- it is a genuine balance with no conflict attribution.
+        sets = (
+            _make_evidence_set("es_1", bias="bullish"),
+            _make_evidence_set("es_2", bias="bearish"),
+        )
+        contra, supp, pairs = ConflictDetector.cross_set_conflicts(sets)
+        assert contra == []
+        assert supp == []
+        assert pairs == []
 
     def test_cross_set_conflicts_empty(self):
         contra, supp, _ = ConflictDetector.cross_set_conflicts(())
         assert contra == []
         assert supp == []
 
-    def test_regime_conflict_detected(self):
+    def test_regime_conflict_neutralized(self):
+        # Run-003 repair (Phase 7): the fixed REGIME_EXPECTED_BIAS prior had
+        # no as-of validation; regime_conflict is disabled and can no longer
+        # penalize one directional side (e.g. every bearish set under an
+        # INFLATIONARY regime).
         sets = (_make_evidence_set("es_1", bias="bearish"),)
-        assert ConflictDetector.regime_conflict(sets, "NORMAL_GROWTH") is True
-
-    def test_regime_conflict_not_detected(self):
-        sets = (_make_evidence_set("es_1", bias="bullish"),)
         assert ConflictDetector.regime_conflict(sets, "NORMAL_GROWTH") is False
+        assert ConflictDetector.regime_conflict(sets, "INFLATIONARY") is False
+        assert ConflictDetector.regime_conflict(sets, "") is False
 
     def test_source_concentration_single_set(self):
         sets = (_make_evidence_set("es_1"),)
@@ -361,9 +377,11 @@ class TestCounterEvidenceAssessor:
         assert result.conflict_severity == 0.0
 
     def test_assess_with_conflict(self):
+        # Run-003 repair: unequal set weights so the weighted majority is
+        # well-defined (equal weights are a genuine balance).
         sets = (
-            _make_evidence_set("es_1", bias="bullish", conflict_score=0.1),
-            _make_evidence_set("es_2", bias="bearish", conflict_score=0.5),
+            _make_evidence_set("es_1", bias="bullish", conflict_score=0.1, net_weight=0.8),
+            _make_evidence_set("es_2", bias="bearish", conflict_score=0.5, net_weight=0.5),
         )
         reasoning = _make_reasoning(sets)
         assessor = CounterEvidenceAssessor()
@@ -372,14 +390,17 @@ class TestCounterEvidenceAssessor:
         assert result.conflict_severity > 0.0
         assert result.confidence_penalty > 0.0
 
-    def test_assess_regime_conflict(self):
-        sets = (_make_evidence_set("es_1", bias="bearish"),)
+    def test_assess_regime_conflict_neutralized(self):
+        # Run-003 repair (Phase 7): the regime-conflict flag can no longer
+        # fire -- there is no as-of-validated directional regime prior.
+        sets = (_make_evidence_set("es_1", bias="bearish", conflict_score=0.0),)
         reasoning = _make_reasoning(sets, regime="NORMAL_GROWTH")
         assessor = CounterEvidenceAssessor()
         result = assessor.assess(reasoning)
-        assert "regime_conflict" in result.bias_flags
-        assert result.regime_conflict is True
-        assert result.confidence_penalty > 0.0
+        assert "regime_conflict" not in result.bias_flags
+        assert result.regime_conflict is False
+        # The residual penalty carries no regime unit.
+        assert result.confidence_penalty == 0.0
 
     def test_assess_missing_evidence(self):
         sets = (_make_evidence_set("es_1", event_type="USD_FX"),)
@@ -437,10 +458,13 @@ class TestCounterEvidenceAssessor:
         assert "confirmation_bias" not in result.bias_flags or len(result.bias_flags) >= 0
 
     def test_assess_audited_run_corrected_values(self):
+        # Run-003 repair re-pins: unequal set weights keep a well-defined
+        # weighted majority; the regime-conflict unit (+0.1) is gone
+        # (Phase 7 neutralization) so the penalty drops from 0.3 to 0.2.
         reasoning = _make_reasoning(
             sets=(
-                _make_evidence_set("es_usd_fx", event_type="USD_FX", bias="bearish", conflict_score=0.0),
-                _make_evidence_set("es_general", event_type="GENERAL", bias="bullish", conflict_score=0.0),
+                _make_evidence_set("es_usd_fx", event_type="USD_FX", bias="bearish", conflict_score=0.0, net_weight=0.5),
+                _make_evidence_set("es_general", event_type="GENERAL", bias="bullish", conflict_score=0.0, net_weight=0.9),
             ),
             regime="INFLATIONARY",
         )
@@ -448,16 +472,18 @@ class TestCounterEvidenceAssessor:
         result = assessor.assess(reasoning)
         assert result.conflict_severity == 0.25
         assert result.missing_evidence == ("CB_GOLD",)
-        assert result.confidence_penalty == 0.3
-        assert result.regime_conflict is True
+        assert result.confidence_penalty == 0.2
+        assert result.regime_conflict is False
         assert "no_dissent" not in result.bias_flags
 
     def test_assess_no_dissent_suppressed_when_cross_contradiction(self):
         # no_dissent is a mislabeled heuristic when cross-set contradiction
         # exists; it must not be emitted (COUNTER_EVIDENCE_CORRECTION design 3.5).
+        # Run-003 repair: unequal weights give the weighted majority a
+        # strict winner (equal weights are a genuine balance, not dissent).
         sets = (
-            _make_evidence_set("es_1", bias="bullish", conflict_score=0.0),
-            _make_evidence_set("es_2", bias="bearish", conflict_score=0.0),
+            _make_evidence_set("es_1", bias="bullish", conflict_score=0.0, net_weight=0.7),
+            _make_evidence_set("es_2", bias="bearish", conflict_score=0.0, net_weight=0.4),
         )
         reasoning = _make_reasoning(sets)
         assessor = CounterEvidenceAssessor()
