@@ -204,13 +204,18 @@ class TestCorrection053CUntouchedNeighbors:
             explanation="x",
         )
         result = ConfidenceComputer().compute(t)
-        # Final Hardening (Group A): re-pinned after removing the dead
-        # temporal_recency channel (constant 1.0) and renormalizing the
-        # positive weights.  Previous pin: 0.5856.
-        assert result["final_confidence"] == 0.5673
+        # Re-pinned for the Run-003 repair weights (regime channel removed;
+        # 0.35/0.35/0.20/0.10; saturation-free diversity/provenance):
+        # ps = 0.35*0.5402 + 0.35*1.0 + 0.20*(2/5) + 0.10*0 = 0.6191;
+        # penalties = 0.25*(1/3) + 0.40*0.30 = 0.2033 -> 0.6191*0.7967.
+        # Previous pins: 0.5856 (pre-Group A), 0.5673 (post-Group A).
+        assert result["final_confidence"] == 0.4932
         assert result["confidence_breakdown"]["evidence_quality"] == 0.5402
-        assert result["confidence_breakdown"]["regime_alignment"] == 1.0
-        assert result["confidence_breakdown"]["source_diversity"] == 0.6667
+        # Run-003 repair (Phase 7): the regime_alignment channel is removed.
+        assert "regime_alignment" not in result["confidence_breakdown"]
+        # Run-003 repair (Phase 5): saturation-free transforms:
+        # diversity 2/(2+3) = 0.4, provenance 0/(0+2) = 0.0.
+        assert result["confidence_breakdown"]["source_diversity"] == 0.4
         assert result["confidence_breakdown"]["knowledge_record_quality"] == 0.0
         assert "temporal_recency" not in result["confidence_breakdown"]
         assert result["confidence_breakdown"]["counter_evidence"] == 0.0
@@ -236,10 +241,12 @@ class TestCorrection053CUntouchedNeighbors:
         assert v.validation_status == "borderline"
 
     def test_bias_review_still_blocks_flagged_buy(self):
-        from bias_prevention.contracts import apply_bias_review
-        from bias_prevention.detector import BiasReviewer
-        from confidence_engine.contracts import InstitutionalConfidence as IC
-        from counter_evidence.contracts import CounterEvidenceAssessment
+        from bias_prevention.contracts import (
+            BiasFinding,
+            BiasReview,
+            SEVERITY_IMPACT,
+            apply_bias_review,
+        )
         from decision_engine.contracts import InstitutionalDecision
         from thesis_update.contracts import ThesisUpdate
         from thesis_construction.contracts import InvestmentThesis as T
@@ -263,23 +270,31 @@ class TestCorrection053CUntouchedNeighbors:
             confidence_delta=0.0, changed_assumptions=(), change_summary="s",
             action="no_change", trigger_type="periodic", updated_thesis=t,
         )
-        assessment = CounterEvidenceAssessment(
-            assessment_id="c", reasoning_id="r", timestamp="2026-08-23T00:00:00Z",
-            regime="INFLATIONARY", supporting_set_ids=("a", "b"),
-            contradicting_set_ids=("x",), conflict_severity=0.0,
-            confidence_penalty=0.0, regime_conflict=True, bias_flags=(),
-        )
-        conf = IC(
-            confidence_id="cf", construction_id="tc", timestamp="t",
+        # Run-003 repair (Phase 7): regime_blindness is neutralized, so the
+        # D-04 gate below is exercised with a directly-constructed review
+        # carrying a human-review-severity finding.
+        review = BiasReview(
+            review_id="bias-th_b",
+            thesis_id="th_b",
+            update_id="u",
+            confidence_id="cf",
+            assessment_id="c",
+            timestamp="2026-08-23T00:00:00Z",
             regime="INFLATIONARY",
-            theses_confidence=(ThesisConfidence(
-                thesis_id="th_b", final_confidence=0.5,
-                confidence_breakdown={"regime_alignment": 0.5},
-                reliability_category="moderate"),
+            findings=(
+                BiasFinding(
+                    bias_name="single_source_bias",
+                    severity="high",
+                    evidence="only a single supporting evidence source informs the thesis",
+                    required_action="Diversify evidence sources before committing capital",
+                    confidence_impact=SEVERITY_IMPACT["high"],
+                ),
             ),
-            ranked_thesis_ids=("th_b",), primary_thesis_id="th_b",
+            overall_severity="high",
+            total_confidence_impact=SEVERITY_IMPACT["high"],
+            required_actions=("Diversify evidence sources before committing capital",),
+            human_review_flag=True,
         )
-        review = BiasReviewer().review(update, assessment, conf)
         assert review.human_review_flag is True
         decision = InstitutionalDecision(
             decision_id="d", decision="BUY",
@@ -315,7 +330,9 @@ class TestCorrection053CUntouchedNeighbors:
         for s in generation.scenarios:
             ci = s.confidence_inputs
             assert ci["scenario_confidence"] == 0.3781
-            assert ci["scenario_confidence_source"] == "institutional_support"
+            # Run-003 (Phase 4/11): the label carries the actual source
+            # ("thesis_support" for penalty-adjusted institutional support).
+            assert ci["scenario_confidence_source"] == "thesis_support"
             assert ci["scenario_confidence_type"] == "conviction_proxy"
 
     def test_historical_validation_contract_untouched(self):

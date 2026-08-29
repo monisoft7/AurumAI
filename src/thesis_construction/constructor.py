@@ -105,6 +105,18 @@ class ThesisConstructor:
         reasoning: EvidenceReasoning,
         direction: str,
     ) -> list[str]:
+        """Sets whose bias actively supports the candidate direction.
+
+        Run-003 repair (Phase 4): a NEUTRAL thesis is the claim that the
+        system has insufficient directional information.  Uninformative
+        (neutral-bias) sets do not support that claim -- they simply carry
+        no direction -- so a neutral thesis has NO supporting sets, zero
+        institutional support, and can only be selected when no directional
+        set exists at all.  Neutral stops being a default competitor that
+        wins ties on saturated consensus.
+        """
+        if direction == "neutral":
+            return []
         return [
             es.set_id for es in reasoning.evidence_sets
             if es.bias == direction

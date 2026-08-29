@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import Counter
 from typing import Any
 
 from evidence_reasoning.contracts import EvidenceReasoning, EvidenceSet, OPPOSITE_BIAS
@@ -30,7 +29,19 @@ ADMITTED_EVIDENCE_CHANNELS: set[str] = {
     "GEOPOLITICAL",
 }
 
-# Regime-to-expected-bias mapping for regime-conflict detection
+# Regime-to-expected-bias mapping (ARCHIVED — no longer feeds scoring).
+#
+# Run-003 repair (Phase 7): the repository contains no as-of
+# regime-conditional outcome archive from which a directional regime prior
+# could be estimated without look-ahead, so the fixed directional prior this
+# map once expressed is NEUTRALIZED everywhere it fed scoring:
+#   * W7 ``regime_conflict`` — disabled (returns False),
+#   * W9 ``regime_alignment`` channel — removed from the confidence weights,
+#   * W10 ``regime_blindness`` directional check — disabled.
+# Regime remains context (labels, evidence regime_weight, regime_path risk)
+# but no longer acts as an unvalidated directional oracle.  The constant is
+# retained verbatim for provenance/compatibility and MUST NOT be re-wired
+# into any scoring path without an as-of-validated prior.
 REGIME_EXPECTED_BIAS: dict[str, str] = {
     "NORMAL_GROWTH": "bullish",
     "INFLATIONARY": "bullish",
@@ -43,7 +54,14 @@ REGIME_EXPECTED_BIAS: dict[str, str] = {
 
 class ConflictDetector:
     """Detects cross-set conflicts, regime conflicts, temporal conflicts,
-    and source concentration."""
+    and source concentration.
+
+    Run-003 repair (Phase 3): the cross-set majority is the weighted-mass
+    direction of the sets (each set weighted by its existing
+    ``net_institutional_weight``), replacing the count-based plurality vote
+    and its insertion-order tie-breaking.  An exact mass balance carries no
+    directional majority: nothing supports and nothing contradicts.
+    """
 
     @staticmethod
     def cross_set_conflicts(
@@ -51,24 +69,36 @@ class ConflictDetector:
     ) -> tuple[list[str], list[str], list[str]]:
         """Returns (contradicting_set_ids, supporting_set_ids, conflict_pairs).
 
-        A set contradicts if its bias opposes the majority bias across all sets.
-        A set whose majority bias is neutral carries no proven directional
-        polarity (Correction 060, aligned with News Intelligence 058), so it
-        is uninformative against a directional majority: it enters neither
-        supporting nor contradicting and casts no directional vote.
+        A set contradicts if its bias opposes the weighted-mass majority
+        bias across all sets.  A set whose bias is neutral carries no proven
+        directional polarity (Correction 060), so it is uninformative
+        against a directional majority: it enters neither supporting nor
+        contradicting and casts no directional vote.
         """
         if not evidence_sets:
             return [], [], []
 
-        bias_counts: Counter[str] = Counter()
+        bull_mass = 0.0
+        bear_mass = 0.0
         for es in evidence_sets:
-            if es.bias:
-                bias_counts[es.bias] += 1
+            w = es.net_institutional_weight
+            if w != w or w in (float("inf"), float("-inf")):
+                continue
+            w = max(0.0, float(w))
+            if es.bias == "bullish":
+                bull_mass += w
+            elif es.bias == "bearish":
+                bear_mass += w
+            elif es.bias == "mixed":
+                bull_mass += w * 0.5
+                bear_mass += w * 0.5
 
-        if not bias_counts:
-            return [], [es.set_id for es in evidence_sets], []
-
-        majority_bias = bias_counts.most_common(1)[0][0]
+        if bull_mass == 0.0 and bear_mass == 0.0:
+            return [], [], []
+        if bull_mass == bear_mass:
+            # Exact directional balance: no majority, no conflict attribution.
+            return [], [], []
+        majority_bias = "bullish" if bull_mass > bear_mass else "bearish"
         opposite = OPPOSITE_BIAS.get(majority_bias, "")
 
         supporting: list[str] = []
@@ -81,7 +111,7 @@ class ConflictDetector:
             elif opposite and es.bias == opposite:
                 contradicting.append(es.set_id)
                 pairs.append(f"{es.set_id}_vs_{majority_bias}")
-            elif majority_bias in {"bullish", "bearish"} and es.bias == "mixed":
+            elif es.bias == "mixed":
                 contradicting.append(es.set_id)
                 pairs.append(f"{es.set_id}_vs_{majority_bias}")
 
@@ -92,13 +122,15 @@ class ConflictDetector:
         evidence_sets: tuple[EvidenceSet, ...],
         regime: str,
     ) -> bool:
-        expected_bias = REGIME_EXPECTED_BIAS.get(regime, "neutral")
-        if not expected_bias:
-            return False
-        opposite = OPPOSITE_BIAS.get(expected_bias, "")
-        for es in evidence_sets:
-            if opposite and es.bias == opposite:
-                return True
+        """Run-003 repair (Phase 7): neutralized.
+
+        The fixed REGIME_EXPECTED_BIAS prior had no as-of validation, so the
+        directional influence it produced (a +0.1 confidence penalty on any
+        set opposing the hardcoded regime bias, which systematically
+        penalized one side — e.g. all bearish evidence in INFLATIONARY
+        regimes) is disabled.  Returns False unconditionally; regime remains
+        context only.  See the REGIME_EXPECTED_BIAS docstring.
+        """
         return False
 
     @staticmethod

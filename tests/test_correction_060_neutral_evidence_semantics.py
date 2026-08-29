@@ -53,6 +53,7 @@ def _ev(
     bias: str,
     event_type: str = "GENERAL",
     kr: str | None = None,
+    composite_weight: float = 0.64,
 ) -> Evidence:
     return Evidence(
         evidence_id=evidence_id,
@@ -63,7 +64,7 @@ def _ev(
         bias=bias,
         base_confidence=0.8,
         regime_weight=0.8,
-        composite_weight=0.64,
+        composite_weight=composite_weight,
         explanation=f"{bias} evidence",
         regime="NORMAL_GROWTH",
         source_label="overnight_price",
@@ -91,17 +92,6 @@ def _reason(evidence: list[Evidence]):
     reasoning = EvidenceReasoner().reason(collection)
     assessment = CounterEvidenceAssessor().assess(reasoning)
     return reasoning, assessment
-
-
-def _set(
-    set_id: str,
-    bias: str,
-    event_type: str = "REAL_YIELD",
-    conflict_score: float = 0.0,
-):
-    return EvidenceDetector.analyze_group(
-        [_ev(f"ev_{set_id}", bias, event_type)], set_id, event_type, []
-    ) if conflict_score == 0.0 else None
 
 
 # ===========================================================================
@@ -167,9 +157,11 @@ class TestDirectionalPlusNeutralNoConflict:
         raw_set = EvidenceDetector.analyze_group(group, "es_general", "GENERAL", [])
         weighted = EvidenceWeighter().weight_set(raw_set, group)
         assert weighted.conflict_score == 0.0
-        # Uninformative evidence does not reinforce either: it dilutes
-        # consensus without casting a negative vote.
-        assert weighted.consensus_score == 0.5
+        # Run-003 repair supersedes the Correction-060 dilution note:
+        # uninformative evidence neither supports, opposes, NOR dilutes --
+        # consensus is the Beta(1,1)-shrunk directional agreement over the
+        # directional mass only: (0.64+1)/(0.64+2) = 0.6212.
+        assert weighted.consensus_score == round((0.64 + 1.0) / (0.64 + 2.0), 4)
         # And it is listed in neither id list.
         assert raw_set.contradicting_evidence_ids == ()
         assert raw_set.supporting_evidence_ids == ("ev_dir",)
@@ -198,18 +190,37 @@ class TestDirectionalPlusNeutralNoConflict:
 
 class TestBullishBearishStillConflicts:
     def test_item_level_conflict_preserved(self):
+        # Run-003 repair: set direction is the weighted-mass direction.
+        # With equal masses an opposing pair is genuinely balanced (mixed);
+        # a mass-dominant side makes the opposite item contradicting.
+        group = [
+            _ev("ev_bull", "bullish", composite_weight=0.8),
+            _ev("ev_bear", "bearish", composite_weight=0.6),
+        ]
+        raw_set = EvidenceDetector.analyze_group(group, "es_general", "GENERAL", [])
+        weighted = EvidenceWeighter().weight_set(raw_set, group)
+        assert raw_set.bias == "bullish"
+        assert weighted.consensus_score == round((0.8 + 1.0) / (1.4 + 2.0), 4)
+        assert weighted.conflict_score == round(0.6 / 1.4, 4)
+        assert raw_set.contradicting_evidence_ids == ("ev_bear",)
+
+    def test_exact_mass_balance_is_mixed_not_insertion_order(self):
+        # Run-003 repair: no insertion-order tie-breaking.  Equal-weight
+        # opposition balances to a mixed set with no contradicting item.
         group = [_ev("ev_bull", "bullish"), _ev("ev_bear", "bearish")]
         raw_set = EvidenceDetector.analyze_group(group, "es_general", "GENERAL", [])
         weighted = EvidenceWeighter().weight_set(raw_set, group)
+        assert raw_set.bias == "mixed"
         assert weighted.consensus_score == 0.5
         assert weighted.conflict_score == 0.5
-        assert raw_set.contradicting_evidence_ids == ("ev_bear",)
+        assert raw_set.contradicting_evidence_ids == ()
+        assert raw_set.supporting_evidence_ids == ()
 
     def test_set_level_conflict_preserved(self):
         reasoning, assessment = _reason(
             [
-                _ev("ev_rY_bull", "bullish", "REAL_YIELD"),
-                _ev("ev_usd_bear", "bearish", "USD_FX"),
+                _ev("ev_rY_bull", "bullish", "REAL_YIELD", composite_weight=0.8),
+                _ev("ev_usd_bear", "bearish", "USD_FX", composite_weight=0.5),
             ]
         )
         assert len(assessment.contradicting_set_ids) == 1
@@ -283,8 +294,11 @@ class TestDirectionalSemanticsUnchanged:
         assert raw_set.bias == "bullish"
         assert sorted(raw_set.supporting_evidence_ids) == ["ev_b1", "ev_b2"]
         assert raw_set.contradicting_evidence_ids == ("ev_s1",)
-        assert weighted.consensus_score == 0.6667
-        assert weighted.conflict_score == 0.3333
+        # Run-003 repair: weighted masses bull=1.28/bear=0.64 ->
+        # shrunk consensus (1.28+1)/(1.92+2) = 0.5816; observed conflict
+        # 0.64/1.92 = 0.3333.
+        assert weighted.consensus_score == round((1.28 + 1.0) / (1.92 + 2.0), 4)
+        assert weighted.conflict_score == round(0.64 / 1.92, 4)
 
     def test_analyzer_severity_math_untouched(self):
         sets = (
@@ -471,6 +485,9 @@ class TestPriorCorrectionGuards:
 
 
 def _set(set_id: str, bias: str, event_type: str = "REAL_YIELD") -> EvidenceSet:
-    """Build a single-item EvidenceSet through the corrected detector."""
+    """Build a single-item weighted EvidenceSet (Run-003 repair: cross-set
+    conflicts consume net_institutional_weight, so the helper mirrors the
+    real group -> detect -> weight pipeline)."""
     item = _ev(f"ev_{set_id}", bias, event_type)
-    return EvidenceDetector.analyze_group([item], set_id, event_type, [])
+    raw_set = EvidenceDetector.analyze_group([item], set_id, event_type, [])
+    return EvidenceWeighter().weight_set(raw_set, [item])

@@ -475,7 +475,9 @@ class TestRiskRewardValidator:
         assert RiskRewardValidator._regime_risk(("UNKNOWN", "X")) == 1.0
 
     def test_classify_thresholds(self):
-        classify = RiskRewardValidator._classify
+        # Run-003 repair: the legacy conviction classifier is retained
+        # verbatim as the explicit no-market-context fallback.
+        classify = RiskRewardValidator._classify_conviction
         assert classify(0.3, 0.5) == "acceptable"
         assert classify(0.3, 1.0) == "acceptable"
         assert classify(0.2, 1.1) == "borderline"
@@ -484,6 +486,18 @@ class TestRiskRewardValidator:
         assert classify(0.01, 0.5) == "reject"
         assert classify(0.04, 0.5) == "reject"
         assert classify(0.05, 0.5) == "borderline"
+
+    def test_classify_market_thresholds(self):
+        # Run-003 repair (Phase 6): the market-based classifier keys on the
+        # market ratio and the existence of favorable scenario mass.
+        classify = RiskRewardValidator._classify_market
+        assert classify(0.5, 0.7) == "acceptable"
+        assert classify(1.0, 0.7) == "acceptable"
+        assert classify(1.1, 0.7) == "borderline"
+        assert classify(2.9, 0.7) == "borderline"
+        assert classify(3.0, 0.7) == "reject"
+        # No favorable mass at all: nothing to trade on, whatever the ratio.
+        assert classify(0.5, 0.0) == "reject"
 
     def test_alignment(self):
         assert RiskRewardValidator._alignment("bullish") == 1.0

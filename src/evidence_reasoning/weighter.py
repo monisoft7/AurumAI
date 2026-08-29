@@ -1,20 +1,41 @@
 from __future__ import annotations
 
 import math
-from collections import Counter
 from typing import Any
 
 from evidence_collection.contracts import Evidence
-from evidence_reasoning.contracts import OPPOSITE_BIAS, EvidenceSet
+from evidence_reasoning.contracts import EvidenceSet
+from evidence_reasoning.detector import directional_masses
 
 
 class EvidenceWeighter:
     """Computes net institutional weight, consensus score, conflict score,
-    confidence contribution, and explanation for an EvidenceSet."""
+    confidence contribution, and explanation for an EvidenceSet.
+
+    Run-003 repair (Phase 3/5) -- evidence discriminability:
+
+    * Consensus is the Beta(1,1) posterior mean of directional agreement
+      over the group's weighted composite-weight masses: single-item and
+      fully homogeneous groups no longer mechanically saturate at 1.0, and
+      the uniform prior keeps genuinely weak evidence from asserting
+      perfect agreement.
+    * Neutral evidence contributes to neither the numerator nor the
+      denominator: uninformative items neither support nor oppose, and they
+      no longer dilute directional consensus (this supersedes the Correction
+      060 dilution note -- dilution was itself a neutral-as-competitor
+      artifact).
+    * Conflict remains the observed weighted opposition share among
+      directional mass -- actual dissent, not prior uncertainty.
+    * A set with no directional mass (neutral or empty) reports consensus
+      0.0 / conflict 0.0: there is no directional agreement to measure.
+    """
 
     WEIGHT_RECENCY_FACTOR = 0.3
     WEIGHT_CONFIDENCE_FACTOR = 0.5
     WEIGHT_PROVENANCE_FACTOR = 0.2
+
+    # Beta(1,1) prior pseudo-mass for the consensus posterior mean.
+    CONSENSUS_PRIOR_MASS = 1.0
 
     def weight_set(self, evidence_set: EvidenceSet, all_evidence: list[Evidence]) -> EvidenceSet:
         ev_map = {e.evidence_id: e for e in all_evidence}
@@ -58,38 +79,38 @@ class EvidenceWeighter:
         adjusted = raw * self.WEIGHT_CONFIDENCE_FACTOR + recency_boost + prov_boost
         return max(0.0, min(round(adjusted, 4), 1.0))
 
-    @staticmethod
+    @classmethod
     def _compute_consensus_conflict(
+        cls,
         group: list[Evidence],
         majority_bias: str,
     ) -> tuple[float, float]:
-        """Consensus = share of the group actively supporting the majority
-        bias; conflict = share actively holding the opposite direction (or a
-        mixed bidirectional signal) against a directional majority.
+        """Beta(1,1)-shrunk weighted directional agreement (consensus) and
+        the observed weighted opposition share (conflict).
 
-        Correction 060: neutral evidence has no proven directional polarity
-        (News Intelligence 058 semantics), so it is uninformative -- it is
-        counted neither as supporting nor as conflicting.  It still dilutes
-        consensus through the denominator because it does not reinforce the
-        majority direction either.
+        ``s`` / ``o`` are the supporting / opposing weighted masses under the
+        set's majority bias (mixed evidence contributes to both sides at its
+        mass split). With no directional mass there is nothing to measure:
+        consensus and conflict are 0.0.
         """
         if not group:
             return 0.0, 0.0
 
-        n = len(group)
-        opposite = OPPOSITE_BIAS.get(majority_bias, "")
+        if majority_bias not in {"bullish", "bearish", "mixed"}:
+            # Neutral set: no directional agreement exists to measure.
+            return 0.0, 0.0
 
-        supporting = sum(
-            1 for e in group
-            if e.bias == majority_bias
-        )
-        conflicting = sum(
-            1 for e in group
-            if (opposite and e.bias == opposite)
-            or (majority_bias in {"bullish", "bearish"} and e.bias == "mixed")
-        )
-        consensus = round(supporting / n, 4)
-        conflict = round(conflicting / n, 4)
+        bull, bear = directional_masses(group)
+        if majority_bias == "bullish":
+            s, o = bull, bear
+        elif majority_bias == "bearish":
+            s, o = bear, bull
+        else:
+            s, o = bull, bear
+
+        prior = cls.CONSENSUS_PRIOR_MASS
+        consensus = round((s + prior) / (s + o + 2.0 * prior), 4)
+        conflict = round(o / (s + o), 4) if (s + o) > 0.0 else 0.0
         return consensus, conflict
 
     @staticmethod

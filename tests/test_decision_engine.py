@@ -317,10 +317,48 @@ class TestDecisionEngine:
         assert decision.selected_thesis_id == "th_bear"
 
     def test_neutral_yields_hold(self):
+        # Run-003 repair (Phase 4): HOLD remains the contract label for a
+        # selected NEUTRAL thesis that clears both gates -- the gate mapping
+        # itself is unchanged (tested directly below).  What changed is the
+        # upstream: a neutral thesis is an absence claim with zero scenario
+        # conviction (Run-003 Phase 11), so a full-pipeline neutral world
+        # now abstains (NO_TRADE) instead of trading a fabricated FLAT view.
+        thesis = _make_thesis("th_neutral", "neutral", confidence=0.6)
+        tc = ThesisConfidence(
+            thesis_id="th_neutral",
+            final_confidence=0.6,
+            remaining_uncertainty=0.4,
+            reliability_category="moderate",
+        )
+        validation = InstitutionalRiskValidation(
+            validation_id="rv_t",
+            scenario_id="sc_t",
+            thesis_id="th_neutral",
+            validation_status="acceptable",
+            expected_reward=0.5,
+            expected_risk=0.2,
+            risk_reward_ratio=0.4,
+            maximum_downside=0.2,
+            expected_upside=0.5,
+            volatility_impact=0.3,
+            regime_risk=0.3,
+            liquidity_risk=0.3,
+            tail_risk=0.2,
+            validation_explanation="test",
+        )
+        decision, reason = DecisionEngine._determine_decision(
+            DecisionEngine(), thesis, tc, validation
+        )
+        assert decision == "HOLD"
+        assert reason is None
+
+    def test_neutral_pipeline_abstains_instead_of_trading_flat(self):
+        # Run-003 repair: with zero conviction a neutral thesis has no
+        # eligible scenario -> NO_TRADE (abstention), never a HOLD derived
+        # from absence of evidence.
         thesis = _make_thesis("th_neutral", "neutral", confidence=0.6)
         decision, _ = _decide((thesis,))
-        assert decision.decision == "HOLD"
-        assert decision.selected_thesis_id == "th_neutral"
+        assert decision.decision == "NO_TRADE"
 
     def test_weak_thesis_yields_no_trade(self):
         decision, _ = _decide((_weak_bullish(),))

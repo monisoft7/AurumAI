@@ -669,6 +669,7 @@ def _evidence_collection(params: dict[str, Any], results: dict[str, Any]) -> Any
         assessment,
         regime_weight=regime_weight,
         cpi_condition=cpi_condition,
+        technical_assessment=results.get("technical_research"),
     )
 
     tiering_data = results.get("event_triage")
@@ -1219,8 +1220,20 @@ def _risk_reward_validation(params: dict[str, Any], results: dict[str, Any]) -> 
     else:
         generation = generation_data
 
+    # Run-003 repair (Phase 6): as-of market context from the run's own gold
+    # history (same as-of convention as the W14 level anchoring).  When the
+    # builder reports unavailable, the validator keeps its explicitly
+    # labeled conviction fallback -- no volatility number is invented.
+    from risk_reward_validation.market_context import build_market_context
+
+    market_context = build_market_context(
+        params.get("gold_path"),
+        params.get("technical_as_of") or params.get("reference_as_of"),
+        asset=params.get("asset", "XAU/USD"),
+    )
+
     validator = RiskRewardValidator()
-    validation = validator.validate(generation)
+    validation = validator.validate(generation, market_context=market_context)
     return validation
 
 

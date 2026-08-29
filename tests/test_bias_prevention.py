@@ -214,14 +214,15 @@ def test_single_source_cleared_by_diverse_sources():
     assert "single_source_bias" not in [f.bias_name for f in review.findings]
 
 
-def test_regime_blindness_detected_when_thesis_contradicts_regime():
-    """Correction 050: fires on thesis-direction opposition, not set conflict."""
+def test_regime_blindness_neutralized():
+    """Run-003 repair (Phase 7): the fixed REGIME_EXPECTED_BIAS prior has no
+    as-of validation, so contradicting it is no longer treated as blindness.
+    A bearish thesis in an INFLATIONARY regime must NOT be blocked by an
+    unvalidated regime prior."""
     thesis = _make_thesis(direction="bearish", regime="INFLATIONARY")
     assessment = _make_assessment(regime_conflict=True)
     review = _review(update=_make_update(thesis=thesis), assessment=assessment)
-    assert "regime_blindness" in [f.bias_name for f in review.findings]
-    finding = next(f for f in review.findings if f.bias_name == "regime_blindness")
-    assert finding.severity == "critical"
+    assert "regime_blindness" not in [f.bias_name for f in review.findings]
 
 
 def test_regime_blindness_not_fired_for_aligned_thesis_despite_set_conflict():
@@ -285,7 +286,10 @@ def test_severity_and_impact_aggregation():
         assessment=assessment,
         confidence=confidence,
     )
-    assert review.overall_severity == "critical"
+    assert review.overall_severity == "high"
+    # Run-003 repair (Phase 7): the critical regime_blindness unit no longer
+    # fires (unvalidated regime prior); the remaining findings' impact is
+    # still aggregated deterministically.
     assert review.total_confidence_impact > 0.25
     assert len(review.required_actions) == len(review.findings)
 
