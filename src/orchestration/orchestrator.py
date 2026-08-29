@@ -261,7 +261,11 @@ class InstitutionalOrchestrator:
 
         orch.register(PipelineJob(
             job_id="evidence_collection",
-            dependencies=("event_triage", "build_legacy_pipeline"),
+            # Run-003 repair (Phase 9): technical_research is a real
+            # dependency -- the independent TechnicalResearchDesk reading is
+            # projected onto one TECHNICAL-channel Evidence item via the
+            # shared desk-evidence adapter (no second implementation).
+            dependencies=("event_triage", "build_legacy_pipeline", "technical_research"),
             fn=orch._bind(_evidence_collection),
             cache_ttl=600,
             checkpoint=True,

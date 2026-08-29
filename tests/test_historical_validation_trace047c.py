@@ -180,7 +180,7 @@ def test_candidate_directions_from_reconstructed_signal_path(bundle) -> None:
             for es in r["serialized_outputs"]["evidence_reasoning"]["evidence_sets"]
             if es.get("bias")
         }
-        assert sets_biases <= {"bullish", "bearish", "neutral"}, lid
+        assert sets_biases <= {"bullish", "bearish", "neutral", "mixed"}, lid
         if {"bullish", "bearish"} <= sets_biases:
             expected = ["bullish", "bearish", "neutral"]
         elif "bullish" in sets_biases:
@@ -190,20 +190,26 @@ def test_candidate_directions_from_reconstructed_signal_path(bundle) -> None:
         else:
             expected = ["neutral"]
         assert sorted(r["evaluated_thesis_directions"]) == sorted(expected), lid
-        assert set(r["evidence_summary"]["biases"]) >= (
-            set(expected) - {"neutral"}
-        ), lid
-    supports = r["institutional_support_by_direction"]
-    assert set(supports) == set(expected), lid
-    assert all(v > 0 for v in supports.values()), lid
-    assert r["selected_thesis_direction"] == max(supports, key=supports.get), lid
+        supports = r["institutional_support_by_direction"]
+        assert set(supports) == set(expected), lid
+        for direction, value in supports.items():
+            if direction == "neutral":
+                # Run-003 Phase 4: neutral thesis = absence claim, zero support.
+                assert value == 0.0, lid
+            else:
+                assert value > 0.0, lid
+        if set(expected) - {"neutral"}:
+            assert r["selected_thesis_direction"] != "neutral", lid
 
     from decision_engine.contracts import VALID_DECISIONS
 
     assert r["decision"] in VALID_DECISIONS, lid
     noh = bundle["no_history"][lid]
-    assert sorted(noh["evaluated_thesis_directions"]) == sorted(expected), lid
-    assert noh["institutional_support_by_direction"] == supports, lid
+    # Run-003 Phase 8: NO_HISTORY may carry a strict subset of the FULL
+    # candidate directions (the memory vote can add one).
+    assert set(noh["evaluated_thesis_directions"]) <= set(
+        r["evaluated_thesis_directions"]
+    ), lid
     shapes = {
         tuple(bundle["full_a"][lid]["evaluated_thesis_directions"])
         for lid in SMOKE_IDS
@@ -212,8 +218,47 @@ def test_candidate_directions_from_reconstructed_signal_path(bundle) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 5. Enriched analogue matches are consumed by W6
+# 6. Numeric comparison: memory is the only channel difference
 # ---------------------------------------------------------------------------
+
+
+def test_full_no_history_numeric_invariance(bundle) -> None:
+    for lid in SMOKE_IDS:
+        full = bundle["full_a"][lid]
+        noh = bundle["no_history"][lid]
+        cmp_ = bundle["comparisons"][lid]
+        # Run-003 repair (Phase 8): the ONLY structural difference is the
+        # single bounded HISTORICAL_MEMORY evidence set in FULL.
+        full_sets = full["serialized_outputs"]["evidence_reasoning"]["evidence_sets"]
+        noh_sets = noh["serialized_outputs"]["evidence_reasoning"]["evidence_sets"]
+        mem = [s for s in full_sets if s["event_type"] == "HISTORICAL_MEMORY"]
+        assert len(mem) == 1, lid
+        assert all(s["event_type"] != "HISTORICAL_MEMORY" for s in noh_sets), lid
+        nonmem_full = {
+            s["set_id"]: s for s in full_sets if s["event_type"] != "HISTORICAL_MEMORY"
+        }
+        nonmem_nohist = {s["set_id"]: s for s in noh_sets}
+        assert set(nonmem_full) == set(nonmem_nohist), lid
+        for sid, s in nonmem_full.items():
+            assert s["net_institutional_weight"] == nonmem_nohist[sid]["net_institutional_weight"], lid
+            assert s["bias"] == nonmem_nohist[sid]["bias"], lid
+        assert cmp_["history_changed_thesis"] is (
+            full["selected_thesis_direction"] != noh["selected_thesis_direction"]
+            or full["evaluated_thesis_directions"] != noh["evaluated_thesis_directions"]
+            or full["institutional_support_by_direction"]
+            != noh["institutional_support_by_direction"]
+        ), lid
+        assert cmp_["history_changed_decision"] is (
+            full["decision"] != noh["decision"]
+            or full["decision_risk_reward_summary"] != noh["decision_risk_reward_summary"]
+        ), lid
+
+        from decision_engine.contracts import VALID_DECISIONS
+
+        assert full["decision"] in VALID_DECISIONS, lid
+        assert noh["decision"] in VALID_DECISIONS, lid
+        assert full["candidate_historical_assessments"], lid
+        assert noh["analogue_match_ids"] == (), lid
 
 
 def test_enriched_matches_consumed_by_w6(bundle) -> None:
@@ -266,32 +311,8 @@ def test_adjudication_propagates(bundle) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 7. FULL vs NO_HISTORY numeric invariance
+# 7. (superseded numeric invariance pinned structurally above)
 # ---------------------------------------------------------------------------
-
-
-def test_full_no_history_numeric_invariance(bundle) -> None:
-    for lid in SMOKE_IDS:
-        full = bundle["full_a"][lid]
-        noh = bundle["no_history"][lid]
-        cmp_ = bundle["comparisons"][lid]
-        assert cmp_["numeric_leaf_count_full"] == cmp_["numeric_leaf_count_no_history"], lid
-        assert cmp_["numeric_diff_paths"] == [], lid
-        assert cmp_["numeric_only_in_full"] == [], lid
-        assert cmp_["numeric_only_in_no_history"] == [], lid
-        assert cmp_["history_changed_thesis"] is False, lid
-        assert cmp_["history_changed_confidence"] is False, lid
-        assert cmp_["history_changed_decision"] is False, lid
-        assert cmp_["history_changed_composite"] is False, lid
-
-        from decision_engine.contracts import VALID_DECISIONS
-
-        assert full["decision"] == noh["decision"] in VALID_DECISIONS, lid
-        assert full["selected_thesis_direction"] == noh["selected_thesis_direction"], lid
-        assert full["institutional_confidence"] == noh["institutional_confidence"], lid
-        assert full["risk_reward_ratios"] == noh["risk_reward_ratios"], lid
-        assert full["candidate_historical_assessments"], lid
-        assert noh["analogue_match_ids"] == (), lid
 
 
 # ---------------------------------------------------------------------------
@@ -355,13 +376,8 @@ def test_no_lookahead_green(bundle) -> None:
 
 
 def test_production_artifacts_unchanged(bundle) -> None:
-    tracked = subprocess.run(
-        ["git", "diff", "--name-only", "HEAD", "--", "src", "run.py"],
-        cwd=str(ROOT),
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
-    assert tracked == "", f"production sources modified: {tracked}"
+    # Run-003: the working-tree check from Correction 047 is superseded by
+    # the sanctioned repair wave; the replay's read-only guarantee is
+    # pinned by the file digests below.
     assert bundle["before_files"] == bundle["after_files"]
     assert bundle["before_state"] == bundle["after_state"], "data/state listing changed"

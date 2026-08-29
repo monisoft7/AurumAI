@@ -229,20 +229,16 @@ def test_existing_retriever_behavior_unchanged() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 9. No production files changed
+# 9. Replay remains read-only (Run-003 note)
 # ---------------------------------------------------------------------------
 
 
 def test_no_production_files_changed() -> None:
-    tracked = subprocess.run(
-        ["git", "diff", "--name-only", "HEAD", "--", "src", "run.py"],
-        cwd=str(ROOT),
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
-    assert tracked == "", f"production sources modified: {tracked}"
-
+    # Run-003: the working-tree check from Correction 047-A asserted that
+    # production sources were untouched during VALIDATION development; the
+    # sanctioned Run-003 repair wave changes production by design.  What
+    # this test protects -- the replay machinery never WRITES to repository
+    # data at runtime -- is still enforced below.
     watched = [
         "data/history/gold/gold.csv",
         "data/context/dxy/dxy.csv",

@@ -237,7 +237,12 @@ class TestCorrection053AValueFidelity:
             assert row["final_confidence"] == tc.final_confidence
             assert row["evidence_quality"] == comp["confidence_breakdown"]["evidence_quality"]
             assert row["evidence_consensus"] == comp["confidence_breakdown"]["evidence_consensus"]
-            assert row["regime_alignment"] == comp["confidence_breakdown"]["regime_alignment"]
+            # Run-003 repair (Phase 7): the regime_alignment channel is
+            # removed from W9.  The additive finalize serialization keeps
+            # the payload SHAPE (Correction 053-A contract) -- the value is
+            # now None because no producer writes the key.
+            assert "regime_alignment" not in comp["confidence_breakdown"]
+            assert row["regime_alignment"] is None
             assert row["source_diversity"] == comp["confidence_breakdown"]["source_diversity"]
             assert (
                 row["knowledge_record_quality"]
@@ -283,7 +288,10 @@ class TestCorrection053AValueFidelity:
                 assert got["scenario_confidence"] == (
                     s.confidence_inputs["scenario_confidence"]
                 )
-                assert got["scenario_confidence_source"] == "institutional_support"
+                # Run-003 (Phase 4/11): the label carries the actual source.
+                assert got["scenario_confidence_source"] == (
+                    s.confidence_inputs["scenario_confidence_source"]
+                )
                 assert got["scenario_confidence_type"] == "conviction_proxy"
 
             gen_by_sid = {s.scenario_id: s for s in mem["generation"].scenarios}

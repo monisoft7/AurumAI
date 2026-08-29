@@ -83,6 +83,7 @@ class ScenarioGenerator:
                         provenance=prov,
                         regime=construction.regime,
                         confidence_value=confidence_value,
+                        confidence_source=sources[thesis.thesis_id],
                     )
                 )
 
@@ -140,8 +141,15 @@ class ScenarioGenerator:
         from W8 institutional_support; it is exposed to consumers under the
         truthful key ``scenario_confidence`` with explicit source/type
         provenance.  It is NOT W9 final_confidence.
-        Returns the confidence value and a deterministic source label.
+
+        Run-003 repair (Phase 4/11): a NEUTRAL thesis is an absence claim
+        with no supporting sets, so its scenarios carry zero conviction --
+        the uninformative sets of a neutral world must not be recycled into
+        directional scenario probabilities.  Returns the confidence value
+        and a deterministic source label.
         """
+        if thesis.direction == "neutral":
+            return 0.0, "neutral_no_directional_support"
         support = thesis.institutional_support
         if support > 0.0:
             return (
@@ -182,6 +190,25 @@ class ScenarioGenerator:
         provenance: Provenance,
         regime: str,
         confidence_value: float,
+        confidence_source: str = "institutional_support",
+    ) -> InstitutionalScenario:
+        mechanism = thesis.economic_mechanism or "underlying economic mechanism"
+        if scenario_type == "base":
+            expected_direction = thesis.direction
+        else:
+            expected_direction = SCENARIO_DIRECTIONS.get(scenario_type, "neutral")
+        regime_path = self._regime_path(regime, scenario_type)
+        base_chain = list(thesis.provenance_chain) + [provenance]
+
+    def _build_scenario(
+        self,
+        thesis: InvestmentThesis,
+        scenario_type: str,
+        probability: float,
+        provenance: Provenance,
+        regime: str,
+        confidence_value: float,
+        confidence_source: str = "institutional_support",
     ) -> InstitutionalScenario:
         mechanism = thesis.economic_mechanism or "underlying economic mechanism"
         if scenario_type == "base":
@@ -211,13 +238,15 @@ class ScenarioGenerator:
                 # Correction 052-A truthfulness: this value IS the W8
                 # institutional_support conviction proxy, NOT W9
                 # final_confidence (W12 runs before W9 by frozen spec).
+                # Run-003 repair (Phase 4/11): for a NEUTRAL thesis the
+                # source label reflects the absence claim.
                 "scenario_confidence": confidence_value,
                 "remaining_uncertainty": round(1.0 - confidence_value, 4),
                 "institutional_support": thesis.institutional_support,
                 "reliability_category": ConfidenceComputer().reliability_category(
                     confidence_value
                 ),
-                "scenario_confidence_source": "institutional_support",
+                "scenario_confidence_source": confidence_source,
                 "scenario_confidence_type": "conviction_proxy",
             },
             provenance_chain=tuple(base_chain),

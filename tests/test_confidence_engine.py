@@ -239,7 +239,6 @@ class TestConfidenceComputer:
         for component in (
             "evidence_quality",
             "evidence_consensus",
-            "regime_alignment",
             "source_diversity",
             "knowledge_record_quality",
             "counter_evidence",
@@ -247,16 +246,21 @@ class TestConfidenceComputer:
             "internal_consistency",
         ):
             assert component in breakdown
+        # Run-003 repair (Phase 7): the fixed REGIME_EXPECTED_BIAS prior had
+        # no as-of validation; its 1.0/0.0 alignment channel is removed.
+        assert "regime_alignment" not in breakdown
 
     def test_compute_positive_contributors(self):
         thesis = _make_thesis()
         computer = ConfidenceComputer()
         result = computer.compute(thesis)
         # Final Hardening (Group A): temporal_recency channel removed.
-        assert len(result["positive_contributors"]) == 5
+        # Run-003 repair (Phase 5/7): regime_alignment channel removed;
+        # remaining weights renormalized (0.35/0.35/0.20/0.10).
+        assert len(result["positive_contributors"]) == 4
         names = {c["name"] for c in result["positive_contributors"]}
         assert "evidence_quality" in names
-        assert "regime_alignment" in names
+        assert "regime_alignment" not in names
 
     def test_compute_penalties(self):
         thesis = _make_thesis(
@@ -303,17 +307,22 @@ class TestConfidenceComputer:
         weak_result = computer.compute(weak)
         assert strong_result["final_confidence"] > weak_result["final_confidence"]
 
-    def test_regime_alignment_bullish_normal_growth(self):
-        thesis = _make_thesis(direction="bullish", regime="NORMAL_GROWTH")
+    def test_regime_channel_removed_from_confidence(self):
+        # Run-003 repair (Phase 7): confidence no longer scores alignment
+        # against the fixed REGIME_EXPECTED_BIAS prior.  A bullish thesis in
+        # a "bullish-expecting" regime and a bearish one in the same regime
+        # must produce IDENTICAL confidence structures -- regime cannot
+        # invent or boost direction.
+        aligned = _make_thesis(direction="bullish", regime="NORMAL_GROWTH")
+        misaligned = _make_thesis(direction="bearish", regime="NORMAL_GROWTH")
         computer = ConfidenceComputer()
-        result = computer.compute(thesis)
-        assert result["confidence_breakdown"]["regime_alignment"] == 1.0
-
-    def test_regime_alignment_misaligned(self):
-        thesis = _make_thesis(direction="bearish", regime="NORMAL_GROWTH")
-        computer = ConfidenceComputer()
-        result = computer.compute(thesis)
-        assert result["confidence_breakdown"]["regime_alignment"] == 0.0
+        r_aligned = computer.compute(aligned)
+        r_misaligned = computer.compute(misaligned)
+        assert "regime_alignment" not in r_aligned["confidence_breakdown"]
+        assert "regime_alignment" not in r_misaligned["confidence_breakdown"]
+        assert (
+            r_aligned["final_confidence"] == r_misaligned["final_confidence"]
+        )
 
     def test_reliability_categories(self):
         computer = ConfidenceComputer()
@@ -648,9 +657,11 @@ class TestW9InputConsumption:
         engine = ConfidenceEngine()
         result = engine.evaluate(construction, generation=generation)
         tc = result.theses_confidence[0]
-        # Final Hardening (Group A): temporal_recency (constant 1.0 dead
-        # channel) removed from the W9 positive score, weights renormalized.
-        assert tc.final_confidence == 0.94
+        # Final Hardening (Group A): temporal_recency removed, renormalized.
+        # Run-003 repair (Phase 5): regime channel removed (0.35/0.35/0.20/
+        # 0.10) and diversity/provenance transforms are saturation-free:
+        # 0.35*0.9 + 0.35*0.9 + 0.20*(3/6) + 0.10*(2/4) = 0.78.
+        assert tc.final_confidence == 0.78
         assert tc.metadata["gs_test"]["all_answered"] is True
         assert tc.metadata["gs_cap"] == "none"
         assert result.metadata["meta_evidence"]["w12_downside_case_consumed"] is True
@@ -690,7 +701,8 @@ class TestW9InputConsumption:
         result = engine.evaluate(construction, oos_ece=0.1)
         tc = result.theses_confidence[0]
         assert tc.metadata["oos_calibration"]["cap_applied"] == "none"
-        assert tc.final_confidence == 0.94
+        # Run-003 repair weights (see test above): uncapped value 0.78.
+        assert tc.final_confidence == 0.78
 
     def test_absent_inputs_preserve_legacy_behavior(self):
         construction = _make_construction((_make_thesis("th_1"),))
@@ -810,11 +822,12 @@ class TestCorrection049BSupportAppliedOnce:
         computer = ConfidenceComputer()
         result = computer.compute(thesis)
         bd = result["confidence_breakdown"]
+        # Run-003 repair weights: regime channel removed, renormalized
+        # 0.35 / 0.35 / 0.20 / 0.10.
         ps = (
-            0.30 * bd["evidence_quality"]
-            + 0.30 * bd["evidence_consensus"]
-            + 0.15 * bd["regime_alignment"]
-            + 0.15 * bd["source_diversity"]
+            0.35 * bd["evidence_quality"]
+            + 0.35 * bd["evidence_consensus"]
+            + 0.20 * bd["source_diversity"]
             + 0.10 * bd["knowledge_record_quality"]
         )
         pen = (
@@ -835,6 +848,10 @@ class TestCorrection049BSupportAppliedOnce:
         assert r_high["final_confidence"] == r_zero["final_confidence"]
 
     def test_confidence_capped_at_one(self):
+        # Run-003 repair (Phase 5): the diversity and provenance transforms
+        # are saturation-free (n/(n+3), p/(p+2)), so even perfect inputs no
+        # longer mechanically reach 1.0 -- the bound is retained, the
+        # saturation is not.
         thesis = _make_thesis(
             "th_max",
             supporting_set_ids=("a", "b", "c"),
@@ -848,7 +865,9 @@ class TestCorrection049BSupportAppliedOnce:
             },
         )
         result = ConfidenceComputer().compute(thesis)
-        assert result["final_confidence"] == 1.0
+        # 0.35*1 + 0.35*1 + 0.20*(3/6) + 0.10*(3/5) = 0.86, no penalties.
+        assert result["final_confidence"] == 0.86
+        assert result["final_confidence"] <= 1.0
 
     def test_deterministic_repeated_computation(self):
         thesis = _make_thesis()
@@ -875,9 +894,12 @@ class TestCorrection049BSupportAppliedOnce:
             institutional_support=0.4975,
         )
         result = ConfidenceComputer().compute(thesis)
-        # Final Hardening (Group A): re-pinned for the renormalized weights
-        # (temporal_recency channel removed).  Previous pin: 0.7327.
-        assert result["final_confidence"] == 0.7112
+        # Re-pinned for the Run-003 repair weights (regime channel removed;
+        # 0.35/0.35/0.20/0.10; saturation-free diversity/provenance):
+        # 0.35*0.5528 + 0.35*1.0 + 0.20*(2/5) + 0.10*(2/4) = 0.67348,
+        # penalty 0.40*0.1 -> 0.67348*0.96 = 0.6465.  Previous pins: 0.7327
+        # (pre-Group A), 0.7112 (post-Group A).
+        assert result["final_confidence"] == 0.6465
 
     def test_metadata_records_support_without_multiplier(self):
         result = ConfidenceComputer().compute(_make_thesis())

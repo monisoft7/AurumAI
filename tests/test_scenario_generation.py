@@ -446,9 +446,11 @@ class TestScenarioGenerator:
             assert s.confidence_inputs["remaining_uncertainty"] == 0.3
             assert s.confidence_inputs["institutional_support"] == 0.7
             assert s.confidence_inputs["reliability_category"] == "high"
-            # Correction 052-A provenance
+            # Correction 052-A provenance.  Run-003 (Phase 4/11): the
+            # per-scenario label carries the ACTUAL selection source
+            # ("thesis_support" for penalty-adjusted support).
             assert s.confidence_inputs["scenario_confidence_source"] == (
-                "institutional_support"
+                "thesis_support"
             )
             assert s.confidence_inputs["scenario_confidence_type"] == (
                 "conviction_proxy"

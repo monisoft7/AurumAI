@@ -1,0 +1,8 @@
+{
+  "pass1_file": "run002_pass1_results.jsonl",
+  "pass2_file": "run002_pass2_results.jsonl",
+  "compared_cases": 133,
+  "nondeterminism_findings": 0,
+  "result": "PASS: decisions and all normalized numeric leaves identical",
+  "manifest": "historical_validation/baseline_manifest_run002.json (same frozen manifest both passes)"
+}

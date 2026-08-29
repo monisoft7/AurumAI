@@ -35,6 +35,31 @@ class EvidenceReasoner:
         evidence_items = list(collection.items)
         regime = regime or collection.regime
 
+        # Run-003 repair (Phase 8): the historical analogue adjudication
+        # (existing Correction-028 engine output) becomes ONE bounded,
+        # provenance-carrying evidence item in the dedicated
+        # HISTORICAL_MEMORY channel through the shared
+        # ``build_memory_evidence`` adapter.  The matched episodes are the
+        # inputs of ONE estimator, never several votes; mixed / flat history
+        # maps to an uninformative bias.  When no payload is supplied
+        # (NO_HISTORY ablation) no item exists and the reasoning is
+        # identical to a memory-less run.
+        adjudication: dict[str, Any] | None = None
+        if historical_analogue is not None:
+            from evidence_reasoning.historical_adjudication import (
+                build_historical_adjudication,
+            )
+
+            adjudication = build_historical_adjudication(historical_analogue)
+            if adjudication is not None:
+                from evidence_collection.desk_evidence import build_memory_evidence
+
+                memory_item = build_memory_evidence(
+                    adjudication, historical_analogue
+                )
+                if memory_item is not None:
+                    evidence_items.append(memory_item)
+
         groups, duplicate_ids = self._grouper.group(evidence_items)
         all_duplicates = duplicate_ids[:]
 
@@ -57,21 +82,22 @@ class EvidenceReasoner:
         if factor_rationale is not None:
             metadata["factor_rationale"] = factor_rationale
 
-        # Correction 025-B: explanation-only historical gold analogue.  The
-        # payload is carried verbatim and feeds no scoring field; when absent
-        # the reasoning is byte-identical to before.
+        # Run-003 repair (Phase 8): the analogue payload is carried verbatim
+        # in metadata for explanation.  Its directional content additionally
+        # enters scoring through the SINGLE bounded HISTORICAL_MEMORY
+        # evidence item built above (never through a numeric metadata
+        # weight).  When absent, the reasoning is identical to a memory-less
+        # run.
         if historical_analogue is not None:
             metadata["historical_analogue"] = historical_analogue
 
         # Correction 028: explanation-only adjudication of the analogue via
         # the existing LegacyReasoningEngine.  Stored in metadata only; the
         # temporary Evidence adapter never enters this collection path.
+        # Run-003 repair (Phase 8): the SAME adjudication additionally feeds
+        # the single bounded HISTORICAL_MEMORY evidence item above; the
+        # metadata copy below preserves the explanation-only record verbatim.
         if historical_analogue is not None:
-            from evidence_reasoning.historical_adjudication import (
-                build_historical_adjudication,
-            )
-
-            adjudication = build_historical_adjudication(historical_analogue)
             if adjudication is not None:
                 metadata["historical_adjudication"] = adjudication
 

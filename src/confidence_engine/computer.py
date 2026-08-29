@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from counter_evidence.detector import REGIME_EXPECTED_BIAS
-from knowledge.integrity.provenance import Provenance
+from knowledge.integrity.provenance import Provenance  # noqa: F401 (contract parity)
 from thesis_construction.contracts import InvestmentThesis
 
 
@@ -11,19 +10,31 @@ class ConfidenceComputer:
     """Computes normalized institutional confidence [0,1] for a single thesis
     with a full breakdown of every contributing factor.
 
-    Final Hardening (Group A): the ``temporal_recency`` positive channel was
-    removed.  Its input (``avg_temporal_recency``) was never written by any
-    producer in the repository, so the channel was a constant 1.0 -- a dead
-    confidence input that inflated every thesis by a fixed +0.10 on the
-    positive score.  The remaining weights are renormalized to sum to 1.0;
-    no other channel, penalty or threshold changed.
+    Run-003 repair (Phase 5) -- confidence semantics.  Confidence must
+    estimate actual decision reliability, not support volume.  Three
+    mechanically saturated quantities were removed or made
+    saturation-free:
+
+    * ``regime_alignment`` channel REMOVED (weight 0.15): it scored 1.0/0.0
+      against the fixed REGIME_EXPECTED_BIAS prior, which has no as-of
+      validation (Phase 7 neutralization).  The remaining positive weights
+      are renormalized to sum to 1.0.
+    * ``source_diversity`` now ``n / (n + 3)``: diminishing returns that
+      never mechanically saturate at 3 sets (was ``min(n / 3, 1)``).
+    * ``knowledge_record_quality`` now ``p / (p + 2)``: diminishing returns
+      that never mechanically saturate at 2 provenance entries (was
+      ``min(p / 2, 1)`` -- every thesis saturated at 1.0).
+
+    The consensus input feeding ``evidence_consensus`` is itself repaired
+    upstream (W6 Beta(1,1)-shrunk weighted agreement over deduplicated
+    items), so single-item and homogeneous-neutral sets no longer inject
+    perfect consensus here.
     """
 
     POSITIVE_WEIGHTS: dict[str, float] = {
-        "evidence_quality": 0.30,
-        "evidence_consensus": 0.30,
-        "regime_alignment": 0.15,
-        "source_diversity": 0.15,
+        "evidence_quality": 0.35,
+        "evidence_consensus": 0.35,
+        "source_diversity": 0.20,
         "knowledge_record_quality": 0.10,
     }
 
@@ -45,15 +56,13 @@ class ConfidenceComputer:
         internal_penalty = float(inputs.get("confidence_penalty", 0.0))
         institutional_support = thesis.institutional_support
 
-        regime_alignment = self._regime_alignment(thesis.direction, thesis.regime)
-        source_diversity = min(len(thesis.supporting_set_ids) / 3.0, 1.0)
-        kr_quality = min(len(thesis.provenance_chain) / 2.0, 1.0)
+        source_diversity = self._diversity(len(thesis.supporting_set_ids))
+        kr_quality = self._provenance_quality(len(thesis.provenance_chain))
         missing_penalty = min(len(thesis.remaining_unknowns) / 3.0, 1.0)
 
         positives = {
             "evidence_quality": evidence_quality,
             "evidence_consensus": evidence_consensus,
-            "regime_alignment": regime_alignment,
             "source_diversity": round(source_diversity, 4),
             "knowledge_record_quality": round(kr_quality, 4),
         }
@@ -74,13 +83,9 @@ class ConfidenceComputer:
             for name, weight in self.PENALTY_WEIGHTS.items()
         )
 
-        # Correction 049-B: institutional_support enters exactly ONCE,
-        # through evidence_quality / positive_score (the ThesisBuilder mean
-        # of supporting net weights).  The former second global
-        # multiplication (support_factor) duplicated that contribution and
-        # made the 0.5 decision gate unreachable (Trace 049-X: 0/25 crossed;
-        # SUPPORT_ONCE counterfactual: 17/25).  Removed verbatim; every
-        # other component, weight and penalty is unchanged.
+        # Correction 049-B retained: institutional_support enters exactly
+        # ONCE, through evidence_quality / positive_score (the ThesisBuilder
+        # mean of supporting net weights).
         final = positive_score * (1.0 - min(penalty_score, 1.0))
         final = round(max(0.0, min(final, 1.0)), 4)
 
@@ -110,13 +115,16 @@ class ConfidenceComputer:
         }
 
     @staticmethod
-    def _regime_alignment(direction: str, regime: str) -> float:
-        expected = REGIME_EXPECTED_BIAS.get(regime, "neutral")
-        if not expected or direction == "neutral":
-            return 0.5
-        if direction == expected:
-            return 1.0
-        return 0.0
+    def _diversity(n_sets: int) -> float:
+        """Independent-source diversity: diminishing returns, never saturates."""
+        n = max(0, int(n_sets))
+        return n / (n + 3.0)
+
+    @staticmethod
+    def _provenance_quality(n_entries: int) -> float:
+        """Provenance depth quality: diminishing returns, never saturates."""
+        p = max(0, int(n_entries))
+        return p / (p + 2.0)
 
     @staticmethod
     def reliability_category(final_confidence: float) -> str:

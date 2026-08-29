@@ -1,0 +1,383 @@
+{
+  "experiment_id": "RUN-002-HISTORICAL-EVALUATION",
+  "code_commit": "f97e786488e36759664d410f91a1375e1d8dc6fe (funding-preparation, user-approved deviation from main recorded in manifest)",
+  "cases_executed": {
+    "cohort": 133,
+    "variants": [
+      "FULL_ENRICHED",
+      "NO_HISTORY"
+    ],
+    "total_replays": 266,
+    "ok": 133,
+    "failed": 0
+  },
+  "decision_distribution": {
+    "FULL": {
+      "NO_TRADE": 14,
+      "HOLD": 74,
+      "SELL": 2,
+      "BUY": 43
+    },
+    "NO_HISTORY": {
+      "NO_TRADE": 14,
+      "HOLD": 74,
+      "SELL": 2,
+      "BUY": 43
+    }
+  },
+  "abstention_rate": {
+    "FULL": 0.105263,
+    "NO_HISTORY": 0.105263
+  },
+  "coverage_scored": {
+    "FULL": 0.894737,
+    "NO_HISTORY": 0.894737
+  },
+  "decision_accuracy_vs_gold_direction_1d": {
+    "FULL": {
+      "n_scored": 119,
+      "correct": 29,
+      "accuracy": 0.243697,
+      "per_decision": {
+        "HOLD": 74,
+        "SELL": 2,
+        "BUY": 43
+      }
+    },
+    "NO_HISTORY": {
+      "n_scored": 119,
+      "correct": 29,
+      "accuracy": 0.243697,
+      "per_decision": {
+        "HOLD": 74,
+        "SELL": 2,
+        "BUY": 43
+      }
+    }
+  },
+  "accuracy_vs_5d": {
+    "FULL": {
+      "n_scored": 119,
+      "correct": 24,
+      "accuracy": 0.201681,
+      "per_decision": {
+        "HOLD": 74,
+        "SELL": 2,
+        "BUY": 43
+      }
+    },
+    "NO_HISTORY": {
+      "n_scored": 119,
+      "correct": 24,
+      "accuracy": 0.201681,
+      "per_decision": {
+        "HOLD": 74,
+        "SELL": 2,
+        "BUY": 43
+      }
+    }
+  },
+  "accuracy_vs_20d": {
+    "FULL": {
+      "n_scored": 119,
+      "correct": 31,
+      "accuracy": 0.260504,
+      "per_decision": {
+        "HOLD": 74,
+        "SELL": 2,
+        "BUY": 43
+      }
+    },
+    "NO_HISTORY": {
+      "n_scored": 119,
+      "correct": 31,
+      "accuracy": 0.260504,
+      "per_decision": {
+        "HOLD": 74,
+        "SELL": 2,
+        "BUY": 43
+      }
+    }
+  },
+  "confidence_distribution": {
+    "FULL": {
+      "final_confidence_scored": {
+        "mean": 0.639,
+        "stdev": 0.0737,
+        "min": 0.478,
+        "max": 0.84
+      },
+      "institutional_confidence_all": {
+        "mean": 0.6583,
+        "stdev": 0.0886,
+        "min": 0.3447,
+        "max": 0.84
+      }
+    },
+    "NO_HISTORY": {
+      "final_confidence_scored": {
+        "mean": 0.639,
+        "stdev": 0.0737,
+        "min": 0.478,
+        "max": 0.84
+      },
+      "institutional_confidence_all": {
+        "mean": 0.6583,
+        "stdev": 0.0886,
+        "min": 0.3447,
+        "max": 0.84
+      }
+    }
+  },
+  "ECE_vs_gold_direction_1d_scored": {
+    "FULL": {
+      "ece": 0.395348,
+      "bins": [
+        {
+          "bin": "[0.4,0.5)",
+          "n": 5,
+          "conf": 0.4859,
+          "acc": 0.4
+        },
+        {
+          "bin": "[0.5,0.6)",
+          "n": 34,
+          "conf": 0.57,
+          "acc": 0.1471
+        },
+        {
+          "bin": "[0.6,0.7)",
+          "n": 50,
+          "conf": 0.6438,
+          "acc": 0.36
+        },
+        {
+          "bin": "[0.7,0.8)",
+          "n": 28,
+          "conf": 0.7275,
+          "acc": 0.1071
+        },
+        {
+          "bin": "[0.8,0.9)",
+          "n": 2,
+          "conf": 0.8381,
+          "acc": 0.5
+        }
+      ]
+    },
+    "NO_HISTORY": {
+      "ece": 0.395348,
+      "bins": [
+        {
+          "bin": "[0.4,0.5)",
+          "n": 5,
+          "conf": 0.4859,
+          "acc": 0.4
+        },
+        {
+          "bin": "[0.5,0.6)",
+          "n": 34,
+          "conf": 0.57,
+          "acc": 0.1471
+        },
+        {
+          "bin": "[0.6,0.7)",
+          "n": 50,
+          "conf": 0.6438,
+          "acc": 0.36
+        },
+        {
+          "bin": "[0.7,0.8)",
+          "n": 28,
+          "conf": 0.7275,
+          "acc": 0.1071
+        },
+        {
+          "bin": "[0.8,0.9)",
+          "n": 2,
+          "conf": 0.8381,
+          "acc": 0.5
+        }
+      ]
+    }
+  },
+  "performance_by_regime": {
+    "FULL": {
+      "DEFLATIONARY_CRISIS": {
+        "n": 20,
+        "decision_dist": {
+          "NO_TRADE": 8,
+          "HOLD": 11,
+          "SELL": 1
+        },
+        "accuracy_1d": {
+          "n_scored": 12,
+          "correct": 1,
+          "accuracy": 0.083333,
+          "per_decision": {
+            "HOLD": 11,
+            "SELL": 1
+          }
+        }
+      },
+      "INFLATIONARY": {
+        "n": 78,
+        "decision_dist": {
+          "BUY": 32,
+          "HOLD": 42,
+          "NO_TRADE": 4
+        },
+        "accuracy_1d": {
+          "n_scored": 74,
+          "correct": 21,
+          "accuracy": 0.283784,
+          "per_decision": {
+            "BUY": 32,
+            "HOLD": 42
+          }
+        }
+      },
+      "NORMAL_GROWTH": {
+        "n": 17,
+        "decision_dist": {
+          "BUY": 11,
+          "NO_TRADE": 1,
+          "HOLD": 5
+        },
+        "accuracy_1d": {
+          "n_scored": 16,
+          "correct": 6,
+          "accuracy": 0.375,
+          "per_decision": {
+            "BUY": 11,
+            "HOLD": 5
+          }
+        }
+      },
+      "STAGFLATIONARY": {
+        "n": 18,
+        "decision_dist": {
+          "HOLD": 16,
+          "SELL": 1,
+          "NO_TRADE": 1
+        },
+        "accuracy_1d": {
+          "n_scored": 17,
+          "correct": 1,
+          "accuracy": 0.058824,
+          "per_decision": {
+            "HOLD": 16,
+            "SELL": 1
+          }
+        }
+      }
+    }
+  },
+  "performance_by_decision_class": {
+    "FULL": {
+      "BUY": {
+        "n": 43,
+        "accuracy_vs_1d": {
+          "n_scored": 43,
+          "correct": 22,
+          "accuracy": 0.511628,
+          "per_decision": {
+            "BUY": 43
+          }
+        },
+        "mean_return_1d_pct": 0.0733,
+        "mean_return_5d_pct": 0.0711,
+        "mean_return_20d_pct": 0.9241
+      },
+      "HOLD": {
+        "n": 74,
+        "accuracy_vs_1d": {
+          "n_scored": 74,
+          "correct": 7,
+          "accuracy": 0.094595,
+          "per_decision": {
+            "HOLD": 74
+          }
+        },
+        "mean_return_1d_pct": 0.1703,
+        "mean_return_5d_pct": 0.4755,
+        "mean_return_20d_pct": 0.9622
+      },
+      "NO_TRADE": {
+        "n": 14,
+        "accuracy_vs_1d": {
+          "n_scored": 0,
+          "correct": 0,
+          "accuracy": null,
+          "per_decision": {}
+        },
+        "mean_return_1d_pct": 0.0542,
+        "mean_return_5d_pct": -0.2904,
+        "mean_return_20d_pct": -0.1009
+      },
+      "SELL": {
+        "n": 2,
+        "accuracy_vs_1d": {
+          "n_scored": 2,
+          "correct": 0,
+          "accuracy": 0.0,
+          "per_decision": {
+            "SELL": 2
+          }
+        },
+        "mean_return_1d_pct": 0.9176,
+        "mean_return_5d_pct": 0.3084,
+        "mean_return_20d_pct": -2.1563
+      }
+    }
+  },
+  "risk_reward_summary": {
+    "FULL": {
+      "ratios_n": 906,
+      "ratio_mean": 3.3269,
+      "ratio_min": 0.5558,
+      "ratio_max": 10.0,
+      "validation_status_totals": {
+        "acceptable": 101,
+        "borderline": 413,
+        "reject": 392
+      }
+    },
+    "NO_HISTORY": {
+      "ratios_n": 906,
+      "ratio_mean": 3.3269,
+      "ratio_min": 0.5558,
+      "ratio_max": 10.0,
+      "validation_status_totals": {
+        "acceptable": 101,
+        "borderline": 413,
+        "reject": 392
+      }
+    }
+  },
+  "full_vs_no_history": {
+    "decision_changes": 0,
+    "confidence_changes": 0,
+    "composite_changes": 0,
+    "numeric_leaf_diff_cases": 0,
+    "memory_engagement": {
+      "analogue_matches_cases": 133,
+      "adjudication_present": 133,
+      "context_relaxed": 0
+    },
+    "classification_note": "Phase 6: zero decision differences exist; every case classifies as no meaningful effect at the decision layer. Memory was engaged (matches+adjudication in 133/133) but produced zero downstream numeric deltas."
+  },
+  "determinism": {
+    "pass1_vs_pass2": "IDENTICAL for all 133 cases: status, FULL/NO_HISTORY decisions, and all normalized numeric leaves"
+  },
+  "lookahead_verification": {
+    "replays_checked": 266,
+    "violations": [],
+    "status": "PASS"
+  },
+  "historical_news": "unavailable (excluded from historical score; no live RSS substitution)",
+  "technical_desk": {
+    "in_historical_decision_path": false,
+    "note": "TechnicalResearchDesk/TechnicalAssessment is invoked only by live orchestration (src/orchestration/stages.py); the historical replay chain (briefing -> SignalAssessment -> W5 -> W6-W13) contains no TechnicalAssessment. Reported as observable-only."
+  }
+}

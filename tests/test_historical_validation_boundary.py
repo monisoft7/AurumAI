@@ -198,14 +198,29 @@ def test_full_and_no_history_differ_only_by_historical_memory(guarded_bundle) ->
     assert a["historical_adjudication_present"] is True
     assert n["historical_retrieval_payload_present"] is False
     assert n["analogue_match_ids"] == ()
-    # The ONLY structural difference is the historical payload.
+    # Run-003 repair (Phase 8): the ONLY structural difference is the
+    # historical payload and the ONE bounded HISTORICAL_MEMORY evidence set
+    # it feeds.  The memory vote may now legitimately change the thesis,
+    # confidence or decision -- those deltas are the measured memory effect,
+    # not leakage.  NO_HISTORY is still the strict structural subset.
     cmp = guarded_bundle["comparison"]
-    assert cmp["history_changed_thesis"] is False
-    assert cmp["history_changed_confidence"] is False
-    assert cmp["history_changed_decision"] is False
-    assert cmp["history_changed_composite"] is False
-    assert cmp["numeric_diff_paths"] == []
-    assert cmp["numeric_only_in_no_history"] == []
+    full_sets = a["serialized_outputs"]["evidence_reasoning"]["evidence_sets"]
+    nohist_sets = n["serialized_outputs"]["evidence_reasoning"]["evidence_sets"]
+    mem = [s for s in full_sets if s["event_type"] == "HISTORICAL_MEMORY"]
+    assert len(mem) == 1
+    assert all(s["event_type"] != "HISTORICAL_MEMORY" for s in nohist_sets)
+    nonmem_full = {
+        s["set_id"]: s for s in full_sets if s["event_type"] != "HISTORICAL_MEMORY"
+    }
+    nonmem_nohist = {s["set_id"]: s for s in nohist_sets}
+    assert set(nonmem_full) == set(nonmem_nohist)
+    for sid, s in nonmem_full.items():
+        assert s["net_institutional_weight"] == nonmem_nohist[sid]["net_institutional_weight"]
+        assert s["consensus_score"] == nonmem_nohist[sid]["consensus_score"]
+        assert s["bias"] == nonmem_nohist[sid]["bias"]
+    # Memory is a single estimator: one set regardless of match count.
+    assert len(a["analogue_match_ids"]) >= len(mem)
+    # A deterministic full repeat is checked in test_deterministic_repeated_execution.
 
 
 # ---------------------------------------------------------------------------
