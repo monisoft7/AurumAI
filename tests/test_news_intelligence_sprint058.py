@@ -45,7 +45,13 @@ from orchestration.stages import (
     _pre_market_scan,
     _signal_assessment,
 )
-from pre_market.contracts import NewsItem, OvernightPriceChange, PreMarketBriefing
+from pre_market.contracts import (
+    NewsItem,
+    OvernightPriceChange,
+    PositioningSnapshot,
+    PreMarketBriefing,
+)
+from pre_market.overnight_fetcher import OvernightDataFetcher
 from pre_market.risk_reporter import RiskReportGenerator
 from pre_market.positioning import PositioningDataFetcher
 
@@ -381,8 +387,6 @@ class _StubPositioningFetcher:
     """Hermetic stand-in for PositioningDataFetcher: no network, no writes."""
 
     def fetch(self):
-        from pre_market.contracts import PositioningSnapshot
-
         return PositioningSnapshot(
             cot_z_score=0.0,
             cot_regime="unavailable",
@@ -400,12 +404,39 @@ class _StubPositioningFetcher:
         )
 
 
+class _StubOvernightFetcher:
+    """Hermetic market snapshot with a meaningful gold observation."""
+
+    def fetch_all(self, session="APAC"):
+        return {
+            "overnight_changes": [
+                OvernightPriceChange(
+                    instrument="XAU/USD",
+                    previous_close=1900.0,
+                    current_price=1910.0,
+                    change_pct=0.5263,
+                    change_sigma=1.2,
+                    session=session,
+                    persistence_days=2.0,
+                )
+            ],
+            "yield_freshness": {},
+            "fetch_errors": {},
+        }
+
+
 @pytest.fixture(autouse=True)
-def _hermetic_positioning(monkeypatch):
+def _hermetic_market_boundaries(monkeypatch):
     """No live network, no production writes from any test in this file."""
     monkeypatch.setattr(
-        "pre_market.positioning.PositioningDataFetcher.fetch",
+        PositioningDataFetcher,
+        "fetch",
         lambda self: _StubPositioningFetcher().fetch(),
+    )
+    monkeypatch.setattr(
+        OvernightDataFetcher,
+        "fetch_all",
+        lambda self, session="APAC": _StubOvernightFetcher().fetch_all(session),
     )
 
 
@@ -568,6 +599,7 @@ class TestDagIntegration:
         from pre_market.briefing_assembler import PreMarketBriefingAssembler
 
         assembler = PreMarketBriefingAssembler(
+            overnight_fetcher=_StubOvernightFetcher(),
             news_ingestion=ingestion,
             positioning_fetcher=_StubPositioningFetcher(),
         )
