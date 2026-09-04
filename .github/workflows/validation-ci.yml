@@ -1,0 +1,52 @@
+name: AurumAI Validation CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validation-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validation:
+    name: validation stabilization gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[dev,technical]"
+
+      - name: Collection Gate
+        run: python -m pytest --collect-only -q --basetemp=.pytest-tmp/collect
+
+      # Temporary stabilization gate. Add the Full Suite after network and
+      # shared-state tests have been isolated.
+      - name: Validation Stabilization Regression Pack
+        run: |
+          mkdir -p .pytest-tmp
+          python -m pytest -q tests/test_macro_regime.py::TestMacroRegimeDetectorFit::test_all_four_regimes_present --basetemp=.pytest-tmp/regression
+          mkdir -p .pytest-tmp
+          python -m pytest -q tests/test_fred_cache_freshness.py -k "not overnight" --basetemp=.pytest-tmp/regression
+          mkdir -p .pytest-tmp
+          python -m pytest -q tests/test_hardening_data_truth.py::test_briefing_metadata_carries_watchlist_status --basetemp=.pytest-tmp/regression
