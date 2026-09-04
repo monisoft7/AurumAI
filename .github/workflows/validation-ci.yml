@@ -69,4 +69,5 @@ jobs:
             tests/test_nfp_event.py \
             tests/test_hardening_data_truth.py::test_positioning_cot_and_gofo_declared_unavailable \
             tests/test_canonical_facts_sprint061.py::TestDeterminismAndInvariance::test_20_decision_numeric_invariance \
+            tests/test_canonical_facts_sprint061.py::TestPriorSprintRegressions::test_23_neutral_evidence_060_regression \
             --basetemp=.pytest-tmp/hermetic-state
