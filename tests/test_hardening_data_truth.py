@@ -251,10 +251,10 @@ def test_positioning_snapshot_roundtrips_availability():
     assert restored.availability["open_interest"] == "available"
 
 
-def test_positioning_cot_and_gofo_declared_unavailable():
+def test_positioning_cot_and_gofo_declared_unavailable(tmp_path):
     from pre_market.positioning import PositioningDataFetcher
 
-    fetcher = PositioningDataFetcher()
+    fetcher = PositioningDataFetcher(oi_state_file=tmp_path / "gold_oi_state.json")
     assert fetcher._fetch_cot()["status"] == "unavailable_no_data_source"
     assert PositioningDataFetcher._fetch_gofo()["status"] == "unavailable_no_data_source"
 
