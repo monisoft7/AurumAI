@@ -14,6 +14,12 @@ class FeatureExtractionEngine:
         cls._global_extractors.append(extractor)
 
     @classmethod
+    def ensure_global(cls, extractor: FeatureExtractor) -> None:
+        """Register this instance only if it is absent from the registry."""
+        if not any(existing is extractor for existing in cls._global_extractors):
+            cls.register_global(extractor)
+
+    @classmethod
     def clear_global(cls) -> None:
         cls._global_extractors.clear()
 

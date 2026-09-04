@@ -9,6 +9,38 @@ from knowledge.features.extractors.cpi import CPIFeatureExtractor
 from knowledge.events.cpi import CPIEvent
 
 
+def test_ensure_global_uses_identity_and_recovers_after_clear() -> None:
+    class EqualExtractor(CPIFeatureExtractor):
+        def __eq__(self, other):
+            return isinstance(other, EqualExtractor)
+
+    previous = list(FeatureExtractionEngine._global_extractors)
+    try:
+        FeatureExtractionEngine.clear_global()
+        first, second = EqualExtractor(), EqualExtractor()
+        FeatureExtractionEngine.ensure_global(first)
+        FeatureExtractionEngine.ensure_global(first)
+        FeatureExtractionEngine.ensure_global(second)
+        registered = FeatureExtractionEngine._global_extractors
+        assert len(registered) == 2
+        assert registered[0] is first
+        assert registered[1] is second
+
+        FeatureExtractionEngine.clear_global()
+        FeatureExtractionEngine.ensure_global(first)
+        FeatureExtractionEngine.ensure_global(first)
+        assert len(registered) == 1
+        assert registered[0] is first
+
+        # The original append API still permits duplicate registrations.
+        FeatureExtractionEngine.register_global(first)
+        assert len(registered) == 2
+        assert registered[1] is first
+    finally:
+        FeatureExtractionEngine.clear_global()
+        FeatureExtractionEngine._global_extractors.extend(previous)
+
+
 def test_featureset_validate_passes_with_all_columns() -> None:
     data = pd.DataFrame({"a": [1], "b": [2]})
     features = {
