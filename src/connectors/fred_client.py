@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -27,7 +28,8 @@ class FredClient:
         api_key: str | None = None,
         cache_dir: str | Path | None = None,
     ) -> None:
-        self._fred = Fred(api_key=api_key) if api_key is not None else Fred()
+        api_key = api_key if api_key is not None else os.getenv("FRED_API_KEY")
+        self._fred = Fred(api_key=api_key) if api_key else None
         self._cache_dir = (
             Path(cache_dir) if cache_dir else self._DEFAULT_CACHE_DIR
         )
@@ -127,6 +129,11 @@ class FredClient:
         observation_start: str | None = None,
         observation_end: str | None = None,
     ) -> pd.Series:
+        if self._fred is None:
+            raise RuntimeError(
+                f"FRED_API_KEY is required to fetch {series_id} live; "
+                "configure the key or use an available CSV cache."
+            )
         raw: pd.Series = self._fred.get_series(
             series_id,
             observation_start=observation_start,
@@ -162,7 +169,7 @@ class FredClient:
 
     @property
     def api_key(self) -> str | None:
-        return self._fred.api_key
+        return self._fred.api_key if self._fred is not None else None
 
     def clear_cache(self, series_id: str | None = None) -> None:
         if series_id:
