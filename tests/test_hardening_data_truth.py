@@ -251,10 +251,10 @@ def test_positioning_snapshot_roundtrips_availability():
     assert restored.availability["open_interest"] == "available"
 
 
-def test_positioning_cot_and_gofo_declared_unavailable():
+def test_positioning_cot_and_gofo_declared_unavailable(tmp_path):
     from pre_market.positioning import PositioningDataFetcher
 
-    fetcher = PositioningDataFetcher()
+    fetcher = PositioningDataFetcher(oi_state_file=tmp_path / "gold_oi_state.json")
     assert fetcher._fetch_cot()["status"] == "unavailable_no_data_source"
     assert PositioningDataFetcher._fetch_gofo()["status"] == "unavailable_no_data_source"
 
@@ -302,10 +302,19 @@ def test_watchlist_default_fallback_is_flagged(tmp_path):
 
 
 def test_briefing_metadata_carries_watchlist_status():
+    from unittest.mock import Mock
+
     from pre_market.briefing_assembler import PreMarketBriefingAssembler
 
-    assembler = PreMarketBriefingAssembler()
-    briefing = assembler.assemble(calendar_csv=None)
+    overnight_fetcher = Mock(spec=["fetch_all"])
+    overnight_fetcher.fetch_all.return_value = {"overnight_changes": []}
+    positioning_fetcher = Mock(spec=["fetch"])
+    positioning_fetcher.fetch.return_value = None
+    assembler = PreMarketBriefingAssembler(
+        overnight_fetcher=overnight_fetcher,
+        positioning_fetcher=positioning_fetcher,
+    )
+    briefing = assembler.assemble(calendar_csv=None, external_news_items=[])
     assert briefing.metadata.get("watchlist_status") in (
         "calendar",
         "default_watchlist_fallback",

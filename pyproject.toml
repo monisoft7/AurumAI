@@ -7,7 +7,7 @@ dependencies = [
     "pandas",
     "numpy",
     "networkx",
-    "statsmodels",
+    "statsmodels==0.14.6",
     "statsforecast",
     "feedparser",
     "fredapi",

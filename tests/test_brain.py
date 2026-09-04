@@ -1,17 +1,8 @@
 from pathlib import Path
 import json
-import shutil
 
 from knowledge.brain import EconomicBrain
 from knowledge.memory import Memory
-
-
-def runtime_dir(name: str) -> Path:
-    path = Path(__file__).resolve().parent / "_runtime" / name
-    if path.exists():
-        shutil.rmtree(path)
-    path.mkdir(parents=True)
-    return path
 
 
 def write_memory(path: Path) -> None:
@@ -36,9 +27,10 @@ def write_memory(path: Path) -> None:
     path.write_text(json.dumps(payload))
 
 
-def test_brain_returns_evidence_backed_market_understanding() -> None:
-    base_path = runtime_dir("brain")
-    memory_path = base_path / "memory.json"
+def test_brain_returns_evidence_backed_market_understanding(
+    tmp_path: Path,
+) -> None:
+    memory_path = tmp_path / "brain" / "memory.json"
     write_memory(memory_path)
     brain = EconomicBrain(Memory(memory_path))
 
@@ -59,8 +51,12 @@ def test_brain_returns_evidence_backed_market_understanding() -> None:
     assert "SELL" not in str(result)
 
 
-def test_brain_reports_missing_context_without_guessing() -> None:
-    brain = EconomicBrain(Memory(runtime_dir("missing_context") / "memory.json"))
+def test_brain_reports_missing_context_without_guessing(
+    tmp_path: Path,
+) -> None:
+    brain = EconomicBrain(
+        Memory(tmp_path / "missing_context" / "memory.json")
+    )
 
     result = brain.analyze("CPI", {})
 

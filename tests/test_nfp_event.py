@@ -249,8 +249,8 @@ class TestNFPEventRegistry:
 
 class TestLessonBuilderWithNFPEvent:
 
-    def test_build_lessons_with_nfp_event(self) -> None:
-        base = Path(tempfile.mkdtemp())
+    def test_build_lessons_with_nfp_event(self, tmp_path) -> None:
+        base = tmp_path
         nfp_path = base / "PAYEMS.csv"
         gold_path = base / "gold.csv"
         output_path = base / "lessons.csv"
@@ -306,8 +306,8 @@ class TestLessonBuilderWithNFPEvent:
 
 class TestNFPPipelineEndToEnd:
 
-    def test_knowledge_from_nfp_lessons(self) -> None:
-        base = Path(tempfile.mkdtemp())
+    def test_knowledge_from_nfp_lessons(self, tmp_path) -> None:
+        base = tmp_path
         nfp_path = base / "PAYEMS.csv"
         gold_path = base / "gold.csv"
         lessons_path = base / "lessons.csv"
@@ -366,12 +366,12 @@ class TestNFPPipelineEndToEnd:
             assert rec["knowledge_id"].startswith("NFP_GOLD_")
             assert rec["condition"] is not None
 
-    def test_knowledge_from_real_nfp_data(self) -> None:
+    def test_knowledge_from_real_nfp_data(self, tmp_path) -> None:
         real_path = Path("data/economic/PAYEMS.csv")
         if not real_path.exists():
             pytest.skip("PAYEMS.csv not found at data/economic/PAYEMS.csv")
 
-        base = Path(tempfile.mkdtemp())
+        base = tmp_path
         gold_path = base / "gold.csv"
         lessons_path = base / "lessons.csv"
         knowledge_path = base / "knowledge.json"

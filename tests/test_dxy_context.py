@@ -1,17 +1,8 @@
-import shutil
 from pathlib import Path
 
 import pandas as pd
 
 from knowledge.context.dxy import DXYContextConfig, DXYContextEnricher
-
-
-def _runtime_dir(name: str) -> Path:
-    path = Path(__file__).resolve().parent / "_runtime" / name
-    if path.exists():
-        shutil.rmtree(path)
-    path.mkdir(parents=True)
-    return path
 
 
 def _write_csv(path: Path, rows: list[dict]) -> None:
@@ -30,8 +21,8 @@ DXY_ROWS = [
 ]
 
 
-def test_dxy_enricher_adds_columns() -> None:
-    base = _runtime_dir("dxy_adds_columns")
+def test_dxy_enricher_adds_columns(tmp_path: Path) -> None:
+    base = tmp_path / "dxy_adds_columns"
     dxy_path = base / "dxy.csv"
     _write_csv(dxy_path, DXY_ROWS)
 
@@ -49,8 +40,8 @@ def test_dxy_enricher_adds_columns() -> None:
     assert len(enriched) == 3
 
 
-def test_dxy_enricher_classifies_level() -> None:
-    base = _runtime_dir("dxy_classifies_level")
+def test_dxy_enricher_classifies_level(tmp_path: Path) -> None:
+    base = tmp_path / "dxy_classifies_level"
     dxy_path = base / "dxy.csv"
     _write_csv(dxy_path, DXY_ROWS)
 
@@ -79,8 +70,8 @@ def test_dxy_enricher_classifies_level() -> None:
         assert enriched["dxy_level"].iloc[0] == expected, f"Expected {expected} for value"
 
 
-def test_dxy_enricher_classifies_trend() -> None:
-    base = _runtime_dir("dxy_classifies_trend")
+def test_dxy_enricher_classifies_trend(tmp_path: Path) -> None:
+    base = tmp_path / "dxy_classifies_trend"
     dxy_path = base / "dxy.csv"
 
     # rising: change > 1.0
@@ -109,8 +100,8 @@ def test_dxy_enricher_classifies_trend() -> None:
     assert enriched["dxy_trend"].iloc[0] == "dxy_flat"
 
 
-def test_dxy_enricher_missing_context() -> None:
-    base = _runtime_dir("dxy_missing_context")
+def test_dxy_enricher_missing_context(tmp_path: Path) -> None:
+    base = tmp_path / "dxy_missing_context"
     dxy_path = base / "dxy.csv"
     _write_csv(dxy_path, [{"Date": "2020-06-01", "Value": 97.0}])
 
@@ -122,8 +113,8 @@ def test_dxy_enricher_missing_context() -> None:
     assert enriched["dxy_value_at_event"].iloc[0] is None
 
 
-def test_dxy_enricher_missing_lookback() -> None:
-    base = _runtime_dir("dxy_missing_lookback")
+def test_dxy_enricher_missing_lookback(tmp_path: Path) -> None:
+    base = tmp_path / "dxy_missing_lookback"
     dxy_path = base / "dxy.csv"
     _write_csv(dxy_path, [{"Date": "2020-01-01", "Value": 97.0}])
 
@@ -135,8 +126,8 @@ def test_dxy_enricher_missing_lookback() -> None:
     assert enriched["dxy_value_lookback"].iloc[0] is None
 
 
-def test_dxy_enricher_standalone_csv() -> None:
-    base = _runtime_dir("dxy_standalone_csv")
+def test_dxy_enricher_standalone_csv(tmp_path: Path) -> None:
+    base = tmp_path / "dxy_standalone_csv"
     in_path = base / "in" / "lessons.csv"
     out_path = base / "out" / "lessons.csv"
     dxy_path = base / "dxy.csv"
@@ -162,8 +153,8 @@ def test_dxy_enricher_standalone_csv() -> None:
     assert "dxy_value_at_event" in loaded.columns
 
 
-def test_dxy_enricher_handles_nan_in_source() -> None:
-    base = _runtime_dir("dxy_handles_nan")
+def test_dxy_enricher_handles_nan_in_source(tmp_path: Path) -> None:
+    base = tmp_path / "dxy_handles_nan"
     dxy_path = base / "dxy.csv"
     _write_csv(dxy_path, [
         {"Date": "2019-12-01", "Value": 97.0},
@@ -178,8 +169,8 @@ def test_dxy_enricher_handles_nan_in_source() -> None:
     assert enriched["dxy_level"].iloc[0] == "normal_dxy_regime"
 
 
-def test_dxy_enricher_preserves_existing_columns() -> None:
-    base = _runtime_dir("dxy_preserves_cols")
+def test_dxy_enricher_preserves_existing_columns(tmp_path: Path) -> None:
+    base = tmp_path / "dxy_preserves_cols"
     dxy_path = base / "dxy.csv"
     _write_csv(dxy_path, DXY_ROWS)
 

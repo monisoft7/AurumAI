@@ -26,6 +26,76 @@ from pre_market.risk_reporter import RiskReportGenerator
 from pre_market.watchlist_builder import WatchlistBuilder
 
 
+def _fixed_overnight_result():
+    return {
+        "overnight_changes": [
+            OvernightPriceChange(
+                instrument="XAU/USD",
+                previous_close=1900.0,
+                current_price=1910.0,
+                change_pct=0.5263,
+                change_sigma=1.2,
+                session="APAC",
+                persistence_days=2.0,
+            )
+        ],
+        "yield_freshness": {},
+        "fetch_errors": {},
+    }
+
+
+def _fixed_positioning_snapshot():
+    return PositioningSnapshot(
+        cot_z_score=0.0,
+        cot_regime="unavailable",
+        etf_flow_momentum="stable",
+        etf_flow_change_pct=0.0,
+        open_interest_change_pct=0.0,
+        gofo_rate=0.0,
+        timestamp="2026-08-25T12:00:00+00:00",
+        availability={
+            "cot": "unavailable_no_data_source",
+            "etf_flow": "available",
+            "open_interest": "available",
+            "gofo": "unavailable_no_data_source",
+        },
+    )
+
+
+class _StubOvernightFetcher:
+    def fetch_all(self, session="APAC"):
+        return _fixed_overnight_result()
+
+
+class _StubPositioningFetcher:
+    def fetch(self):
+        return _fixed_positioning_snapshot()
+
+
+class _StubNewsIngestion:
+    def ingest_with_status(self):
+        return [], "no_articles"
+
+
+@pytest.fixture(autouse=True)
+def _hermetic_external_market_boundaries(monkeypatch):
+    """Prevent accidental Yahoo/FRED access while retaining explicit mocks."""
+
+    class _StubTicker:
+        def get_info(self):
+            return {}
+
+    fixed_series = pd.Series(
+        [2.40, 2.42], index=pd.to_datetime(["2026-08-24", "2026-08-25"])
+    )
+    monkeypatch.setattr("yfinance.download", lambda *args, **kwargs: pd.DataFrame())
+    monkeypatch.setattr("yfinance.Ticker", lambda *args, **kwargs: _StubTicker())
+    monkeypatch.setattr(
+        "connectors.fred_client.FredClient.get_series",
+        lambda self, *args, **kwargs: fixed_series,
+    )
+
+
 # =========================================================================
 # Contract tests
 # =========================================================================
@@ -577,6 +647,9 @@ class TestWatchlistBuilder:
 class TestPreMarketBriefingAssembler:
     def test_assemble_returns_briefing(self):
         assembler = PreMarketBriefingAssembler(
+            overnight_fetcher=_StubOvernightFetcher(),
+            news_ingestion=_StubNewsIngestion(),
+            positioning_fetcher=_StubPositioningFetcher(),
             regime="NORMAL_GROWTH",
             regime_confidence=0.85,
         )
@@ -588,6 +661,9 @@ class TestPreMarketBriefingAssembler:
 
     def test_assemble_includes_all_sections(self):
         assembler = PreMarketBriefingAssembler(
+            overnight_fetcher=_StubOvernightFetcher(),
+            news_ingestion=_StubNewsIngestion(),
+            positioning_fetcher=_StubPositioningFetcher(),
             regime="INFLATIONARY",
             regime_confidence=0.72,
         )
@@ -605,12 +681,19 @@ class TestPreMarketBriefingAssembler:
         assert isinstance(briefing.watchlist, tuple)
 
     def test_assemble_with_custom_briefing_id(self):
-        assembler = PreMarketBriefingAssembler()
+        assembler = PreMarketBriefingAssembler(
+            overnight_fetcher=_StubOvernightFetcher(),
+            news_ingestion=_StubNewsIngestion(),
+            positioning_fetcher=_StubPositioningFetcher(),
+        )
         briefing = assembler.assemble(briefing_id="custom_001")
         assert briefing.briefing_id == "custom_001"
 
     def test_json_roundtrip_via_assembler(self):
         assembler = PreMarketBriefingAssembler(
+            overnight_fetcher=_StubOvernightFetcher(),
+            news_ingestion=_StubNewsIngestion(),
+            positioning_fetcher=_StubPositioningFetcher(),
             regime="NORMAL_GROWTH",
             regime_confidence=0.85,
         )
@@ -626,8 +709,20 @@ class TestPreMarketBriefingAssembler:
 # =========================================================================
 
 
-def test_pre_market_scan_stage():
+def test_pre_market_scan_stage(monkeypatch):
     from orchestration.stages import _pre_market_scan
+
+    monkeypatch.setattr(
+        OvernightDataFetcher, "fetch_all", lambda self, session="APAC": _fixed_overnight_result()
+    )
+    monkeypatch.setattr(
+        PositioningDataFetcher, "fetch", lambda self: _fixed_positioning_snapshot()
+    )
+    monkeypatch.setattr(
+        OvernightNewsIngestion,
+        "ingest_with_status",
+        lambda self: ([], "no_articles"),
+    )
 
     params = {
         "regime": "NORMAL_GROWTH",

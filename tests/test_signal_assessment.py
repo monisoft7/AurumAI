@@ -708,10 +708,56 @@ class TestSignalAssessmentAssembler:
 # =========================================================================
 
 
+class _StubOvernightFetcher:
+    def fetch_all(self, session="APAC"):
+        return {
+            "overnight_changes": [
+                OvernightPriceChange(
+                    instrument="XAU/USD",
+                    previous_close=1900.0,
+                    current_price=1910.0,
+                    change_pct=0.5263,
+                    change_sigma=1.2,
+                    session=session,
+                    persistence_days=2.0,
+                )
+            ],
+            "yield_freshness": {},
+            "fetch_errors": {},
+        }
+
+
+class _StubPositioningFetcher:
+    def fetch(self):
+        return PositioningSnapshot(
+            cot_z_score=0.0,
+            cot_regime="unavailable",
+            etf_flow_momentum="stable",
+            etf_flow_change_pct=0.0,
+            open_interest_change_pct=0.0,
+            gofo_rate=0.0,
+            timestamp="2026-08-25T12:00:00+00:00",
+            availability={
+                "cot": "unavailable_no_data_source",
+                "etf_flow": "available",
+                "open_interest": "available",
+                "gofo": "unavailable_no_data_source",
+            },
+        )
+
+
+class _StubNewsIngestion:
+    def ingest_with_status(self):
+        return [], "no_articles"
+
+
 def test_w3_to_w4_integration():
     from pre_market.briefing_assembler import PreMarketBriefingAssembler
 
     briefing = PreMarketBriefingAssembler(
+        overnight_fetcher=_StubOvernightFetcher(),
+        news_ingestion=_StubNewsIngestion(),
+        positioning_fetcher=_StubPositioningFetcher(),
         regime="NORMAL_GROWTH",
         regime_confidence=0.85,
     ).assemble()
