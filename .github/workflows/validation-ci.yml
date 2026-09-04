@@ -40,8 +40,10 @@ jobs:
       - name: Collection Gate
         run: python -m pytest --collect-only -q --basetemp=.pytest-tmp/collect
 
-      # Temporary stabilization gate. Add the Full Suite after network and
-      # shared-state tests have been isolated.
+      # Temporary stabilization gate. It currently covers the stabilization
+      # regressions plus the hermetic pre-market regression files. The Full
+      # Suite will be added only after the shared-state and
+      # repository-writing tests have been isolated.
       - name: Validation Stabilization Regression Pack
         run: |
           mkdir -p .pytest-tmp
@@ -50,3 +52,9 @@ jobs:
           python -m pytest -q tests/test_fred_cache_freshness.py -k "not overnight" --basetemp=.pytest-tmp/regression
           mkdir -p .pytest-tmp
           python -m pytest -q tests/test_hardening_data_truth.py::test_briefing_metadata_carries_watchlist_status --basetemp=.pytest-tmp/regression
+          mkdir -p .pytest-tmp
+          python -m pytest -q tests/test_pre_market.py --basetemp=.pytest-tmp/pre-market-file
+          mkdir -p .pytest-tmp
+          python -m pytest -q tests/test_signal_assessment.py --basetemp=.pytest-tmp/signal-file
+          mkdir -p .pytest-tmp
+          python -m pytest -q tests/test_news_intelligence_sprint058.py --basetemp=.pytest-tmp/news-file
