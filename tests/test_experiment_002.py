@@ -113,9 +113,13 @@ class TestEvidenceIsolationExperiment:
     """
 
     @pytest.fixture(scope="class")
-    def experiment_results(self) -> dict:
+    def experiment_output_dir(self, tmp_path_factory) -> Path:
+        return tmp_path_factory.mktemp("exp002")
+
+    @pytest.fixture(scope="class")
+    def experiment_results(self, experiment_output_dir: Path) -> dict:
         exp = EvidenceIsolationExperiment(
-            output_dir=Path("data/experiments/EXP-002-Evidence-Isolation")
+            output_dir=experiment_output_dir
         )
         return exp.run()
 
@@ -201,9 +205,11 @@ class TestEvidenceIsolationExperiment:
             == c["total_conditions"]
         )
 
-    def test_report_generates(self, experiment_results: dict) -> None:
+    def test_report_generates(
+        self, experiment_results: dict, experiment_output_dir: Path
+    ) -> None:
         exp = EvidenceIsolationExperiment(
-            output_dir=Path("data/experiments/EXP-002-Evidence-Isolation")
+            output_dir=experiment_output_dir
         )
         exp._results = experiment_results
         report = exp._build_report()
