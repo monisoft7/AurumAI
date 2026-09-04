@@ -58,3 +58,15 @@ jobs:
           python -m pytest -q tests/test_signal_assessment.py --basetemp=.pytest-tmp/signal-file
           mkdir -p .pytest-tmp
           python -m pytest -q tests/test_news_intelligence_sprint058.py --basetemp=.pytest-tmp/news-file
+
+      - name: Hermetic Repository State Regression Pack
+        run: |
+          mkdir -p .pytest-tmp
+          python -m pytest -q \
+            tests/test_experiment_002.py \
+            tests/test_brain.py \
+            tests/test_dxy_context.py \
+            tests/test_nfp_event.py \
+            tests/test_hardening_data_truth.py::test_positioning_cot_and_gofo_declared_unavailable \
+            tests/test_canonical_facts_sprint061.py::TestDeterminismAndInvariance::test_20_decision_numeric_invariance \
+            --basetemp=.pytest-tmp/hermetic-state
