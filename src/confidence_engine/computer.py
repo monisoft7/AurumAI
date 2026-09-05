@@ -21,9 +21,9 @@ class ConfidenceComputer:
       are renormalized to sum to 1.0.
     * ``source_diversity`` now ``n / (n + 3)``: diminishing returns that
       never mechanically saturate at 3 sets (was ``min(n / 3, 1)``).
-    * ``knowledge_record_quality`` now ``p / (p + 2)``: diminishing returns
-      that never mechanically saturate at 2 provenance entries (was
-      ``min(p / 2, 1)`` -- every thesis saturated at 1.0).
+    * ``knowledge_record_quality`` uses ``n / (n + 2)`` over distinct valid
+      supporting KnowledgeRecord references. Operational provenance entries
+      do not establish KR quality; legacy theses without the count use zero.
 
     The consensus input feeding ``evidence_consensus`` is itself repaired
     upstream (W6 Beta(1,1)-shrunk weighted agreement over deduplicated
@@ -57,7 +57,7 @@ class ConfidenceComputer:
         institutional_support = thesis.institutional_support
 
         source_diversity = self._diversity(len(thesis.supporting_set_ids))
-        kr_quality = self._provenance_quality(len(thesis.provenance_chain))
+        kr_quality = self._provenance_quality(inputs.get("valid_knowledge_record_count", 0))
         missing_penalty = min(len(thesis.remaining_unknowns) / 3.0, 1.0)
 
         positives = {
@@ -122,7 +122,7 @@ class ConfidenceComputer:
 
     @staticmethod
     def _provenance_quality(n_entries: int) -> float:
-        """Provenance depth quality: diminishing returns, never saturates."""
+        """Valid supporting KR quality: diminishing returns, never saturates."""
         p = max(0, int(n_entries))
         return p / (p + 2.0)
 
