@@ -385,7 +385,9 @@ class EvidenceCollector:
         """
         if self._kg is None:
             return [], []
-        nodes = self._kg.filter_nodes(event_type=event_type)
+        nodes = self._valid_knowledge_record_nodes(
+            self._kg.filter_nodes(event_type=event_type)
+        )
         if not nodes:
             mapped_types = [
                 t for t, cls in EVENT_TYPE_TO_EVIDENCE_CLASS.items()
@@ -393,19 +395,34 @@ class EvidenceCollector:
             ]
             for mapped_type in mapped_types:
                 if mapped_type == "CPI" and cpi_condition:
-                    nodes = self._filter_nodes_by_condition(
-                        "CPI", cpi_condition, self._kg
+                    nodes = self._valid_knowledge_record_nodes(
+                        self._filter_nodes_by_condition(
+                            "CPI", cpi_condition, self._kg
+                        )
                     )
                     if nodes:
                         break
                     continue
-                nodes = self._kg.filter_nodes(event_type=mapped_type)
+                nodes = self._valid_knowledge_record_nodes(
+                    self._kg.filter_nodes(event_type=mapped_type)
+                )
                 if nodes:
                     break
         if not nodes:
-            nodes = self._kg.filter_nodes(event_type="GENERAL")
+            nodes = self._valid_knowledge_record_nodes(
+                self._kg.filter_nodes(event_type="GENERAL")
+            )
         kr_ids = [n.node_id for n in nodes[:3]] if nodes else []
         return kr_ids, kr_ids
+
+    @staticmethod
+    def _valid_knowledge_record_nodes(nodes: list[GraphNode]) -> list[GraphNode]:
+        """Keep nodes produced under the GraphBuilder KnowledgeRecord contract."""
+        return [
+            node for node in nodes
+            if node.node_type == "knowledge_record"
+            and node.properties.get("knowledge_id") == node.node_id
+        ]
 
     @staticmethod
     def _filter_nodes_by_condition(

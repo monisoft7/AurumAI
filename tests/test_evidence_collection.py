@@ -760,7 +760,11 @@ class TestKnowledgeRecordEventClassMapping:
             kg.add_node(GraphNode(
                 node_id=f"KR-{et}-{i:03d}",
                 node_type="knowledge_record",
-                properties={"event_type": et, "title": f"{et} KR"},
+                properties={
+                    "knowledge_id": f"KR-{et}-{i:03d}",
+                    "event_type": et,
+                    "title": f"{et} KR",
+                },
             ))
         return kg
 
