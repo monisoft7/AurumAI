@@ -3,7 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-_regime_initialized: bool = False
+_regime_detector_cache: Any | None = None
+_regime_extractor_cache: Any | None = None
 
 _FORECAST_FREQ_ANNUALIZATION: dict[str, float] = {
     "D": 252.0,
@@ -19,23 +20,26 @@ _FORECAST_FREQ_ANNUALIZATION: dict[str, float] = {
 
 
 def _ensure_macro_regime_initialized(params: dict[str, Any]) -> None:
-    global _regime_initialized
-    if _regime_initialized:
-        return
-
-    from knowledge.regime.composite_score import CompositeScoreBuilder
-    from knowledge.regime.macro_regime_detector import MacroRegimeDetector
-    from knowledge.features.extractors.macro_regime import (
-        MacroRegimeFeatureExtractor,
-    )
+    global _regime_detector_cache, _regime_extractor_cache
     from knowledge.features.engine import FeatureExtractionEngine
 
-    composite_data = CompositeScoreBuilder().build()
-    detector = MacroRegimeDetector(random_state=42).fit(composite_data)
-    extractor = MacroRegimeFeatureExtractor(detector)
-    FeatureExtractionEngine.register_global(extractor)
-    params["_regime_detector"] = detector
-    _regime_initialized = True
+    if _regime_detector_cache is None:
+        from knowledge.regime.composite_score import CompositeScoreBuilder
+        from knowledge.regime.macro_regime_detector import MacroRegimeDetector
+        from knowledge.features.extractors.macro_regime import (
+            MacroRegimeFeatureExtractor,
+        )
+
+        composite_data = CompositeScoreBuilder().build()
+        detector = MacroRegimeDetector(random_state=42).fit(composite_data)
+        extractor = MacroRegimeFeatureExtractor(detector)
+        FeatureExtractionEngine.ensure_global(extractor)
+        _regime_detector_cache = detector
+        _regime_extractor_cache = extractor
+    else:
+        FeatureExtractionEngine.ensure_global(_regime_extractor_cache)
+
+    params["_regime_detector"] = _regime_detector_cache
 
 
 def _ingest_event(params: dict[str, Any], results: dict[str, Any]) -> Any:
