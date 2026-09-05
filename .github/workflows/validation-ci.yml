@@ -79,3 +79,12 @@ jobs:
             tests/test_regime_initialization.py \
             tests/test_feature_extraction.py \
             --basetemp=.pytest-tmp/shared-state
+
+      - name: Knowledge Evidence Provenance Regression Pack
+        timeout-minutes: 2
+        run: |
+          mkdir -p .pytest-tmp
+          python -m pytest -q \
+            tests/test_audit_knowledge_evidence_provenance.py \
+            tests/test_evidence_collection.py \
+            --basetemp=.pytest-tmp/knowledge-provenance
