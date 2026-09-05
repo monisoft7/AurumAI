@@ -134,6 +134,12 @@ class ThesisBuilder:
         supporting_sets: list[EvidenceSet],
         assessment: CounterEvidenceAssessment,
     ) -> dict[str, float]:
+        supporting_kr_ids = {
+            kr_id
+            for evidence_set in supporting_sets
+            for kr_id in evidence_set.metadata.get("supporting_knowledge_record_ids", ())
+            if isinstance(kr_id, str) and kr_id.strip()
+        }
         avg_set_weight = 0.0
         avg_set_consensus = 0.0
         if supporting_sets:
@@ -144,6 +150,7 @@ class ThesisBuilder:
                 sum(s.consensus_score for s in supporting_sets) / len(supporting_sets), 4
             )
         return {
+            "valid_knowledge_record_count": len(supporting_kr_ids),
             "avg_supporting_weight": avg_set_weight,
             "avg_supporting_consensus": avg_set_consensus,
             "conflict_severity": assessment.conflict_severity,

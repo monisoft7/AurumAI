@@ -75,6 +75,7 @@ class EvidenceDetector:
                 set_id=set_id,
                 event_type=event_type,
                 bias="neutral",
+                metadata={"supporting_knowledge_record_ids": []},
             )
 
         bull_mass, bear_mass = directional_masses(evidence_group)
@@ -111,6 +112,17 @@ class EvidenceDetector:
             elif ev.bias == majority_bias and majority_bias:
                 supporting_ids.append(ev.evidence_id)
 
+        supporting_id_set = set(supporting_ids)
+        supporting_kr_ids = sorted({
+            kr_id
+            for ev in evidence_group
+            if ev.evidence_id in supporting_id_set
+            and ev.metadata.get("provenance_type") == "knowledge_record"
+            and isinstance(kr_id := ev.metadata.get("knowledge_record_id"), str)
+            and kr_id.strip()
+            and kr_id == ev.source_kr_id
+        })
+
         return EvidenceSet(
             set_id=set_id,
             event_type=event_type,
@@ -120,6 +132,7 @@ class EvidenceDetector:
             contradicting_evidence_ids=tuple(contradicting_ids),
             duplicate_evidence_ids=tuple(duplicate_in_group),
             metadata={
+                "supporting_knowledge_record_ids": supporting_kr_ids,
                 "instrument_count": len(instruments),
                 "instruments": sorted(instruments),
                 "bias_distribution": dict(bias_distribution),

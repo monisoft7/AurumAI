@@ -659,9 +659,9 @@ class TestW9InputConsumption:
         tc = result.theses_confidence[0]
         # Final Hardening (Group A): temporal_recency removed, renormalized.
         # Run-003 repair (Phase 5): regime channel removed (0.35/0.35/0.20/
-        # 0.10) and diversity/provenance transforms are saturation-free:
-        # 0.35*0.9 + 0.35*0.9 + 0.20*(3/6) + 0.10*(2/4) = 0.78.
-        assert tc.final_confidence == 0.78
+        # 0.10) and diversity/KR transforms are saturation-free:
+        # No valid KR count: 0.35*0.9 + 0.35*0.9 + 0.20*(3/6) = 0.73.
+        assert tc.final_confidence == 0.73
         assert tc.metadata["gs_test"]["all_answered"] is True
         assert tc.metadata["gs_cap"] == "none"
         assert result.metadata["meta_evidence"]["w12_downside_case_consumed"] is True
@@ -701,8 +701,8 @@ class TestW9InputConsumption:
         result = engine.evaluate(construction, oos_ece=0.1)
         tc = result.theses_confidence[0]
         assert tc.metadata["oos_calibration"]["cap_applied"] == "none"
-        # Run-003 repair weights (see test above): uncapped value 0.78.
-        assert tc.final_confidence == 0.78
+        # Run-003 repair weights (see test above): uncapped value 0.73 (no valid KR count).
+        assert tc.final_confidence == 0.73
 
     def test_absent_inputs_preserve_legacy_behavior(self):
         construction = _make_construction((_make_thesis("th_1"),))
@@ -848,7 +848,7 @@ class TestCorrection049BSupportAppliedOnce:
         assert r_high["final_confidence"] == r_zero["final_confidence"]
 
     def test_confidence_capped_at_one(self):
-        # Run-003 repair (Phase 5): the diversity and provenance transforms
+        # Run-003 repair (Phase 5): the diversity and valid KR transforms
         # are saturation-free (n/(n+3), p/(p+2)), so even perfect inputs no
         # longer mechanically reach 1.0 -- the bound is retained, the
         # saturation is not.
@@ -865,8 +865,8 @@ class TestCorrection049BSupportAppliedOnce:
             },
         )
         result = ConfidenceComputer().compute(thesis)
-        # 0.35*1 + 0.35*1 + 0.20*(3/6) + 0.10*(3/5) = 0.86, no penalties.
-        assert result["final_confidence"] == 0.86
+        # No valid KR count: 0.35*1 + 0.35*1 + 0.20*(3/6) = 0.80, no penalties.
+        assert result["final_confidence"] == 0.80
         assert result["final_confidence"] <= 1.0
 
     def test_deterministic_repeated_computation(self):
@@ -894,12 +894,10 @@ class TestCorrection049BSupportAppliedOnce:
             institutional_support=0.4975,
         )
         result = ConfidenceComputer().compute(thesis)
-        # Re-pinned for the Run-003 repair weights (regime channel removed;
-        # 0.35/0.35/0.20/0.10; saturation-free diversity/provenance):
-        # 0.35*0.5528 + 0.35*1.0 + 0.20*(2/5) + 0.10*(2/4) = 0.67348,
-        # penalty 0.40*0.1 -> 0.67348*0.96 = 0.6465.  Previous pins: 0.7327
-        # (pre-Group A), 0.7112 (post-Group A).
-        assert result["final_confidence"] == 0.6465
+        # Legacy fixture has no valid KR count, so workflow provenance earns zero:
+        # 0.35*0.5528 + 0.35*1.0 + 0.20*(2/5) = 0.62348,
+        # penalty 0.40*0.1 -> 0.62348*0.96 = 0.5985.
+        assert result["final_confidence"] == 0.5985
 
     def test_metadata_records_support_without_multiplier(self):
         result = ConfidenceComputer().compute(_make_thesis())
