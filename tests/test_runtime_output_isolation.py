@@ -14,6 +14,7 @@ import importlib.util
 import json
 from copy import deepcopy
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -165,7 +166,89 @@ class _FrozenStageOutput:
     details: _FrozenStageDetails
 
 
+class _StageState(Enum):
+    COMPLETE = "complete"
+
+    def __init__(self, _value: str) -> None:
+        # Enum members may carry runtime metadata that refers back to the
+        # member. The serializer must use ``value`` rather than ``vars``.
+        self.self_reference = self
+
+
+@dataclass(frozen=True)
+class _EnumStageOutput:
+    state: _StageState
+
+
+@dataclass
+class _CyclicStageOutput:
+    label: str
+    child: object | None = None
+
+
 class TestRuntimeStageOutputs:
+    def test_payload_serializes_enum_inside_dataclass_by_value(
+        self, tmp_path: Path
+    ) -> None:
+        output = _EnumStageOutput(state=_StageState.COMPLETE)
+        assessment = SimpleNamespace(
+            pipeline_id="runtime_20990101_120000",
+            outputs={"enum_stage": output},
+        )
+
+        payload = RUN._stage_outputs_payload(assessment)
+        artifact = tmp_path / RUN.STAGE_OUTPUTS_FILENAME
+        RUN._write_json(artifact, payload)
+
+        persisted = json.loads(artifact.read_text(encoding="utf-8"))
+        assert persisted["outputs"]["enum_stage"] == {"state": "complete"}
+        assert isinstance(persisted["outputs"]["enum_stage"], dict)
+
+    def test_payload_serializes_cycle_with_deterministic_marker(
+        self, tmp_path: Path
+    ) -> None:
+        output = _CyclicStageOutput(label="cyclic")
+        output.child = output
+        assessment = SimpleNamespace(
+            pipeline_id="runtime_20990101_120000",
+            outputs={"cycle_stage": output},
+        )
+
+        payload = RUN._stage_outputs_payload(assessment)
+        artifact = tmp_path / RUN.STAGE_OUTPUTS_FILENAME
+        RUN._write_json(artifact, payload)
+
+        persisted = json.loads(artifact.read_text(encoding="utf-8"))
+        assert persisted["outputs"]["cycle_stage"] == {
+            "label": "cyclic",
+            "child": {
+                "**circular_reference**": "$.outputs.cycle_stage",
+                "**type**": (
+                    "test_runtime_output_isolation._CyclicStageOutput"
+                ),
+            },
+        }
+        assert isinstance(persisted["outputs"]["cycle_stage"], dict)
+
+    def test_payload_does_not_mark_shared_non_cyclic_object_as_cycle(
+        self, tmp_path: Path
+    ) -> None:
+        shared = _NestedStageValue(7)
+        assessment = SimpleNamespace(
+            pipeline_id="runtime_20990101_120000",
+            outputs={"shared_stage": {"left": shared, "right": shared}},
+        )
+
+        payload = RUN._stage_outputs_payload(assessment)
+        artifact = tmp_path / RUN.STAGE_OUTPUTS_FILENAME
+        RUN._write_json(artifact, payload)
+
+        persisted = json.loads(artifact.read_text(encoding="utf-8"))
+        assert persisted["outputs"]["shared_stage"] == {
+            "left": {"value": 7},
+            "right": {"value": 7},
+        }
+
     def test_payload_serializes_frozen_dict_inside_nested_dataclass(
         self, tmp_path: Path
     ) -> None:
