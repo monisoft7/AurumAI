@@ -34,6 +34,8 @@ def _load_module(rel_path: str, name: str):
 
 OUT = _load_module("src/runtime_registry/outputs.py", "runtime_outputs")
 RUN = _load_module("run.py", "runtime_entry")
+from knowledge._compat import FrozenDict, freeze_dict
+
 REPORT = _load_module(
     "scripts/generate_institutional_report.py", "institutional_report_mod"
 )
@@ -152,7 +154,76 @@ class _StageOutput:
     nested: _NestedStageValue
 
 
+class _FrozenStageDetails:
+    def __init__(self, properties: FrozenDict) -> None:
+        self.properties = properties
+
+
+@dataclass(frozen=True)
+class _FrozenStageOutput:
+    label: str
+    details: _FrozenStageDetails
+
+
 class TestRuntimeStageOutputs:
+    def test_payload_serializes_frozen_dict_inside_nested_dataclass(
+        self, tmp_path: Path
+    ) -> None:
+        properties = freeze_dict(
+            {"zeta": {"enabled": True}, "alpha": [1, 2, 3]}
+        )
+        output = _FrozenStageOutput(
+            label="frozen",
+            details=_FrozenStageDetails(properties=properties),
+        )
+        outputs = {"frozen_stage": output}
+        assessment = SimpleNamespace(
+            pipeline_id="runtime_20990101_120000",
+            outputs=outputs,
+        )
+
+        payload = RUN._stage_outputs_payload(assessment)
+        artifact = tmp_path / RUN.STAGE_OUTPUTS_FILENAME
+        RUN._write_json(artifact, payload)
+
+        raw = artifact.read_text(encoding="utf-8")
+        persisted = json.loads(raw)
+        persisted_properties = persisted["outputs"]["frozen_stage"]["details"][
+            "properties"
+        ]
+        assert persisted_properties == {
+            "alpha": [1, 2, 3],
+            "zeta": {"enabled": True},
+        }
+        assert isinstance(persisted_properties, dict)
+        assert raw.index('"alpha"') < raw.index('"zeta"')
+        assert assessment.outputs is outputs
+        assert assessment.outputs["frozen_stage"] is output
+        assert output.details.properties is properties
+        assert properties == {
+            "zeta": {"enabled": True},
+            "alpha": [1, 2, 3],
+        }
+
+    def test_serialize_dataclass_does_not_call_asdict(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def fail_asdict(_obj):
+            raise AssertionError("dataclasses.asdict must not be called")
+
+        monkeypatch.setattr(RUN.dataclasses, "asdict", fail_asdict)
+        output = _FrozenStageOutput(
+            label="frozen",
+            details=_FrozenStageDetails(
+                properties=freeze_dict({"nested": {"value": 3}})
+            ),
+        )
+
+        assert RUN._serialize(output) == {
+            "label": "frozen",
+            "details": {"properties": {"nested": {"value": 3}}},
+        }
+
     def test_payload_persists_every_output_deterministically(
         self, tmp_path: Path
     ) -> None:
