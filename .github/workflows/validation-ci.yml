@@ -108,4 +108,4 @@ jobs:
       - name: Paper Trading Integrity Regression Pack
         run: |
           mkdir -p .pytest-tmp
-          python -m pytest -q tests/test_paper_trading.py --tb=short --basetemp=.pytest-tmp/paper-trading
+          python -m pytest -q tests/test_paper_trading.py tests/test_paper_trading_automation.py --tb=short --basetemp=.pytest-tmp/paper-trading
