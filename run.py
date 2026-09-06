@@ -27,6 +27,7 @@ import logging
 import os
 import sys
 import time
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
@@ -199,24 +200,69 @@ def _init_logging(run_dir: Path) -> None:
 
 
 def _serialize(obj: Any) -> Any:
+    return _serialize_at_path(obj, active={}, path="$")
+
+
+def _serialize_at_path(
+    obj: Any,
+    *,
+    active: dict[int, str],
+    path: str,
+) -> Any:
+    if isinstance(obj, Enum):
+        return _serialize_at_path(obj.value, active=active, path=path)
     if obj is None or isinstance(obj, (str, int, float, bool)):
         return obj
-    if isinstance(obj, dict):
-        return {str(key): _serialize(value) for key, value in obj.items()}
-    if isinstance(obj, (list, tuple, set)):
-        return [_serialize(value) for value in obj]
     if isinstance(obj, (datetime.date, datetime.datetime)):
         return obj.isoformat()
-    if hasattr(obj, "to_dict"):
-        return _serialize(obj.to_dict())
-    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+
+    object_id = id(obj)
+    first_path = active.get(object_id)
+    if first_path is not None:
+        obj_type = type(obj)
         return {
-            field.name: _serialize(getattr(obj, field.name))
-            for field in dataclasses.fields(obj)
+            "**circular_reference**": first_path,
+            "**type**": f"{obj_type.__module__}.{obj_type.__qualname__}",
         }
-    if hasattr(obj, "__dict__"):
-        return _serialize(vars(obj))
-    return str(obj)
+
+    active[object_id] = path
+    try:
+        if isinstance(obj, dict):
+            return {
+                str(key): _serialize_at_path(
+                    value,
+                    active=active,
+                    path=f"{path}.{key}",
+                )
+                for key, value in obj.items()
+            }
+        if isinstance(obj, (list, tuple, set)):
+            return [
+                _serialize_at_path(
+                    value,
+                    active=active,
+                    path=f"{path}[{index}]",
+                )
+                for index, value in enumerate(obj)
+            ]
+        if hasattr(obj, "to_dict"):
+            return _serialize_at_path(
+                obj.to_dict(), active=active, path=path
+            )
+        if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+            return {
+                field.name: _serialize_at_path(
+                    getattr(obj, field.name),
+                    active=active,
+                    path=f"{path}.{field.name}",
+                )
+                for field in dataclasses.fields(obj)
+            }
+        if hasattr(obj, "__dict__"):
+            return _serialize_at_path(vars(obj), active=active, path=path)
+        return str(obj)
+    finally:
+        active.pop(object_id, None)
 
 
 def _write_json(path: Path, payload: Any) -> None:
