@@ -385,3 +385,28 @@ def test_artifact_paths_are_relative_and_windows_compatible(tmp_path: Path) -> N
     paths = [item["path"] for item in json.loads(manifest.read_text())["artifacts"]]
     assert paths == ["stage_outputs.json", "outcome.json", "summary.json"]
     assert all("\\" not in value and not Path(value).is_absolute() for value in paths)
+
+
+def test_automation_provenance_is_frozen_into_prediction(tmp_path: Path) -> None:
+    config_path = _config(tmp_path)
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["automation_context"] = {
+        "strategy_baseline_commit": BASELINE,
+        "harness_commit": "6ce0d848cd24167317f228ffd8772274e9a58166",
+        "github_actions": {
+            "run_id": "123",
+            "run_url": "https://github.example/actions/runs/123",
+        },
+    }
+    _write_json(config_path, config)
+    manifest_path = create_prediction_manifest(
+        _runtime(tmp_path / "runs"),
+        tmp_path / "ledger",
+        config_path,
+        baseline_commit=BASELINE,
+        created_at_utc="2026-01-01T12:01:00Z",
+    )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["strategy_baseline_commit"] == BASELINE
+    assert manifest["harness_commit"] == config["automation_context"]["harness_commit"]
+    assert manifest["github_actions"]["run_id"] == "123"

@@ -129,6 +129,22 @@ def _validate_config(config: dict[str, Any], baseline_commit: str) -> None:
         raise PaperTradingError("locked session horizons must be exactly [1, 3, 5]")
     if config["instrument"] != "XAU/USD":
         raise PaperTradingError("paper-trading instrument must be XAU/USD")
+    automation = config.get("automation_context")
+    if automation is not None:
+        if not isinstance(automation, dict):
+            raise PaperTradingError("automation_context must be an object")
+        if automation.get("strategy_baseline_commit") != expected:
+            raise PaperTradingError("automation strategy baseline mismatch")
+        harness_commit = str(automation.get("harness_commit") or "").lower()
+        if len(harness_commit) != 40 or any(
+            character not in "0123456789abcdef" for character in harness_commit
+        ):
+            raise PaperTradingError("automation harness_commit must be a full SHA")
+        github_actions = automation.get("github_actions")
+        if not isinstance(github_actions, dict) or not all(
+            github_actions.get(field) for field in ("run_id", "run_url")
+        ):
+            raise PaperTradingError("automation GitHub Actions provenance is incomplete")
 
 
 def _validate_runtime(
@@ -326,6 +342,17 @@ def create_prediction_manifest(
         "evaluation_id": evaluation_id,
         "cohort_id": str(config["cohort_id"]),
         "baseline_commit": str(config["baseline_commit"]),
+        "strategy_baseline_commit": str(
+            (config.get("automation_context") or {}).get(
+                "strategy_baseline_commit", config["baseline_commit"]
+            )
+        ),
+        "harness_commit": (config.get("automation_context") or {}).get(
+            "harness_commit"
+        ),
+        "github_actions": (config.get("automation_context") or {}).get(
+            "github_actions"
+        ),
         "runtime_id": runtime_id,
         "created_at_utc": _utc_text(created),
         "decision_timestamp": _utc_text(decision_time),
@@ -549,15 +576,27 @@ def _outcome_integrity(
     return None
 
 
-def summarize_cohort(registry_dir: Path, evaluation_id: str) -> dict[str, Any]:
+def summarize_cohort(
+    registry_dir: Path,
+    evaluation_id: str | None = None,
+    *,
+    cohort_id: str | None = None,
+) -> dict[str, Any]:
     """Aggregate one cohort and apply the precommitted economic gates."""
+    if bool(evaluation_id) == bool(cohort_id):
+        raise PaperTradingError("select exactly one evaluation_id or cohort_id")
     root = Path(registry_dir)
     predictions: dict[str, tuple[dict[str, Any], str]] = {}
     exclusions: Counter[str] = Counter()
     for path in sorted((root / "predictions").glob("*.json")):
         try:
             item = _read_object(path)
-            if item.get("evaluation_id") == evaluation_id:
+            selected = (
+                item.get("evaluation_id") == evaluation_id
+                if evaluation_id
+                else item.get("cohort_id") == cohort_id
+            )
+            if selected:
                 predictions[item["prediction_id"]] = (item, _sha256(path))
         except (PaperTradingError, KeyError):
             exclusions["invalid_prediction_record"] += 1
@@ -566,7 +605,12 @@ def summarize_cohort(registry_dir: Path, evaluation_id: str) -> dict[str, Any]:
     for path in sorted((root / "outcomes").glob("*.json")):
         try:
             item = _read_object(path)
-            if item.get("evaluation_id") != evaluation_id:
+            selected = (
+                item.get("evaluation_id") == evaluation_id
+                if evaluation_id
+                else item.get("cohort_id") == cohort_id
+            )
+            if not selected:
                 continue
             pred_pair = predictions.get(item.get("prediction_id"))
             if pred_pair is None:
@@ -668,6 +712,7 @@ def summarize_cohort(registry_dir: Path, evaluation_id: str) -> dict[str, Any]:
         "schema_version": "1.0",
         "artifact": "paper_trading_cohort_summary",
         "evaluation_id": evaluation_id,
+        "cohort_id": cohort_id,
         "primary_horizon_sessions": primary,
         "total_decisions": total,
         "decision_counts": {
