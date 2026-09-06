@@ -210,7 +210,10 @@ def _serialize(obj: Any) -> Any:
     if hasattr(obj, "to_dict"):
         return _serialize(obj.to_dict())
     if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
-        return _serialize(dataclasses.asdict(obj))
+        return {
+            field.name: _serialize(getattr(obj, field.name))
+            for field in dataclasses.fields(obj)
+        }
     if hasattr(obj, "__dict__"):
         return _serialize(vars(obj))
     return str(obj)
