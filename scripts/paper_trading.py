@@ -48,7 +48,9 @@ def _parser() -> argparse.ArgumentParser:
 
     summary = commands.add_parser("summarize", help="summarize one frozen cohort")
     summary.add_argument("--registry-dir", type=Path, required=True)
-    summary.add_argument("--evaluation-id", required=True)
+    selector = summary.add_mutually_exclusive_group(required=True)
+    selector.add_argument("--evaluation-id")
+    selector.add_argument("--cohort-id")
     summary.add_argument("--output", type=Path)
     return parser
 
@@ -75,7 +77,11 @@ def main(argv: list[str] | None = None) -> int:
             )
             print(path)
         else:
-            payload = summarize_cohort(args.registry_dir, args.evaluation_id)
+            payload = summarize_cohort(
+                args.registry_dir,
+                args.evaluation_id,
+                cohort_id=args.cohort_id,
+            )
             rendered = json.dumps(payload, indent=2, sort_keys=True)
             if args.output:
                 args.output.parent.mkdir(parents=True, exist_ok=True)
