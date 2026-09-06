@@ -12,7 +12,10 @@ from __future__ import annotations
 
 import importlib.util
 import json
+from copy import deepcopy
+from dataclasses import dataclass
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -136,6 +139,96 @@ class TestRuntimePipelineId:
         second = RUN._new_pipeline_id(outputs, "2026-08-04")
         assert second != first
         assert not (outputs / "2026-08-04" / second).exists()
+
+
+@dataclass(frozen=True)
+class _NestedStageValue:
+    value: int
+
+
+@dataclass(frozen=True)
+class _StageOutput:
+    label: str
+    nested: _NestedStageValue
+
+
+class TestRuntimeStageOutputs:
+    def test_payload_persists_every_output_deterministically(
+        self, tmp_path: Path
+    ) -> None:
+        outputs = {
+            "z_future_stage": _StageOutput("future", _NestedStageValue(3)),
+            "ingest_event": {"items": [_NestedStageValue(1)]},
+            "a_first_stage": {"status": "ok"},
+        }
+        original = deepcopy(outputs)
+        assessment = SimpleNamespace(
+            pipeline_id="runtime_20990101_120000",
+            outputs=outputs,
+        )
+
+        payload = RUN._stage_outputs_payload(assessment)
+
+        assert payload["stage_count"] == len(outputs)
+        assert payload["stage_ids"] == sorted(outputs)
+        assert list(payload["outputs"]) == sorted(outputs)
+        assert set(payload["outputs"]) == set(outputs)
+
+        artifact = tmp_path / RUN.STAGE_OUTPUTS_FILENAME
+        RUN._write_json(artifact, payload)
+        persisted = json.loads(artifact.read_text(encoding="utf-8"))
+        assert persisted["outputs"]["z_future_stage"] == {
+            "label": "future",
+            "nested": {"value": 3},
+        }
+        assert persisted["outputs"]["ingest_event"]["items"] == [
+            {"value": 1}
+        ]
+        assert outputs == original
+
+    def test_payload_excludes_runtime_params_and_environment(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        secret = "must-not-be-persisted"
+        monkeypatch.setenv("AURUMAI_TEST_API_KEY", secret)
+        assessment = SimpleNamespace(
+            pipeline_id="runtime_20990101_120000",
+            outputs={"only_stage": {"value": 1}},
+            params={"api_key": secret},
+        )
+
+        payload = RUN._stage_outputs_payload(assessment)
+        artifact = tmp_path / RUN.STAGE_OUTPUTS_FILENAME
+        RUN._write_json(artifact, payload)
+        raw = artifact.read_text(encoding="utf-8")
+
+        assert set(payload) == {
+            "schema_version",
+            "pipeline_id",
+            "stage_count",
+            "stage_ids",
+            "outputs",
+        }
+        assert "params" not in raw
+        assert "AURUMAI_TEST_API_KEY" not in raw
+        assert secret not in raw
+
+    def test_summary_reference_is_relative_and_uses_payload_count(self) -> None:
+        payload = {
+            "schema_version": "1.0",
+            "pipeline_id": "runtime_20990101_120000",
+            "stage_count": 2,
+            "stage_ids": ["a", "b"],
+            "outputs": {"a": {}, "b": {}},
+        }
+
+        fields = RUN._stage_outputs_summary_fields(payload)
+
+        assert fields == {
+            "stage_outputs_file": "stage_outputs.json",
+            "stage_output_count": 2,
+        }
+        assert not Path(fields["stage_outputs_file"]).is_absolute()
 
 
 # ===========================================================================

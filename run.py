@@ -53,6 +53,7 @@ NOTICE_ENV_VARS = ("NEWS_API_KEY",)
 EXIT_OK = 0
 EXIT_RUN_FAILED = 1
 EXIT_CONFIG_ERROR = 2
+STAGE_OUTPUTS_FILENAME = "stage_outputs.json"
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "event_type": "CPI",
@@ -220,6 +221,28 @@ def _write_json(path: Path, payload: Any) -> None:
         json.dumps(_serialize(payload), indent=2, sort_keys=True),
         encoding="utf-8",
     )
+
+
+def _stage_outputs_payload(assessment: Any) -> dict[str, Any]:
+    """Build an auditable snapshot from the orchestrator's existing outputs."""
+    stage_ids = sorted(assessment.outputs)
+    return {
+        "schema_version": "1.0",
+        "pipeline_id": assessment.pipeline_id,
+        "stage_count": len(assessment.outputs),
+        "stage_ids": stage_ids,
+        "outputs": {
+            stage_id: assessment.outputs[stage_id]
+            for stage_id in stage_ids
+        },
+    }
+
+
+def _stage_outputs_summary_fields(payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "stage_outputs_file": STAGE_OUTPUTS_FILENAME,
+        "stage_output_count": payload["stage_count"],
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -580,8 +603,10 @@ def main(argv: list[str] | None = None) -> int:
         r.status != "failed" for r in assessment.stages
     )
 
+    stage_outputs = _stage_outputs_payload(assessment)
     _write_json(run_dir / "stages.json", stage_records)
     _write_json(run_dir / "finalize.json", finalize)
+    _write_json(run_dir / STAGE_OUTPUTS_FILENAME, stage_outputs)
     _write_json(run_dir / "summary.json", {
         "pipeline_id": assessment.pipeline_id,
         "trigger": assessment.trigger,
@@ -605,6 +630,7 @@ def main(argv: list[str] | None = None) -> int:
         "failed_stages": [
             r.stage_id for r in assessment.stages if r.status == "failed"
         ],
+        **_stage_outputs_summary_fields(stage_outputs),
     })
 
     if success:
