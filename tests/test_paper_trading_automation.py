@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -22,6 +25,7 @@ from paper_trading.automation import (
     scan_runtime_secrets,
     secret_presence,
     validate_append_only,
+    write_failure_artifacts,
 )
 from paper_trading.ledger import HorizonNotComplete, evaluate_prediction
 
@@ -127,6 +131,68 @@ def test_dry_run_never_calls_pipeline_or_writes_ledger(
     ).read_text(encoding="utf-8")
     assert "اختبار AurumAI Paper Trading" in dry_message
     assert "0/0" in dry_message
+
+
+def test_cli_loads_from_github_checkout_layout_without_installed_package(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    parent = tmp_path / "parent"
+    harness = parent / "harness"
+    for path in (
+        harness / "scripts",
+        harness / "src" / "paper_trading",
+        parent / "strategy",
+        parent / "ledger",
+        parent / "automation-artifacts",
+    ):
+        path.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(ROOT / "scripts" / "paper_trading.py", harness / "scripts")
+    for name in ("__init__.py", "ledger.py"):
+        shutil.copy2(
+            ROOT / "src" / "paper_trading" / name,
+            harness / "src" / "paper_trading" / name,
+        )
+
+    monkeypatch.chdir(parent)
+    legacy = subprocess.run(
+        [sys.executable, str(Path("harness/scripts/paper_trading.py")), "--help"],
+        cwd=harness,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert legacy.returncode != 0
+    assert "[Errno 2]" in legacy.stderr
+
+    automation._load_paper_trading_cli(Path("harness"))
+
+
+def test_failure_result_has_safe_error_type_without_internal_details(
+    tmp_path: Path,
+) -> None:
+    secret = "never-write-this-secret"
+    failure = AutomationFailure(
+        "preflight",
+        "paper-trading CLI failed to load",
+        error_type="ModuleNotFoundError",
+        missing_module="paper_trading.ledger",
+    )
+    write_failure_artifacts(
+        tmp_path,
+        failure,
+        run_url="https://github.example/actions/runs/1",
+        environment={**_environment(), "TELEGRAM_BOT_TOKEN": secret},
+    )
+    result_text = (tmp_path / "result.json").read_text(encoding="utf-8")
+    result = json.loads(result_text)
+    assert result["error_type"] == "ModuleNotFoundError"
+    assert result["missing_module"] == "paper_trading.ledger"
+    assert secret not in result_text
+    assert "Traceback" not in result_text
+    assert "environment" not in result
+    message = (tmp_path / "telegram_message.txt").read_text(encoding="utf-8")
+    assert "ModuleNotFoundError" not in message
+    assert "paper_trading.ledger" not in message
 
 
 def test_evaluation_id_is_daily_and_deterministic() -> None:
@@ -288,6 +354,11 @@ def test_workflow_yaml_policy_is_valid_and_read_only() -> None:
     assert data["permissions"] == {"contents": "read"}
     assert data["concurrency"]["group"] == "aurumai-paper-trading-daily"
     assert data["concurrency"]["cancel-in-progress"] == "false"
+    install = next(
+        step for step in data["jobs"]["paper-trading"]["steps"]
+        if step.get("name") == "Install strategy dependencies"
+    )
+    assert install["if"] == "env.AUTOMATION_MODE == 'live-paper'"
     assert "pull_request_target" not in data["on"]
     assert "\t" not in WORKFLOW.read_text(encoding="utf-8")
 

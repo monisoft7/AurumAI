@@ -75,8 +75,10 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(f"Paper automation stopped safely at {exc.stage}", file=sys.stderr)
         return 1
-    except Exception:
-        failure = AutomationFailure("automation", "unexpected safe stop")
+    except Exception as exc:
+        failure = AutomationFailure(
+            "automation", "unexpected safe stop", error_type=type(exc).__name__
+        )
         write_failure_artifacts(
             args.output_dir,
             failure,

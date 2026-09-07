@@ -53,10 +53,19 @@ TELEGRAM_LIMIT = 3500
 class AutomationFailure(RuntimeError):
     """A safe-stop condition with a concise, user-facing stage and reason."""
 
-    def __init__(self, stage: str, reason: str) -> None:
+    def __init__(
+        self,
+        stage: str,
+        reason: str,
+        *,
+        error_type: str | None = None,
+        missing_module: str | None = None,
+    ) -> None:
         super().__init__(reason)
         self.stage = stage
         self.reason = reason
+        self.error_type = error_type
+        self.missing_module = missing_module
 
 
 @dataclass(frozen=True)
@@ -581,7 +590,13 @@ def _preflight(
     base_config = _read_object(harness_dir / "config" / "paper_trading_baseline.json")
     if base_config.get("baseline_commit") != STRATEGY_BASELINE:
         raise AutomationFailure("preflight", "locked paper configuration mismatch")
-    cli = harness_dir / "scripts" / "paper_trading.py"
+    _load_paper_trading_cli(harness_dir)
+    return strategy_commit, harness_commit
+
+
+def _load_paper_trading_cli(harness_dir: Path) -> None:
+    """Load the checkout CLI without relying on the caller's working directory."""
+    cli = (harness_dir / "scripts" / "paper_trading.py").resolve()
     if not cli.is_file():
         raise AutomationFailure("preflight", "paper-trading CLI is missing")
     help_result = subprocess.run(
@@ -592,8 +607,23 @@ def _preflight(
         timeout=30,
     )
     if help_result.returncode != 0:
-        raise AutomationFailure("preflight", "paper-trading CLI failed to load")
-    return strategy_commit, harness_commit
+        error_type = "CLIProcessError"
+        missing_module = None
+        module_match = re.search(
+            r"ModuleNotFoundError: No module named ['\"]([A-Za-z0-9_.-]+)['\"]",
+            help_result.stderr,
+        )
+        if module_match:
+            error_type = "ModuleNotFoundError"
+            missing_module = module_match.group(1)
+        elif "[Errno 2]" in help_result.stderr:
+            error_type = "FileNotFoundError"
+        raise AutomationFailure(
+            "preflight",
+            "paper-trading CLI failed to load",
+            error_type=error_type,
+            missing_module=missing_module,
+        )
 
 
 def _create_daily_config(
@@ -896,7 +926,12 @@ def write_failure_artifacts(
         secrets=secrets,
     )
     (output_dir / "telegram_message.txt").write_text(message, encoding="utf-8")
-    _canonical_write(
-        output_dir / "result.json",
-        {"status": "FAILED", "stage": failure.stage, "reason": failure.reason},
-    )
+    result = {
+        "status": "FAILED",
+        "stage": failure.stage,
+        "reason": failure.reason,
+        "error_type": failure.error_type or type(failure).__name__,
+    }
+    if failure.error_type == "ModuleNotFoundError" and failure.missing_module:
+        result["missing_module"] = failure.missing_module
+    _canonical_write(output_dir / "result.json", result)
