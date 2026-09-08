@@ -275,10 +275,58 @@ def _scan_sensitive(value: Any, location: str = "$") -> list[str]:
     return findings
 
 
+def _read_stages(
+    path: Path, *, stage_outputs: Mapping[str, Any] | None = None
+) -> list[dict[str, Any]]:
+    """Read run.py's list of StageRecord.to_dict() records (no envelope).
+
+    Paper runs require 27 unique, nonempty string IDs and only fresh `ok`
+    records. Execution order need not match the sorted stage_outputs IDs.
+    """
+    try:
+        stages = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise AutomationFailure("artifact-validation", "invalid stages.json") from exc
+    if not isinstance(stages, list) or len(stages) != 27:
+        raise AutomationFailure("stage-gate", "stages.json must contain 27 stage records")
+    stage_ids: set[str] = set()
+    for record in stages:
+        if not isinstance(record, dict):
+            raise AutomationFailure("stage-gate", "stage record must be an object")
+        stage_id = record.get("stage_id")
+        if (
+            not isinstance(stage_id, str) or not stage_id or not stage_id.isprintable()
+            or any(character.isspace() for character in stage_id)
+        ):
+            raise AutomationFailure("stage-gate", "stage ID is missing or invalid")
+        if stage_id in stage_ids:
+            raise AutomationFailure("stage-gate", "duplicate stage ID")
+        stage_ids.add(stage_id)
+        if record.get("status") != "ok" or record.get("error") not in (None, ""):
+            raise AutomationFailure("stage-gate", "stage did not complete with ok status")
+    if stage_outputs is not None:
+        outputs = stage_outputs.get("outputs")
+        declared_ids = stage_outputs.get("stage_ids")
+        if (
+            type(stage_outputs.get("stage_count")) is not int
+            or stage_outputs["stage_count"] != 27
+            or not isinstance(outputs, dict)
+            or len(outputs) != 27
+            or not isinstance(declared_ids, list)
+            or len(declared_ids) != 27
+            or any(not isinstance(stage_id, str) for stage_id in declared_ids)
+            or len(set(declared_ids)) != 27
+            or stage_ids != set(declared_ids)
+            or stage_ids != set(outputs)
+        ):
+            raise AutomationFailure("stage-gate", "stages.json and stage_outputs disagree")
+    return stages
+
+
 def scan_runtime_secrets(paths: Sequence[Path], secret_values: Sequence[str]) -> None:
     findings: list[str] = []
     for path in paths:
-        value = _read_object(path)
+        value = _read_stages(path) if path.name == "stages.json" else _read_object(path)
         findings.extend(f"{path.name}:{item}" for item in _scan_sensitive(value))
         raw = path.read_text(encoding="utf-8")
         if any(secret and secret in raw for secret in secret_values):
@@ -397,23 +445,8 @@ def _validate_runtime(
     stage_outputs = _read_object(required[0])
     summary = _read_object(required[1])
     outcome = _read_object(required[2])
-    try:
-        stages = json.loads(required[3].read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise AutomationFailure("artifact-validation", "invalid stages.json") from exc
-    outputs = stage_outputs.get("outputs")
-    if (
-        stage_outputs.get("stage_count") != 27
-        or not isinstance(outputs, dict)
-        or len(outputs) != 27
-        or not isinstance(stages, list)
-        or len(stages) != 27
-        or any(
-            not isinstance(item, dict) or item.get("status") != "ok"
-            for item in stages
-        )
-    ):
-        raise AutomationFailure("stage-gate", "runtime did not complete 27/27 stages")
+    _read_stages(required[3], stage_outputs=stage_outputs)
+    outputs = stage_outputs["outputs"]
     if summary.get("success") is not True or summary.get("errors"):
         raise AutomationFailure("runtime-gate", "runtime summary is not successful")
     runtime_id = str(summary.get("pipeline_id") or "")

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import datetime as dt
 import hashlib
 import importlib.util
 import json
@@ -113,14 +112,6 @@ def test_real_checkout_layout_preflight_create_summarize_and_manifest(tmp_path, 
         original_load(root)  # Actual offline --help subprocess, guarded by conftest.
 
     monkeypatch.setattr(automation, "_load_paper_trading_cli", preflight_cli)
-    # Path/provenance test boundary: runtime validation is independent.
-    # Existing production validation rejects list-shaped stages.json in its
-    # object-only secret scanner; that pre-existing defect is not repaired here.
-    monkeypatch.setattr(automation, "_validate_runtime", lambda *args, **kwargs: {
-        "freshness_eligible": True, "ledger_eligible": True,
-        "freshness": {"price": "fresh"}, "runtime_id": "runtime_1",
-        "decision_time": dt.datetime(2026, 1, 1, 12, tzinfo=dt.timezone.utc),
-    })
     published = []
     monkeypatch.setattr(automation, "_commit_ledger", lambda *args: published.append(args))
 
@@ -141,7 +132,10 @@ def test_real_checkout_layout_preflight_create_summarize_and_manifest(tmp_path, 
             summary = json.loads((run / "summary.json").read_text())
             summary["stage_output_count"] = 27
             _write_json(run / "summary.json", summary)
-            _write_json(run / "stages.json", [{"status": "ok"}] * 27)
+            _write_json(run / "stages.json", [
+                {"stage_id": stage_id, "status": "ok", "duration_ms": 1.5}
+                for stage_id in stage["stage_ids"]
+            ])
             _write_json(run / "finalize.json", {})
             _write_json(strategy / "runtime/run_registry.jsonl", {
                 "run_id": "runtime_1", "output_directory": str(run),

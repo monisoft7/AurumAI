@@ -21,7 +21,8 @@ def _clear_global_extractors() -> None:
 def _paper_hermetic_boundary(request, monkeypatch):
     """Paper tests may launch only the offline CLI's --help command."""
     if request.module.__name__.split(".")[-1] not in {
-        "test_paper_trading", "test_paper_trading_automation", "test_paper_timing_audit"
+        "test_paper_trading", "test_paper_trading_automation", "test_paper_timing_audit",
+        "test_paper_stage_validation", "test_runtime_output_isolation",
     }:
         return
     import os
@@ -47,6 +48,11 @@ def _paper_hermetic_boundary(request, monkeypatch):
         }
         return original_popen(command, *args, **kwargs)
 
+    from orchestration.orchestrator import InstitutionalOrchestrator
+    from connectors.gold_data_provider import GoldDataProvider
+
+    monkeypatch.setattr(InstitutionalOrchestrator, "run_all", denied)
+    monkeypatch.setattr(GoldDataProvider, "refresh", denied)
     monkeypatch.setattr(subprocess, "Popen", guarded_popen)
     monkeypatch.setattr(os, "system", denied)
     monkeypatch.setattr(socket.socket, "connect", denied)
