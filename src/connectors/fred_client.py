@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -90,6 +91,25 @@ class FredClient:
     def freshness_report(self) -> dict[str, dict[str, Any]]:
         return {series_id: dict(record) for series_id, record in self._freshness.items()}
 
+    def read_cached_series(self, series_id: str) -> pd.Series | None:
+        """Return cached values without triggering a network request."""
+        cache_path = self._cache_dir / f"{series_id}.csv"
+        if not cache_path.is_file():
+            return None
+        cached = self._read_cached_series(cache_path)
+        return cached if len(cached) > 0 else None
+
+    def cache_metadata(self, series_id: str) -> dict[str, Any] | None:
+        """Read retrieval provenance without consulting cache file mtimes."""
+        path = self._cache_dir / f"{series_id}.metadata.json"
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        if not isinstance(value, dict) or value.get("series_id") != series_id:
+            return None
+        return value
+
     def _record_freshness(
         self,
         series_id: str,
@@ -144,6 +164,21 @@ class FredClient:
         self._cache_dir.mkdir(parents=True, exist_ok=True)
         df = pd.DataFrame({"Date": raw.index, "Value": raw.values})
         df.to_csv(cache_path, index=False)
+
+        metadata = {
+            "series_id": series_id,
+            "source": "FRED",
+            "retrieval_status": "live",
+            "retrieved_at_utc": datetime.now(timezone.utc).isoformat(),
+            "latest_observation_date": (
+                pd.Timestamp(raw.index[-1]).date().isoformat()
+                if len(raw) > 0 else None
+            ),
+            "cache_status": "refreshed",
+        }
+        (self._cache_dir / f"{series_id}.metadata.json").write_text(
+            json.dumps(metadata, sort_keys=True) + "\n", encoding="utf-8"
+        )
 
         return raw
 

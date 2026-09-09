@@ -20,6 +20,18 @@ OUTCOME_SCHEMA_VERSION = "1.0"
 ALLOWED_DECISIONS = {"BUY", "SELL", "NO_TRADE"}
 FRESH_STATUSES = {"fresh", "current"}
 INELIGIBLE_FRESHNESS = {"stale", "unavailable", "missing", "unknown"}
+REQUIRED_PAPER_SOURCES = (
+    "DGS10",
+    "DFII10",
+    "T5YIE",
+    "CPI",
+    "Gold",
+    "DXY",
+    "outcome_price",
+)
+RELIABILITY_CATEGORIES = {"very_low", "low", "moderate", "high"}
+
+
 class PaperTradingError(ValueError):
     """The requested ledger operation would violate its integrity contract."""
 
@@ -238,6 +250,150 @@ def _freshness_snapshot(
     return snapshot
 
 
+def _structured_freshness_records(outputs: dict[str, Any]) -> dict[str, Any]:
+    """Collect only explicitly structured source-freshness contracts."""
+    records: dict[str, Any] = {}
+    canonical = {name.casefold(): name for name in REQUIRED_PAPER_SOURCES}
+
+    def visit(value: Any) -> None:
+        if isinstance(value, dict):
+            source_map = value.get("source_freshness")
+            if isinstance(source_map, dict):
+                for source, record in source_map.items():
+                    name = canonical.get(str(source).casefold())
+                    if name is not None and name not in records:
+                        records[name] = record
+            for child in value.values():
+                visit(child)
+        elif isinstance(value, list):
+            for child in value:
+                visit(child)
+
+    visit(outputs)
+    return records
+
+
+def _optional_date(value: Any) -> dt.date | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        return dt.datetime.fromisoformat(value.strip().replace("Z", "+00:00")).date()
+    except ValueError:
+        try:
+            return dt.date.fromisoformat(value.strip())
+        except ValueError:
+            return None
+
+
+def _normalise_source_freshness(value: Any) -> dict[str, Any]:
+    missing = {
+        "status": "unknown",
+        "observation_date": None,
+        "retrieved_at": None,
+        "age_days": None,
+        "max_age_days": None,
+        "availability": "unknown",
+        "reason": "structured freshness metadata missing",
+    }
+    if not isinstance(value, dict):
+        return missing
+
+    raw_status = str(value.get("status") or "unknown").strip().lower()
+    observation_text = value.get("observation_date") or value.get(
+        "last_observation_date"
+    ) or value.get("refreshed_last_date")
+    retrieved_text = value.get("retrieved_at") or value.get("checked_at")
+    observation = _optional_date(observation_text)
+    retrieved = _optional_date(retrieved_text)
+    threshold = value.get("max_age_days")
+    threshold = threshold if type(threshold) is int and threshold >= 0 else None
+    age_days = (
+        (retrieved - observation).days
+        if observation is not None and retrieved is not None
+        else None
+    )
+    availability = value.get("availability")
+    if value.get("available") is False or availability in {"missing", "unavailable"}:
+        status = "unavailable" if availability != "missing" else "missing"
+        reason = str(value.get("reason") or "source is not available")
+    elif raw_status in {"missing", "unavailable"}:
+        status = raw_status
+        reason = str(value.get("reason") or f"source status is {raw_status}")
+    elif raw_status in {"stale", "fallback_stale"}:
+        status = "stale"
+        reason = str(value.get("reason") or f"source status is {raw_status}")
+    elif raw_status in {"fresh", "current", "refreshed", "ok"}:
+        if observation is None or retrieved is None or threshold is None:
+            status = "unknown"
+            reason = "positive status lacks observation/retrieval date or max_age_days"
+        elif age_days is None or age_days < 0:
+            status = "unknown"
+            reason = "source freshness dates are inconsistent"
+        elif age_days <= threshold:
+            status = "fresh"
+            reason = "explicit observation is within the declared age limit"
+        else:
+            status = "stale"
+            reason = "explicit observation exceeds the declared age limit"
+    else:
+        status = "unknown"
+        reason = str(value.get("reason") or "source status is not recognized")
+
+    return {
+        "status": status,
+        "observation_date": str(observation_text) if observation is not None else None,
+        "retrieved_at": str(retrieved_text) if retrieved is not None else None,
+        "age_days": age_days,
+        "max_age_days": threshold,
+        "availability": (
+            "unavailable" if status in {"missing", "unavailable"} else "available"
+        ),
+        "reason": reason,
+    }
+
+
+def _selected_reliability_category(outputs: dict[str, Any]) -> str | None:
+    decision = outputs.get("decision_engine")
+    decision = decision if isinstance(decision, dict) else {}
+    confidence = outputs.get("confidence_engine")
+    confidence = confidence if isinstance(confidence, dict) else {}
+    selected = decision.get("selected_thesis_id") or confidence.get(
+        "primary_thesis_id"
+    )
+    records = confidence.get("theses_confidence")
+    if not isinstance(records, list):
+        return None
+    for record in records:
+        if not isinstance(record, dict) or record.get("thesis_id") != selected:
+            continue
+        category = str(record.get("reliability_category") or "").strip().lower()
+        return category if category in RELIABILITY_CATEGORIES else None
+    return None
+
+
+def build_paper_evaluation(
+    outputs: dict[str, Any], summary: dict[str, Any], outcome: dict[str, Any]
+) -> dict[str, Any]:
+    """Build canonical decision-time metadata without consulting logs or mtimes."""
+    del summary, outcome  # Reserved for versioned structured contracts only.
+    raw_sources = _structured_freshness_records(outputs)
+    sources = {
+        name: _normalise_source_freshness(raw_sources.get(name))
+        for name in REQUIRED_PAPER_SOURCES
+    }
+    exclusions = [
+        f"{name}:{record['status']}:{record['reason']}"
+        for name, record in sources.items()
+        if record["status"] != "fresh"
+    ]
+    return {
+        "reliability_category": _selected_reliability_category(outputs),
+        "financially_eligible": not exclusions,
+        "integrity_exclusions": exclusions,
+        "source_freshness": sources,
+    }
+
+
 def _first_gate(outcome: dict[str, Any], finalize: dict[str, Any]) -> dict[str, Any] | None:
     gates = _nested(outcome, "decision_snapshot", "gate_reasons")
     if not isinstance(gates, dict):
@@ -333,8 +489,12 @@ def create_prediction_manifest(
     direction = _nested(finalize, "decision", "metadata", "selected_thesis_direction")
     if direction is None:
         direction = {"BUY": "bullish", "SELL": "bearish"}.get(decision)
-    freshness = _freshness_snapshot(outputs, summary)
-    eligible = bool(freshness) and all(v in FRESH_STATUSES for v in freshness.values())
+    paper_evaluation = build_paper_evaluation(outputs, summary, outcome)
+    freshness = {
+        source: record["status"]
+        for source, record in paper_evaluation["source_freshness"].items()
+    }
+    eligible = paper_evaluation["financially_eligible"]
     risk_size = {
         key: recommendation[key]
         for key in ("risk", "risk_pct", "size", "position_size", "recommended_size")
@@ -372,6 +532,8 @@ def create_prediction_manifest(
         "direction": direction,
         "confidence": confidence if isinstance(confidence, (int, float)) else None,
         "reliability": reliability if isinstance(reliability, (int, float)) else None,
+        "reliability_category": paper_evaluation["reliability_category"],
+        "paper_evaluation": paper_evaluation,
         "recommended_risk_size": risk_size or None,
         "first_decision_gate": _first_gate(outcome, finalize),
         "entry_rule": config["entry_rule"],

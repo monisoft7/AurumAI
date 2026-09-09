@@ -26,6 +26,7 @@ from .ledger import (
     HorizonNotComplete,
     PaperTradingError,
     _freshness_snapshot,
+    build_paper_evaluation,
     evaluate_prediction,
 )
 
@@ -181,6 +182,11 @@ def format_success_message(
         if context.get("mode") == "dry-run"
         else "AurumAI Paper Trading — نجاح"
     )
+    exclusions = context.get("integrity_exclusions")
+    if isinstance(exclusions, (list, tuple)):
+        exclusion_text = "; ".join(str(item) for item in exclusions) or "لا توجد"
+    else:
+        exclusion_text = str(exclusions or "لا توجد")
     lines = [
         f"<b>{title}</b>",
         "PAPER TRADING فقط — لا تداول فعلي",
@@ -204,6 +210,7 @@ def format_success_message(
         ),
         f"حالة العينة: {safe(context.get('sample_status', 'INSUFFICIENT_SAMPLE'))}",
         f"الحالة: {safe(context.get('eligibility', 'DRY_RUN'))}",
+        f"أسباب الاستبعاد: {safe(exclusion_text)}",
         f"تقييم outcomes: {safe(context.get('outcome_note', 'لم يُنفّذ'))}",
         f"GitHub Actions: {safe(context.get('run_url', 'غير متاح'))}",
     ]
@@ -474,10 +481,12 @@ def _validate_runtime(
     if registry_report.resolve() != (run_dir / "institutional_report.md").resolve():
         raise AutomationFailure("registry-gate", "registry report path does not match")
     snapshot = _freshness_snapshot(outputs, summary)
-    freshness = _major_freshness(snapshot)
-    ledger_eligible = bool(snapshot) and all(
-        str(status).lower() in FRESH_STATUSES for status in snapshot.values()
-    )
+    paper_evaluation = build_paper_evaluation(outputs, summary, outcome)
+    freshness = {
+        source: record["status"]
+        for source, record in paper_evaluation["source_freshness"].items()
+    }
+    ledger_eligible = paper_evaluation["financially_eligible"]
     return {
         "runtime_id": runtime_id,
         "summary": summary,
@@ -485,7 +494,8 @@ def _validate_runtime(
         "stage_outputs": stage_outputs,
         "freshness_snapshot": snapshot,
         "freshness": freshness,
-        "freshness_eligible": all(value == "fresh" for value in freshness.values()),
+        "paper_evaluation": paper_evaluation,
+        "freshness_eligible": paper_evaluation["financially_eligible"],
         "ledger_eligible": ledger_eligible,
         "decision_time": decision_time,
     }
@@ -847,7 +857,7 @@ def execute_automation(
     _, outcome_note = _evaluate_due_predictions(
         ledger_dir,
         strategy_dir / "data" / "history" / "gold" / "gold.csv",
-        freshness_status=validated["freshness"]["price"],
+        freshness_status=validated["freshness"]["outcome_price"],
         as_of_utc=now.isoformat(),
     )
     daily_config = _create_daily_config(
@@ -894,6 +904,8 @@ def execute_automation(
         raise AutomationFailure("prediction", "harness provenance mismatch")
     if manifest.get("github_actions") != github_actions:
         raise AutomationFailure("prediction", "GitHub run provenance mismatch")
+    if manifest.get("paper_evaluation") != validated["paper_evaluation"]:
+        raise AutomationFailure("prediction", "paper evaluation metadata mismatch")
     scan_runtime_secrets([prediction_path], secrets)
     _canonical_write(output_dir / "run-manifest.json", {
         "github_actions": github_actions,
@@ -902,6 +914,7 @@ def execute_automation(
         "prediction_sha256": hashlib.sha256(prediction_path.read_bytes()).hexdigest(),
         "strategy_baseline_commit": STRATEGY_BASELINE,
         "harness_commit": harness_commit,
+        "paper_evaluation": validated["paper_evaluation"],
         "timing_evidence": "GitHub run metadata reference; not proof of prediction publication time",
     })
 
@@ -948,7 +961,8 @@ def execute_automation(
         "decision": manifest.get("decision"),
         "direction": _direction(manifest),
         "confidence": manifest.get("confidence"),
-        "reliability": manifest.get("reliability"),
+        "reliability": manifest.get("reliability_category")
+        or manifest.get("reliability"),
         "first_gate": first_gate,
         "gate_reason": gate_reason,
         "risk_size": manifest.get("recommended_risk_size"),
@@ -959,6 +973,10 @@ def execute_automation(
             "status", "INSUFFICIENT_SAMPLE"
         ),
         "eligibility": eligibility,
+        "paper_evaluation": manifest.get("paper_evaluation"),
+        "integrity_exclusions": (
+            manifest.get("paper_evaluation") or {}
+        ).get("integrity_exclusions", []),
         "outcome_note": outcome_note,
         "run_url": run_url,
     }

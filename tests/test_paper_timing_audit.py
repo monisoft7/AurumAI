@@ -172,6 +172,8 @@ def test_real_checkout_layout_preflight_create_summarize_and_manifest(tmp_path, 
     assert manifest["prediction_sha256"] == hashlib.sha256(prediction.read_bytes()).hexdigest()
     assert manifest["github_actions"] == json.loads(prediction.read_text())["github_actions"]
     assert manifest["github_actions"]["run_attempt"] == "2"
+    assert manifest["paper_evaluation"] == result["paper_evaluation"]
+    assert result["paper_evaluation"]["financially_eligible"] is True
     assert "not proof" in manifest["timing_evidence"]
     assert result["mode"] == "live-paper"
 

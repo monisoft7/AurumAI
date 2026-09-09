@@ -65,9 +65,26 @@ def _runtime(
     secret: str | None = None,
 ) -> Path:
     run = tmp_path / runtime_id
+    source_freshness = {
+        name: {
+            "status": "fresh",
+            "observation_date": "2026-01-01",
+            "retrieved_at": "2026-01-01T12:00:00Z",
+            "max_age_days": 7,
+        }
+        for name in (
+            "DGS10",
+            "DFII10",
+            "T5YIE",
+            "CPI",
+            "Gold",
+            "DXY",
+            "outcome_price",
+        )
+    }
     outputs = {
         "finalize": {
-            "source_freshness": {"gold": "fresh", "macro": "fresh"},
+            "source_freshness": source_freshness,
             "decision": {
                 "decision": decision,
                 "institutional_confidence": 0.8,
