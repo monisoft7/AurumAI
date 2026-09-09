@@ -32,7 +32,7 @@ from paper_trading.ledger import HorizonNotComplete, evaluate_prediction
 
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOW = ROOT / ".github" / "workflows" / "paper-trading-daily.yml"
-BASELINE = "2acd5adb7ab286c9cb362d5d94dcea0f58f83277"
+BASELINE = "46fd62f1212a225446694fb85655936571625148"
 HARNESS = "6ce0d848cd24167317f228ffd8772274e9a58166"
 
 

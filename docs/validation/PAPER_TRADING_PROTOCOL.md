@@ -1,8 +1,8 @@
 # AurumAI Paper Trading Protocol
 
 Protocol version 1.0 is frozen before the first paper signal. Its evaluation
-cohort is `xauusd-paper-2acd5ad-v1`, based on immutable baseline commit
-`2acd5adb7ab286c9cb362d5d94dcea0f58f83277`.
+cohort is `xauusd-paper-46fd62f-v2`, based on immutable baseline commit
+`46fd62f1212a225446694fb85655936571625148`.
 
 ## Scope and schedule
 
@@ -11,7 +11,7 @@ cohort is `xauusd-paper-2acd5ad-v1`, based on immutable baseline commit
 - Exactly one run is scheduled per market day. Every production decision is
   registered before its outcome, including `NO_TRADE`.
 - Decision timestamps are retained in UTC together with the configured
-  decision timezone, `Asia/Jerusalem`.
+  decision timezone, `Africa/Tripoli`.
 - The production Evidence, Confidence, Decision, and Recommendation
   calculations, thresholds, data sources, and pipeline stages are unchanged.
 - Model or threshold changes are forbidden during the cohort. Any later change
@@ -85,9 +85,9 @@ and never authorize real trading.
 ## Offline commands
 
 ```text
-python scripts/paper_trading.py create --runtime-dir RUN --registry-dir LEDGER --baseline-commit 2acd5adb7ab286c9cb362d5d94dcea0f58f83277
+python scripts/paper_trading.py create --runtime-dir RUN --registry-dir LEDGER --baseline-commit 46fd62f1212a225446694fb85655936571625148
 python scripts/paper_trading.py evaluate --prediction PREDICTION --outcomes-dir LEDGER/outcomes --prices PRICES.csv --horizon 1 --as-of-utc 2026-09-10T21:00:00Z
-python scripts/paper_trading.py summarize --registry-dir LEDGER --evaluation-id xauusd-paper-2acd5ad-v1
+python scripts/paper_trading.py summarize --registry-dir LEDGER --evaluation-id xauusd-paper-46fd62f-v2
 ```
 
 These commands only read local artifacts and write ledger files. They contain
