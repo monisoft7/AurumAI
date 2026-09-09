@@ -272,18 +272,32 @@ def _write_json(path: Path, payload: Any) -> None:
     )
 
 
-def _stage_outputs_payload(assessment: Any) -> dict[str, Any]:
+def _stage_outputs_payload(
+    assessment: Any,
+    *,
+    source_freshness: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     """Build an auditable snapshot from the orchestrator's existing outputs."""
     stage_ids = sorted(assessment.outputs)
+    outputs = {
+        stage_id: assessment.outputs[stage_id]
+        for stage_id in stage_ids
+    }
+    if source_freshness:
+        finalize = outputs.get("finalize")
+        if isinstance(finalize, dict):
+            finalize = dict(finalize)
+            current = finalize.get("source_freshness")
+            merged = dict(current) if isinstance(current, dict) else {}
+            merged.update(source_freshness)
+            finalize["source_freshness"] = merged
+            outputs["finalize"] = finalize
     return {
         "schema_version": "1.0",
         "pipeline_id": assessment.pipeline_id,
         "stage_count": len(assessment.outputs),
         "stage_ids": stage_ids,
-        "outputs": {
-            stage_id: assessment.outputs[stage_id]
-            for stage_id in stage_ids
-        },
+        "outputs": outputs,
     }
 
 
@@ -584,8 +598,27 @@ def main(argv: list[str] | None = None) -> int:
     }
     _write_json(run_dir / "config.json", effective_config)
 
+    cpi_freshness = {
+        "series_id": "CPIAUCSL",
+        "source": "unknown",
+        "retrieval_status": "not_attempted",
+        "retrieved_at_utc": None,
+        "retrieved_at": None,
+        "latest_observation_date": None,
+        "observation_date": None,
+        "max_age_days": 90,
+        "cache_status": "unknown",
+        "status": "unknown",
+        "freshness_reason": "runtime refresh was disabled",
+        "threshold": {
+            "contract": "release_calendar",
+            "config_key": "release_calendar_path",
+            "satisfied": None,
+        },
+    }
     if not args.no_refresh:
         _refresh_gold_before_run(config, run_dir)
+        cpi_freshness = _refresh_cpi_before_run(config)
         _refresh_fred_yields_before_run()
         _refresh_dxy_before_run()
 
@@ -652,7 +685,9 @@ def main(argv: list[str] | None = None) -> int:
         r.status != "failed" for r in assessment.stages
     )
 
-    stage_outputs = _stage_outputs_payload(assessment)
+    stage_outputs = _stage_outputs_payload(
+        assessment, source_freshness={"CPI": cpi_freshness}
+    )
     _write_json(run_dir / "stages.json", stage_records)
     _write_json(run_dir / "finalize.json", finalize)
     _write_json(run_dir / STAGE_OUTPUTS_FILENAME, stage_outputs)
@@ -758,6 +793,165 @@ def _refresh_gold_before_run(config: dict[str, Any], run_dir: Path) -> None:
             "Gold data refresh failed (%s); proceeding with existing dataset",
             exc,
         )
+
+
+def _cpi_release_threshold(
+    config: dict[str, Any], as_of_utc: datetime.datetime
+) -> dict[str, Any]:
+    """Resolve the existing configured release-calendar freshness contract."""
+    import pandas as pd
+
+    configured = config.get("release_calendar_path")
+    threshold: dict[str, Any] = {
+        "contract": "release_calendar",
+        "config_key": "release_calendar_path",
+        "latest_release_at_utc": None,
+        "latest_reference_period": None,
+        "satisfied": None,
+    }
+    if not configured:
+        return threshold
+    path = Path(str(configured))
+    if not path.is_absolute():
+        path = ROOT / path
+    try:
+        frame = pd.read_csv(path)
+    except (OSError, ValueError):
+        return threshold
+    required = {"reference_period", "release_date", "release_time"}
+    if not required.issubset(frame.columns):
+        return threshold
+
+    released: list[tuple[datetime.datetime, str]] = []
+    for _, row in frame.iterrows():
+        timestamp = pd.Timestamp(f"{row['release_date']} {row['release_time']}")
+        try:
+            timestamp = timestamp.tz_localize(str(row.get("timezone") or "US/Eastern"))
+            released_at = timestamp.tz_convert("UTC").to_pydatetime()
+        except (TypeError, ValueError, KeyError):
+            continue
+        if released_at <= as_of_utc:
+            released.append((released_at, str(row["reference_period"])))
+    if released:
+        released_at, reference_period = max(released, key=lambda item: item[0])
+        threshold["latest_release_at_utc"] = released_at.isoformat()
+        threshold["latest_reference_period"] = reference_period
+    return threshold
+
+
+def _parse_utc_timestamp(value: Any) -> datetime.datetime | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return None
+    return parsed.astimezone(datetime.timezone.utc)
+
+
+def _refresh_cpi_before_run(
+    config: dict[str, Any],
+    *,
+    client: Any | None = None,
+    now_utc: datetime.datetime | None = None,
+) -> dict[str, Any]:
+    """Refresh CPI and emit provenance without using cache file timestamps."""
+    import pandas as pd
+
+    from connectors.fred_client import FredClient
+
+    series_id = "CPIAUCSL"
+    now = now_utc or datetime.datetime.now(datetime.timezone.utc)
+    if now.tzinfo is None:
+        raise ValueError("now_utc must be timezone-aware")
+    now = now.astimezone(datetime.timezone.utc)
+    threshold = _cpi_release_threshold(config, now)
+    fred = client or FredClient()
+
+    try:
+        series = fred.get_series(series_id, use_cache=False)
+    except Exception as exc:  # fail closed onto provenance-bearing cache only
+        cached = fred.read_cached_series(series_id)
+        metadata = fred.cache_metadata(series_id) or {}
+        latest = (
+            pd.Timestamp(cached.index[-1]).date().isoformat()
+            if cached is not None and len(cached) > 0 else None
+        )
+        retrieved = _parse_utc_timestamp(metadata.get("retrieved_at_utc"))
+        latest_release = _parse_utc_timestamp(threshold.get("latest_release_at_utc"))
+        trusted = (
+            metadata.get("series_id") == series_id
+            and metadata.get("source") == "FRED"
+            and retrieved is not None
+        )
+        if cached is None or len(cached) == 0:
+            status = "unavailable"
+            cache_status = "missing"
+            reason = "live FRED failed and no CPI cache is available"
+        elif not trusted:
+            status = "unknown"
+            cache_status = "untrusted"
+            reason = "fallback cache lacks a trusted retrieval timestamp"
+        elif latest_release is None:
+            status = "unknown"
+            cache_status = "trusted"
+            reason = "configured CPI release-calendar threshold is unavailable"
+        elif retrieved >= latest_release:
+            status = "fresh"
+            cache_status = "trusted"
+            reason = "trusted fallback was retrieved after the latest configured release"
+            threshold["satisfied"] = True
+        else:
+            status = "stale"
+            cache_status = "trusted"
+            reason = "a configured CPI release occurred after the cached retrieval"
+            threshold["satisfied"] = False
+        LOG.warning("CPI live refresh failed (%s); status=%s", exc, status)
+        return {
+            "series_id": series_id,
+            "source": metadata.get("source") if trusted else "unknown",
+            "retrieval_status": "fallback",
+            "retrieved_at_utc": retrieved.isoformat() if retrieved else None,
+            "retrieved_at": retrieved.isoformat() if retrieved else None,
+            "latest_observation_date": latest,
+            "observation_date": latest,
+            "max_age_days": 90,
+            "cache_status": cache_status,
+            "status": status,
+            "freshness_reason": reason,
+            "threshold": threshold,
+        }
+
+    latest = (
+        pd.Timestamp(series.index[-1]).date().isoformat()
+        if len(series) > 0 else None
+    )
+    if latest is None:
+        status = "unavailable"
+        reason = "live FRED returned no CPI observations"
+    elif threshold.get("latest_release_at_utc") is None:
+        status = "unknown"
+        reason = "configured CPI release-calendar threshold is unavailable"
+    else:
+        status = "fresh"
+        reason = "live FRED verified the latest available CPI observation"
+        threshold["satisfied"] = True
+    return {
+        "series_id": series_id,
+        "source": "FRED",
+        "retrieval_status": "live",
+        "retrieved_at_utc": now.isoformat(),
+        "retrieved_at": now.isoformat(),
+        "latest_observation_date": latest,
+        "observation_date": latest,
+        "max_age_days": 90,
+        "cache_status": "refreshed",
+        "status": status,
+        "freshness_reason": reason,
+        "threshold": threshold,
+    }
 
 
 def _refresh_fred_yields_before_run() -> None:
