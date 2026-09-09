@@ -499,6 +499,11 @@ class TestDailyResolution:
 
 
 class TestMonitorRunner:
+    @pytest.fixture(autouse=True)
+    def _disable_live_gold_refresh(self, monkeypatch) -> None:
+        # These tests exercise output resolution, never market-data refresh.
+        monkeypatch.setattr(MON.PipelineRunner, "_refresh_gold", lambda self: None)
+
     @staticmethod
     def _patch_today(monkeypatch, run_date: str) -> None:
         from types import SimpleNamespace

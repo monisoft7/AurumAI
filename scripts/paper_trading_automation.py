@@ -15,6 +15,7 @@ if str(SRC) not in sys.path:
 from paper_trading.automation import (  # noqa: E402
     AutomationFailure,
     execute_automation,
+    format_failure_message,
     send_telegram_message,
     write_failure_artifacts,
 )
@@ -33,18 +34,33 @@ def _parser() -> argparse.ArgumentParser:
     execute.add_argument("--ledger-repository", required=True)
     execute.add_argument("--run-id", required=True)
     execute.add_argument("--run-url", required=True)
+    execute.add_argument("--run-attempt")
+    execute.add_argument("--run-created-at-utc")
 
     send = commands.add_parser("send-telegram")
     send.add_argument("--message-file", type=Path, required=True)
+    send.add_argument("--mode", choices=("dry-run", "live-paper"), required=True)
+    send.add_argument("--run-url", required=True)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if args.command == "send-telegram":
+        if args.mode == "dry-run":
+            return 0
         try:
+            message = (
+                args.message_file.read_text(encoding="utf-8")
+                if args.message_file.is_file()
+                else format_failure_message(
+                    stage="workflow",
+                    reason="workflow stopped before its summary was created",
+                    run_url=args.run_url,
+                )
+            )
             send_telegram_message(
-                args.message_file.read_text(encoding="utf-8"),
+                message,
                 token=os.environ.get("TELEGRAM_BOT_TOKEN", ""),
                 chat_id=os.environ.get("TELEGRAM_CHAT_ID", ""),
             )
@@ -63,6 +79,8 @@ def main(argv: list[str] | None = None) -> int:
             market_date=args.market_date,
             ledger_repository=args.ledger_repository,
             run_id=args.run_id,
+            run_attempt=args.run_attempt,
+            run_created_at_utc=args.run_created_at_utc,
             run_url=args.run_url,
             environment=os.environ,
         )

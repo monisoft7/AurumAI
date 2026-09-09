@@ -275,10 +275,58 @@ def _scan_sensitive(value: Any, location: str = "$") -> list[str]:
     return findings
 
 
+def _read_stages(
+    path: Path, *, stage_outputs: Mapping[str, Any] | None = None
+) -> list[dict[str, Any]]:
+    """Read run.py's list of StageRecord.to_dict() records (no envelope).
+
+    Paper runs require 27 unique, nonempty string IDs and only fresh `ok`
+    records. Execution order need not match the sorted stage_outputs IDs.
+    """
+    try:
+        stages = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise AutomationFailure("artifact-validation", "invalid stages.json") from exc
+    if not isinstance(stages, list) or len(stages) != 27:
+        raise AutomationFailure("stage-gate", "stages.json must contain 27 stage records")
+    stage_ids: set[str] = set()
+    for record in stages:
+        if not isinstance(record, dict):
+            raise AutomationFailure("stage-gate", "stage record must be an object")
+        stage_id = record.get("stage_id")
+        if (
+            not isinstance(stage_id, str) or not stage_id or not stage_id.isprintable()
+            or any(character.isspace() for character in stage_id)
+        ):
+            raise AutomationFailure("stage-gate", "stage ID is missing or invalid")
+        if stage_id in stage_ids:
+            raise AutomationFailure("stage-gate", "duplicate stage ID")
+        stage_ids.add(stage_id)
+        if record.get("status") != "ok" or record.get("error") not in (None, ""):
+            raise AutomationFailure("stage-gate", "stage did not complete with ok status")
+    if stage_outputs is not None:
+        outputs = stage_outputs.get("outputs")
+        declared_ids = stage_outputs.get("stage_ids")
+        if (
+            type(stage_outputs.get("stage_count")) is not int
+            or stage_outputs["stage_count"] != 27
+            or not isinstance(outputs, dict)
+            or len(outputs) != 27
+            or not isinstance(declared_ids, list)
+            or len(declared_ids) != 27
+            or any(not isinstance(stage_id, str) for stage_id in declared_ids)
+            or len(set(declared_ids)) != 27
+            or stage_ids != set(declared_ids)
+            or stage_ids != set(outputs)
+        ):
+            raise AutomationFailure("stage-gate", "stages.json and stage_outputs disagree")
+    return stages
+
+
 def scan_runtime_secrets(paths: Sequence[Path], secret_values: Sequence[str]) -> None:
     findings: list[str] = []
     for path in paths:
-        value = _read_object(path)
+        value = _read_stages(path) if path.name == "stages.json" else _read_object(path)
         findings.extend(f"{path.name}:{item}" for item in _scan_sensitive(value))
         raw = path.read_text(encoding="utf-8")
         if any(secret and secret in raw for secret in secret_values):
@@ -397,23 +445,8 @@ def _validate_runtime(
     stage_outputs = _read_object(required[0])
     summary = _read_object(required[1])
     outcome = _read_object(required[2])
-    try:
-        stages = json.loads(required[3].read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise AutomationFailure("artifact-validation", "invalid stages.json") from exc
-    outputs = stage_outputs.get("outputs")
-    if (
-        stage_outputs.get("stage_count") != 27
-        or not isinstance(outputs, dict)
-        or len(outputs) != 27
-        or not isinstance(stages, list)
-        or len(stages) != 27
-        or any(
-            not isinstance(item, dict) or item.get("status") != "ok"
-            for item in stages
-        )
-    ):
-        raise AutomationFailure("stage-gate", "runtime did not complete 27/27 stages")
+    _read_stages(required[3], stage_outputs=stage_outputs)
+    outputs = stage_outputs["outputs"]
     if summary.get("success") is not True or summary.get("errors"):
         raise AutomationFailure("runtime-gate", "runtime summary is not successful")
     runtime_id = str(summary.get("pipeline_id") or "")
@@ -632,8 +665,7 @@ def _create_daily_config(
     *,
     evaluation_id: str,
     harness_commit: str,
-    run_id: str,
-    run_url: str,
+    github_actions: Mapping[str, str],
 ) -> Path:
     config = _read_object(base_path)
     config["evaluation_id"] = evaluation_id
@@ -641,7 +673,7 @@ def _create_daily_config(
     config["automation_context"] = {
         "strategy_baseline_commit": STRATEGY_BASELINE,
         "harness_commit": harness_commit,
-        "github_actions": {"run_id": run_id, "run_url": run_url},
+        "github_actions": dict(github_actions),
     }
     _canonical_write(target, config)
     return target
@@ -721,8 +753,14 @@ def execute_automation(
     run_url: str,
     environment: Mapping[str, str],
     runner: Callable[..., subprocess.CompletedProcess[str]] = _run_once,
+    run_attempt: str | None = None,
+    run_created_at_utc: str | None = None,
 ) -> dict[str, Any]:
     """Execute one dry or live paper run; never sends Telegram itself."""
+    strategy_dir = Path(strategy_dir).resolve()
+    harness_dir = Path(harness_dir).resolve()
+    ledger_dir = Path(ledger_dir).resolve()
+    output_dir = Path(output_dir).resolve()
     plan = mode_plan(mode)
     output_dir.mkdir(parents=True, exist_ok=True)
     secrets = _secret_values(environment)
@@ -745,6 +783,17 @@ def execute_automation(
         )
         return context
 
+    if not run_attempt or not run_attempt.isdecimal() or int(run_attempt) < 1:
+        raise AutomationFailure("provenance", "GitHub run attempt is missing or invalid")
+    run_created = _parse_time(run_created_at_utc, "GitHub run creation timestamp")
+    if run_created > now:
+        raise AutomationFailure("provenance", "GitHub run creation timestamp is in the future")
+    github_actions = {
+        "run_id": run_id,
+        "run_attempt": run_attempt,
+        "run_url": run_url,
+        "run_created_at_utc": run_created.isoformat(),
+    }
     before_records = immutable_snapshot(ledger_dir)
     before_runs = _runtime_directories(strategy_dir)
     pipeline_environment = dict(environment)
@@ -806,8 +855,7 @@ def execute_automation(
         output_dir / "paper-config.json",
         evaluation_id=evaluation_id,
         harness_commit=harness_commit,
-        run_id=run_id,
-        run_url=run_url,
+        github_actions=github_actions,
     )
     predictions_before = set((ledger_dir / "predictions").glob("*.json"))
     create = runner(
@@ -844,7 +892,18 @@ def execute_automation(
         raise AutomationFailure("prediction", "strategy provenance mismatch")
     if manifest.get("harness_commit") != harness_commit:
         raise AutomationFailure("prediction", "harness provenance mismatch")
+    if manifest.get("github_actions") != github_actions:
+        raise AutomationFailure("prediction", "GitHub run provenance mismatch")
     scan_runtime_secrets([prediction_path], secrets)
+    _canonical_write(output_dir / "run-manifest.json", {
+        "github_actions": github_actions,
+        "evaluation_id": evaluation_id,
+        "prediction_id": manifest["prediction_id"],
+        "prediction_sha256": hashlib.sha256(prediction_path.read_bytes()).hexdigest(),
+        "strategy_baseline_commit": STRATEGY_BASELINE,
+        "harness_commit": harness_commit,
+        "timing_evidence": "GitHub run metadata reference; not proof of prediction publication time",
+    })
 
     summary_path = ledger_dir / "cohorts" / COHORT_ID / "summary.json"
     summary = runner(

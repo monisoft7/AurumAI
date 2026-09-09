@@ -142,9 +142,14 @@ def _validate_config(config: dict[str, Any], baseline_commit: str) -> None:
             raise PaperTradingError("automation harness_commit must be a full SHA")
         github_actions = automation.get("github_actions")
         if not isinstance(github_actions, dict) or not all(
-            github_actions.get(field) for field in ("run_id", "run_url")
+            github_actions.get(field)
+            for field in ("run_id", "run_attempt", "run_url", "run_created_at_utc")
         ):
             raise PaperTradingError("automation GitHub Actions provenance is incomplete")
+        _parse_utc(github_actions["run_created_at_utc"], "GitHub run creation timestamp")
+        attempt = str(github_actions["run_attempt"])
+        if not attempt.isdecimal() or int(attempt) < 1:
+            raise PaperTradingError("automation GitHub run attempt is invalid")
 
 
 def _validate_runtime(
@@ -307,6 +312,11 @@ def create_prediction_manifest(
     )
     if created < decision_time:
         raise PaperTradingError("manifest creation cannot precede the decision")
+    github_actions = (config.get("automation_context") or {}).get("github_actions")
+    if github_actions and _parse_utc(
+        github_actions["run_created_at_utc"], "GitHub run creation timestamp"
+    ) > created:
+        raise PaperTradingError("manifest creation cannot precede the GitHub run")
     evaluation_id = str(config["evaluation_id"])
     prediction_id = "pred_" + hashlib.sha256(
         f"{evaluation_id}\0{runtime_id}".encode("utf-8")
@@ -485,6 +495,9 @@ def evaluate_prediction(
         raise HorizonNotComplete("evaluation horizon has not completed")
     entry_time, entry_price = prices[entry_index]
     exit_time, exit_price = prices[entry_index + horizon]
+    created = _parse_utc(prediction.get("created_at_utc"), "created_at_utc")
+    if not (decision_time <= created < entry_time < exit_time <= as_of):
+        raise PaperTradingError("lookahead_or_timestamp_violation")
     if entry_price <= 0 or exit_price <= 0:
         raise PaperTradingError("prices must be positive")
     base["entry"] = {"timestamp": _utc_text(entry_time), "close": entry_price}
@@ -571,7 +584,11 @@ def _outcome_integrity(
         entry_time = _parse_utc(entry.get("timestamp"), "entry timestamp")
         exit_time = _parse_utc(exit_value.get("timestamp"), "exit timestamp")
         evaluated = _parse_utc(outcome.get("evaluated_at_utc"), "evaluated_at_utc")
-        if not (decision_time < entry_time < exit_time <= evaluated):
+        try:
+            created = _parse_utc(prediction.get("created_at_utc"), "created_at_utc")
+        except PaperTradingError:
+            return "lookahead_or_timestamp_violation"
+        if not (decision_time <= created < entry_time < exit_time <= evaluated):
             return "lookahead_or_timestamp_violation"
     return None
 

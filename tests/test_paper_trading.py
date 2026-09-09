@@ -315,6 +315,7 @@ def _seed_completed_record(
         "evaluation_id": EVALUATION_ID,
         "cohort_id": EVALUATION_ID,
         "decision_timestamp": decision_time,
+        "created_at_utc": decision_time,
         "decision": "BUY",
         "confidence": 0.8,
         "reliability": 0.8,
@@ -395,6 +396,8 @@ def test_automation_provenance_is_frozen_into_prediction(tmp_path: Path) -> None
         "harness_commit": "6ce0d848cd24167317f228ffd8772274e9a58166",
         "github_actions": {
             "run_id": "123",
+            "run_attempt": "2",
+            "run_created_at_utc": "2026-01-01T11:59:00Z",
             "run_url": "https://github.example/actions/runs/123",
         },
     }
@@ -410,3 +413,5 @@ def test_automation_provenance_is_frozen_into_prediction(tmp_path: Path) -> None
     assert manifest["strategy_baseline_commit"] == BASELINE
     assert manifest["harness_commit"] == config["automation_context"]["harness_commit"]
     assert manifest["github_actions"]["run_id"] == "123"
+
+    assert manifest["github_actions"] == config["automation_context"]["github_actions"]

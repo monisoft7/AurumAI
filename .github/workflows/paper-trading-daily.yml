@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: aurumai-paper-trading-daily
@@ -73,9 +74,21 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install "./harness[technical]"
 
+      - name: Read GitHub run creation time
+        id: run-metadata
+        if: ${{ env.AUTOMATION_MODE == 'live-paper' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          created_at="$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID" --jq .created_at)"
+          echo "created_at=$created_at" >> "$GITHUB_OUTPUT"
+
       - name: Run deterministic paper automation
         id: paper
         env:
+          RUN_CREATED_AT_UTC: ${{ steps.run-metadata.outputs.created_at }}
           GITHUB_ACTIONS_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           mkdir -p automation-artifacts
@@ -88,16 +101,18 @@ jobs:
             --market-date "$(date -u +%F)" \
             --ledger-repository "$PAPER_LEDGER_REPOSITORY" \
             --run-id "${{ github.run_id }}" \
+            --run-attempt "${{ github.run_attempt }}" \
+            --run-created-at-utc "$RUN_CREATED_AT_UTC" \
             --run-url "$GITHUB_ACTIONS_RUN_URL"
 
       - name: Send Arabic Telegram summary
-        if: always()
+        if: ${{ always() && env.AUTOMATION_MODE == 'live-paper' }}
         continue-on-error: true
         run: |
-          if [ -f automation-artifacts/telegram_message.txt ]; then
-            python harness/scripts/paper_trading_automation.py send-telegram \
-              --message-file automation-artifacts/telegram_message.txt
-          fi
+          python harness/scripts/paper_trading_automation.py send-telegram \
+            --mode "$AUTOMATION_MODE" \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --message-file automation-artifacts/telegram_message.txt
 
       - name: Upload sanitized paper artifacts
         if: always()

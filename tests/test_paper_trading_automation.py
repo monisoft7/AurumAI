@@ -130,7 +130,7 @@ def test_dry_run_never_calls_pipeline_or_writes_ledger(
         tmp_path / "artifacts" / "telegram_message.txt"
     ).read_text(encoding="utf-8")
     assert "اختبار AurumAI Paper Trading" in dry_message
-    assert "0/0" in dry_message
+    assert "0/27" in dry_message
 
 
 def test_cli_loads_from_github_checkout_layout_without_installed_package(
@@ -351,7 +351,7 @@ def test_workflow_yaml_policy_is_valid_and_read_only() -> None:
     assert data["on"]["schedule"][0]["cron"] == "17 7 * * 1-5"
     mode = data["on"]["workflow_dispatch"]["inputs"]["mode"]
     assert mode["default"] == "dry-run"
-    assert data["permissions"] == {"contents": "read"}
+    assert data["permissions"] == {"contents": "read", "actions": "read"}
     assert data["concurrency"]["group"] == "aurumai-paper-trading-daily"
     assert data["concurrency"]["cancel-in-progress"] == "false"
     install = next(
