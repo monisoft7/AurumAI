@@ -29,7 +29,6 @@ jobs:
     timeout-minutes: 20
     env:
       AUTOMATION_MODE: ${{ github.event_name == 'schedule' && 'live-paper' || inputs.mode || 'dry-run' }}
-      STRATEGY_BASELINE: 46fd62f1212a225446694fb85655936571625148
       PAPER_LEDGER_REPOSITORY: ${{ vars.PAPER_LEDGER_REPOSITORY }}
       FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -45,10 +44,36 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: harness/pyproject.toml
+
+      - name: Read locked paper baseline
+        id: paper-baseline
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          config = json.loads(
+              Path("harness/config/paper_trading_baseline.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
+              output.write(f"cohort_id={config['cohort_id']}\n")
+              output.write(f"baseline_commit={config['baseline_commit']}\n")
+          PY
+
       - name: Checkout frozen strategy baseline
         uses: actions/checkout@v4
         with:
-          ref: 46fd62f1212a225446694fb85655936571625148
+          ref: ${{ steps.paper-baseline.outputs.baseline_commit }}
           path: strategy
           fetch-depth: 1
           persist-credentials: false
@@ -60,13 +85,6 @@ jobs:
           token: ${{ secrets.PAPER_LEDGER_TOKEN }}
           path: ledger
           fetch-depth: 0
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: harness/pyproject.toml
 
       - name: Install strategy dependencies
         if: env.AUTOMATION_MODE == 'live-paper'

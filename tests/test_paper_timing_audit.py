@@ -214,10 +214,8 @@ def test_live_failure_before_message_exists_has_fallback(tmp_path, monkeypatch):
 
 def test_workflow_schedule_provenance_and_explicit_telegram_condition():
     paper = yaml.load(WORKFLOW.read_text(), Loader=yaml.BaseLoader)
-    operations = yaml.load((ROOT / ".github/workflows/aurumai-daily.yml").read_text(),
-                           Loader=yaml.BaseLoader)
     assert paper["on"]["schedule"] == [{"cron": "17 7 * * 1-5"}]
-    assert operations["on"]["schedule"] == [{"cron": "0 22 * * 1-5"}]
+    assert not (ROOT / ".github/workflows/aurumai-daily.yml").exists()
     steps = paper["jobs"]["paper-trading"]["steps"]
     telegram = next(s for s in steps if s["name"] == "Send Arabic Telegram summary")
     assert telegram["if"] == "${{ always() && env.AUTOMATION_MODE == 'live-paper' }}"
@@ -226,7 +224,7 @@ def test_workflow_schedule_provenance_and_explicit_telegram_condition():
     execute = next(s for s in steps if s.get("id") == "paper")
     assert '--run-attempt "${{ github.run_attempt }}"' in execute["run"]
     assert '--run-created-at-utc "$RUN_CREATED_AT_UTC"' in execute["run"]
-    assert next(s for s in steps if s["name"] == "Checkout frozen strategy baseline")["with"]["ref"] == BASELINE
+    assert next(s for s in steps if s["name"] == "Checkout frozen strategy baseline")["with"]["ref"] == "${{ steps.paper-baseline.outputs.baseline_commit }}"
 
 
 def test_test_boundary_blocks_git_network_and_runtime():

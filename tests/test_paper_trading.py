@@ -79,7 +79,6 @@ def _runtime(
             "CPI",
             "Gold",
             "DXY",
-            "outcome_price",
         )
     }
     outputs = {
@@ -295,16 +294,15 @@ def test_rejects_duplicate_horizon(tmp_path: Path) -> None:
         evaluate_prediction(manifest, ledger / "outcomes", prices, **kwargs)
 
 
-@pytest.mark.parametrize("freshness", ["stale", "fresh"])
-def test_missing_or_stale_outcome_is_recorded_unevaluable(
+@pytest.mark.parametrize("freshness", ["stale", "unknown"])
+def test_due_stale_or_unknown_outcome_is_recorded_unevaluable(
     tmp_path: Path, freshness: str
 ) -> None:
     manifest, ledger = _manifest(tmp_path)
-    missing_prices = tmp_path / "not-downloaded.csv"
     outcome = evaluate_prediction(
         manifest,
         ledger / "outcomes",
-        missing_prices,
+        _prices(tmp_path / "prices.csv"),
         horizon_sessions=1,
         as_of_utc="2026-01-05T21:00:00Z",
         freshness_status=freshness,
@@ -312,7 +310,21 @@ def test_missing_or_stale_outcome_is_recorded_unevaluable(
     data = json.loads(outcome.read_text())
     assert data["status"] == "unevaluable"
     assert data["exclusion_reason"] == "outcome_data_not_fresh"
-    assert data["price_data"]["sha256"] is None
+    assert data["price_data"]["sha256"] is not None
+
+
+def test_stale_outcome_is_not_checked_before_horizon(tmp_path: Path) -> None:
+    manifest, ledger = _manifest(tmp_path)
+    with pytest.raises(HorizonNotComplete):
+        evaluate_prediction(
+            manifest,
+            ledger / "outcomes",
+            _prices(tmp_path / "prices.csv"),
+            horizon_sessions=3,
+            as_of_utc="2026-01-05T20:59:59Z",
+            freshness_status="stale",
+        )
+    assert not (ledger / "outcomes").exists()
 
 
 def _seed_completed_record(
