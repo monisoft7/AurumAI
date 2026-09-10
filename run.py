@@ -289,6 +289,12 @@ def _stage_outputs_payload(
             finalize = dict(finalize)
             current = finalize.get("source_freshness")
             merged = dict(current) if isinstance(current, dict) else {}
+            canonical_names = {name.casefold() for name in source_freshness}
+            merged = {
+                name: record
+                for name, record in merged.items()
+                if str(name).casefold() not in canonical_names
+            }
             merged.update(source_freshness)
             finalize["source_freshness"] = merged
             outputs["finalize"] = finalize
@@ -598,29 +604,22 @@ def main(argv: list[str] | None = None) -> int:
     }
     _write_json(run_dir / "config.json", effective_config)
 
-    cpi_freshness = {
-        "series_id": "CPIAUCSL",
-        "source": "unknown",
-        "retrieval_status": "not_attempted",
-        "retrieved_at_utc": None,
-        "retrieved_at": None,
-        "latest_observation_date": None,
-        "observation_date": None,
-        "max_age_days": 90,
-        "cache_status": "unknown",
-        "status": "unknown",
-        "freshness_reason": "runtime refresh was disabled",
-        "threshold": {
-            "contract": "release_calendar",
-            "config_key": "release_calendar_path",
-            "satisfied": None,
-        },
+    source_freshness = {
+        name: _unknown_freshness(name, max_age_days, "runtime refresh was disabled")
+        for name, max_age_days in {
+            "DGS10": 7,
+            "DFII10": 7,
+            "T5YIE": 7,
+            "CPI": 90,
+            "Gold": 7,
+            "DXY": 7,
+        }.items()
     }
     if not args.no_refresh:
-        _refresh_gold_before_run(config, run_dir)
-        cpi_freshness = _refresh_cpi_before_run(config)
-        _refresh_fred_yields_before_run()
-        _refresh_dxy_before_run()
+        source_freshness["Gold"] = _refresh_gold_before_run(config)
+        source_freshness["CPI"] = _refresh_cpi_before_run(config)
+        source_freshness.update(_refresh_fred_yields_before_run())
+        source_freshness["DXY"] = _refresh_dxy_before_run()
 
     checkpoint_dir = config.get("checkpoint_dir")
     if checkpoint_dir is not None:
@@ -686,7 +685,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     stage_outputs = _stage_outputs_payload(
-        assessment, source_freshness={"CPI": cpi_freshness}
+        assessment, source_freshness=source_freshness
     )
     _write_json(run_dir / "stages.json", stage_records)
     _write_json(run_dir / "finalize.json", finalize)
@@ -770,7 +769,44 @@ def _stage_counts(assessment: Any) -> dict[str, int]:
     return counts
 
 
-def _refresh_gold_before_run(config: dict[str, Any], run_dir: Path) -> None:
+def _unknown_freshness(
+    source: str, max_age_days: int, reason: str
+) -> dict[str, Any]:
+    return {
+        "status": "unknown",
+        "observation_date": None,
+        "retrieved_at": None,
+        "max_age_days": max_age_days,
+        "reason": reason,
+        "source": source,
+    }
+
+
+def _provider_freshness(
+    source: str,
+    record: dict[str, Any] | None,
+    max_age_days: int,
+) -> dict[str, Any]:
+    if not isinstance(record, dict):
+        return _unknown_freshness(
+            source, max_age_days, "provider returned no freshness result"
+        )
+    status = str(record.get("status") or "unknown")
+    return {
+        "status": status,
+        "observation_date": (
+            record.get("refreshed_last_date") or record.get("cache_last_date")
+        ),
+        "retrieved_at": record.get("checked_at"),
+        "max_age_days": max_age_days,
+        "reason": str(
+            record.get("error") or f"provider freshness status is {status}"
+        ),
+        "source": source,
+    }
+
+
+def _refresh_gold_before_run(config: dict[str, Any]) -> dict[str, Any]:
     """Refresh local gold history before a production run (fail-safe)."""
     from connectors.gold_data_provider import refresh_gold_data
 
@@ -788,11 +824,20 @@ def _refresh_gold_before_run(config: dict[str, Any], run_dir: Path) -> None:
                 "Gold data refresh incomplete (%s); proceeding with existing "
                 "dataset", report.message,
             )
+        return {
+            "status": report.status,
+            "observation_date": report.last_date_after,
+            "retrieved_at": report.timestamp,
+            "max_age_days": 7,
+            "reason": report.message,
+            "source": report.source,
+        }
     except Exception as exc:  # pragma: no cover - defensive
         LOG.error(
             "Gold data refresh failed (%s); proceeding with existing dataset",
             exc,
         )
+        return _unknown_freshness("Gold", 7, f"provider refresh failed: {exc}")
 
 
 def _cpi_release_threshold(
@@ -954,7 +999,7 @@ def _refresh_cpi_before_run(
     }
 
 
-def _refresh_fred_yields_before_run() -> None:
+def _refresh_fred_yields_before_run() -> dict[str, dict[str, Any]]:
     """Warm FRED yield caches before a production run (fail-safe).
 
     Refreshes a series only when its cached last observation is older than
@@ -969,18 +1014,32 @@ def _refresh_fred_yields_before_run() -> None:
 
     series_ids = ("DFII10", "DGS10", "T5YIE")
     client = FredClient()
+    runtime_records: dict[str, dict[str, Any]] = {}
     for series_id in series_ids:
         try:
-            client.get_series(
+            series = client.get_series(
                 series_id, use_cache=True,
                 max_age_days=FRED_DAILY_SERIES_MAX_AGE_DAYS,
             )
+            if len(series) > 0:
+                metadata = client.cache_metadata(series_id) or {}
+                runtime_records[series_id] = {
+                    "status": "refreshed",
+                    "refreshed_last_date": str(series.index[-1].date()),
+                    "checked_at": (
+                        metadata.get("retrieved_at_utc")
+                        or datetime.datetime.now(datetime.timezone.utc).isoformat()
+                    ),
+                }
         except Exception as exc:  # pragma: no cover - defensive
             LOG.error(
                 "FRED %s fetch failed (%s); proceeding with cached data",
                 series_id, exc,
             )
-    for series_id, record in client.freshness_report().items():
+    report = client.freshness_report()
+    for series_id, record in runtime_records.items():
+        report.setdefault(series_id, record)
+    for series_id, record in report.items():
         status = record.get("status")
         if status == "fallback_stale":
             LOG.warning(
@@ -997,9 +1056,15 @@ def _refresh_fred_yields_before_run() -> None:
                 record.get("cache_age_days"),
                 record.get("refreshed_last_date"),
             )
+    return {
+        series_id: _provider_freshness(
+            series_id, report.get(series_id), FRED_DAILY_SERIES_MAX_AGE_DAYS
+        )
+        for series_id in series_ids
+    }
 
 
-def _refresh_dxy_before_run() -> None:
+def _refresh_dxy_before_run() -> dict[str, Any]:
     """Warm the DXY cache before a production run (fail-safe).
 
     Follows the same freshness contract as FRED yields: a fresh cache is
@@ -1013,16 +1078,26 @@ def _refresh_dxy_before_run() -> None:
     )
 
     fetcher = DXYFetcher()
+    runtime_record = None
     try:
-        fetcher.get_series(
+        series = fetcher.get_series(
             use_cache=True,
             max_age_days=DXY_DAILY_SERIES_MAX_AGE_DAYS,
         )
+        if len(series) > 0:
+            runtime_record = {
+                "status": "refreshed",
+                "refreshed_last_date": str(series.index[-1].date()),
+                "checked_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            }
     except Exception as exc:  # pragma: no cover - defensive
         LOG.error(
             "DXY fetch failed (%s); proceeding with cached data", exc,
         )
-    for series_id, record in fetcher.freshness_report().items():
+    report = fetcher.freshness_report()
+    if runtime_record is not None:
+        report.setdefault("dxy", runtime_record)
+    for series_id, record in report.items():
         status = record.get("status")
         if status == "fallback_stale":
             LOG.warning(
@@ -1039,6 +1114,9 @@ def _refresh_dxy_before_run() -> None:
                 record.get("cache_age_days"),
                 record.get("refreshed_last_date"),
             )
+    return _provider_freshness(
+        "DXY", report.get("dxy"), DXY_DAILY_SERIES_MAX_AGE_DAYS
+    )
 
 
 if __name__ == "__main__":

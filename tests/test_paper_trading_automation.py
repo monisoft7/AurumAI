@@ -12,8 +12,7 @@ import yaml
 import paper_trading.automation as automation
 from paper_trading.automation import (
     AutomationFailure,
-    COHORT_ID,
-    STRATEGY_BASELINE,
+    LockedBaseline,
     deterministic_evaluation_id,
     evaluation_exists,
     execute_automation,
@@ -33,6 +32,7 @@ from paper_trading.ledger import HorizonNotComplete, evaluate_prediction
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOW = ROOT / ".github" / "workflows" / "paper-trading-daily.yml"
 BASELINE = "46fd62f1212a225446694fb85655936571625148"
+COHORT_ID = "xauusd-paper-46fd62f-v2"
 HARNESS = "6ce0d848cd24167317f228ffd8772274e9a58166"
 
 
@@ -85,11 +85,37 @@ def test_workflow_dispatch_defaults_to_dry_run() -> None:
 
 def test_strategy_baseline_is_pinned_and_does_not_follow_main() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
-    assert STRATEGY_BASELINE == BASELINE
-    assert f"ref: {BASELINE}" in text
+    config = json.loads(
+        (ROOT / "config" / "paper_trading_baseline.json").read_text(encoding="utf-8")
+    )
+    assert config["baseline_commit"] == BASELINE
+    assert config["cohort_id"] == COHORT_ID
+    assert "ref: ${{ steps.paper-baseline.outputs.baseline_commit }}" in text
     strategy_block = text.split("Checkout frozen strategy baseline", 1)[1]
     strategy_block = strategy_block.split("Checkout private paper ledger", 1)[0]
     assert "ref: main" not in strategy_block
+
+
+def test_daily_config_uses_only_the_locked_v2_cohort(tmp_path: Path) -> None:
+    target = automation._create_daily_config(
+        ROOT / "config" / "paper_trading_baseline.json",
+        tmp_path / "paper-config.json",
+        evaluation_id="paper-2026-09-10",
+        harness_commit=HARNESS,
+        github_actions={
+            "run_id": "1",
+            "run_attempt": "1",
+            "run_url": "https://github.example/actions/runs/1",
+            "run_created_at_utc": "2026-09-10T07:17:00Z",
+        },
+    )
+    config = json.loads(target.read_text(encoding="utf-8"))
+    assert config["cohort_id"] == COHORT_ID
+    assert config["baseline_commit"] == BASELINE
+    legacy_fragment = "2acd" + "5ad"
+    assert legacy_fragment not in (
+        ROOT / "src" / "paper_trading" / "automation.py"
+    ).read_text(encoding="utf-8")
 
 
 def test_dry_run_never_calls_pipeline_or_writes_ledger(
@@ -100,7 +126,11 @@ def test_dry_run_never_calls_pipeline_or_writes_ledger(
     ledger = tmp_path / "ledger"
     for path in (strategy, harness, ledger):
         path.mkdir()
-    monkeypatch.setattr(automation, "_preflight", lambda **_: (BASELINE, HARNESS))
+    monkeypatch.setattr(
+        automation,
+        "_preflight",
+        lambda **_: (LockedBaseline(COHORT_ID, BASELINE), HARNESS),
+    )
     monkeypatch.setattr(automation, "evaluation_exists", lambda *_: False)
     called = False
 
@@ -215,7 +245,11 @@ def test_duplicate_daily_evaluation_stops_before_pipeline(
         {"evaluation_id": "paper-2026-09-07"},
     )
     assert evaluation_exists(ledger, "paper-2026-09-07") is True
-    monkeypatch.setattr(automation, "_preflight", lambda **_: (BASELINE, HARNESS))
+    monkeypatch.setattr(
+        automation,
+        "_preflight",
+        lambda **_: (LockedBaseline(COHORT_ID, BASELINE), HARNESS),
+    )
     with pytest.raises(AutomationFailure, match="already exists"):
         execute_automation(
             mode="live-paper",
@@ -361,6 +395,28 @@ def test_workflow_yaml_policy_is_valid_and_read_only() -> None:
     assert install["if"] == "env.AUTOMATION_MODE == 'live-paper'"
     assert "pull_request_target" not in data["on"]
     assert "\t" not in WORKFLOW.read_text(encoding="utf-8")
+
+
+def test_paper_trading_is_the_only_daily_schedule_and_legacy_workflow_is_gone() -> None:
+    workflow_dir = ROOT / ".github" / "workflows"
+    assert not (workflow_dir / "aurumai-daily.yml").exists()
+    scheduled_names = []
+    for path in sorted((*workflow_dir.glob("*.yml"), *workflow_dir.glob("*.yaml"))):
+        data = yaml.load(path.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+        if isinstance(data, dict) and isinstance(data.get("on"), dict):
+            if data["on"].get("schedule"):
+                scheduled_names.append(data.get("name"))
+    assert scheduled_names == ["AurumAI Daily Paper Trading"]
+
+
+def test_cleanup_does_not_modify_historical_data_outputs_or_runtime() -> None:
+    historical = ROOT / "data" / "economic" / "DGS10.csv"
+    before = historical.read_bytes()
+    with pytest.raises(AssertionError, match="protected repository"):
+        historical.write_bytes(b"must not replace historical data")
+    with pytest.raises(AssertionError, match="protected repository"):
+        historical.unlink()
+    assert historical.read_bytes() == before
 
 
 def test_workflow_has_no_broker_or_live_order_integration() -> None:

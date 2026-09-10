@@ -4,6 +4,7 @@ import datetime as dt
 import subprocess
 import urllib.request
 from pathlib import Path
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
@@ -172,7 +173,7 @@ def test_runtime_cpi_metadata_is_consumed_by_harness_and_keeps_reliability(
                 **{
                     source: dict(explicit)
                     for source in (
-                        "DGS10", "DFII10", "T5YIE", "Gold", "DXY", "outcome_price"
+                        "DGS10", "DFII10", "T5YIE", "Gold", "DXY"
                     )
                 },
                 "CPI": cpi,
@@ -183,6 +184,93 @@ def test_runtime_cpi_metadata_is_consumed_by_harness_and_keeps_reliability(
     assert evaluation["source_freshness"]["CPI"]["status"] == "fresh"
     assert evaluation["reliability_category"] == "low"
     assert evaluation["financially_eligible"] is True
+
+
+def test_runtime_payload_preserves_six_structured_provider_results() -> None:
+    retrieved_at = NOW.isoformat()
+    source_freshness = {
+        name: runtime._provider_freshness(
+            name,
+            {
+                "status": "fresh",
+                "cache_last_date": "2026-09-09",
+                "checked_at": retrieved_at,
+            },
+            7,
+        )
+        for name in ("DGS10", "DFII10", "T5YIE", "DXY")
+    }
+    source_freshness["CPI"] = {
+        "status": "fresh",
+        "observation_date": "2026-07-01",
+        "retrieved_at": retrieved_at,
+        "max_age_days": 90,
+        "reason": "release-calendar contract is satisfied",
+    }
+    source_freshness["Gold"] = {
+        "status": "ok",
+        "observation_date": "2026-09-09",
+        "retrieved_at": retrieved_at,
+        "max_age_days": 7,
+        "reason": "provider reported already current",
+    }
+    assessment = SimpleNamespace(
+        pipeline_id="runtime_provider_contract",
+        outputs={"finalize": {}, "decision_engine": {}, "confidence_engine": {}},
+    )
+    payload = runtime._stage_outputs_payload(
+        assessment, source_freshness=source_freshness
+    )
+    evaluation = build_paper_evaluation(payload["outputs"], {}, {})
+    assert set(evaluation["source_freshness"]) == {
+        "DGS10", "DFII10", "T5YIE", "CPI", "Gold", "DXY"
+    }
+    assert all(
+        record["status"] == "fresh"
+        and record["observation_date"]
+        and record["retrieved_at"]
+        and record["max_age_days"] is not None
+        and record["reason"]
+        for record in evaluation["source_freshness"].values()
+    )
+    assert evaluation["financially_eligible"] is True
+
+
+def test_uncached_yield_and_dxy_provider_results_are_structured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class YieldClient:
+        def get_series(self, series_id: str, **kwargs) -> pd.Series:
+            assert kwargs == {"use_cache": True, "max_age_days": 7}
+            return _series("2026-09-09")
+
+        def cache_metadata(self, series_id: str) -> dict[str, object]:
+            return {"retrieved_at_utc": NOW.isoformat()}
+
+        def freshness_report(self) -> dict[str, object]:
+            return {}
+
+    class DxyClient:
+        def get_series(self, **kwargs) -> pd.Series:
+            assert kwargs == {"use_cache": True, "max_age_days": 7}
+            return _series("2026-09-09")
+
+        def freshness_report(self) -> dict[str, object]:
+            return {}
+
+    monkeypatch.setattr("connectors.fred_client.FredClient", YieldClient)
+    monkeypatch.setattr("connectors.dxy_fetcher.DXYFetcher", DxyClient)
+    records = runtime._refresh_fred_yields_before_run()
+    records["DXY"] = runtime._refresh_dxy_before_run()
+    assert set(records) == {"DGS10", "DFII10", "T5YIE", "DXY"}
+    assert all(
+        record["status"] == "refreshed"
+        and record["observation_date"] == "2026-09-09"
+        and record["retrieved_at"]
+        and record["max_age_days"] == 7
+        and record["reason"]
+        for record in records.values()
+    )
 
 
 def test_cpi_provenance_path_is_hermetic(

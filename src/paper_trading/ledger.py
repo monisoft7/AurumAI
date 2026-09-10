@@ -27,7 +27,6 @@ REQUIRED_PAPER_SOURCES = (
     "CPI",
     "Gold",
     "DXY",
-    "outcome_price",
 )
 RELIABILITY_CATEGORIES = {"very_low", "low", "moderate", "high"}
 
@@ -255,6 +254,19 @@ def _structured_freshness_records(outputs: dict[str, Any]) -> dict[str, Any]:
     records: dict[str, Any] = {}
     canonical = {name.casefold(): name for name in REQUIRED_PAPER_SOURCES}
 
+    finalize = outputs.get("finalize")
+    authoritative = (
+        finalize.get("source_freshness") if isinstance(finalize, dict) else None
+    )
+    if isinstance(authoritative, dict):
+        for name in REQUIRED_PAPER_SOURCES:
+            if name in authoritative:
+                records[name] = authoritative[name]
+        for source, record in authoritative.items():
+            name = canonical.get(str(source).casefold())
+            if name is not None and name not in records:
+                records[name] = record
+
     def visit(value: Any) -> None:
         if isinstance(value, dict):
             source_map = value.get("source_freshness")
@@ -299,14 +311,23 @@ def _normalise_source_freshness(value: Any) -> dict[str, Any]:
         return missing
 
     raw_status = str(value.get("status") or "unknown").strip().lower()
-    observation_text = value.get("observation_date") or value.get(
-        "last_observation_date"
-    ) or value.get("refreshed_last_date")
-    retrieved_text = value.get("retrieved_at") or value.get("checked_at")
+    observation_text = (
+        value.get("observation_date")
+        or value.get("last_observation_date")
+        or value.get("latest_observation_date")
+        or value.get("refreshed_last_date")
+        or value.get("cache_last_date")
+    )
+    retrieved_text = (
+        value.get("retrieved_at")
+        or value.get("retrieved_at_utc")
+        or value.get("checked_at")
+    )
     observation = _optional_date(observation_text)
     retrieved = _optional_date(retrieved_text)
     threshold = value.get("max_age_days")
     threshold = threshold if type(threshold) is int and threshold >= 0 else None
+    declared_reason = value.get("reason") or value.get("freshness_reason")
     age_days = (
         (retrieved - observation).days
         if observation is not None and retrieved is not None
@@ -315,13 +336,13 @@ def _normalise_source_freshness(value: Any) -> dict[str, Any]:
     availability = value.get("availability")
     if value.get("available") is False or availability in {"missing", "unavailable"}:
         status = "unavailable" if availability != "missing" else "missing"
-        reason = str(value.get("reason") or "source is not available")
+        reason = str(declared_reason or "source is not available")
     elif raw_status in {"missing", "unavailable"}:
         status = raw_status
-        reason = str(value.get("reason") or f"source status is {raw_status}")
+        reason = str(declared_reason or f"source status is {raw_status}")
     elif raw_status in {"stale", "fallback_stale"}:
         status = "stale"
-        reason = str(value.get("reason") or f"source status is {raw_status}")
+        reason = str(declared_reason or f"source status is {raw_status}")
     elif raw_status in {"fresh", "current", "refreshed", "ok"}:
         if observation is None or retrieved is None or threshold is None:
             status = "unknown"
@@ -331,13 +352,19 @@ def _normalise_source_freshness(value: Any) -> dict[str, Any]:
             reason = "source freshness dates are inconsistent"
         elif age_days <= threshold:
             status = "fresh"
-            reason = "explicit observation is within the declared age limit"
+            reason = str(
+                declared_reason
+                or "explicit observation is within the declared age limit"
+            )
         else:
             status = "stale"
-            reason = "explicit observation exceeds the declared age limit"
+            reason = str(
+                declared_reason
+                or "explicit observation exceeds the declared age limit"
+            )
     else:
         status = "unknown"
-        reason = str(value.get("reason") or "source status is not recognized")
+        reason = str(declared_reason or "source status is not recognized")
 
     return {
         "status": status,
@@ -641,11 +668,8 @@ def evaluate_prediction(
         "hit": None,
         "integrity": {"lookahead_safe": True, "prediction_unchanged": True},
     }
-    if status not in FRESH_STATUSES or not manifest_fresh:
-        base["exclusion_reason"] = (
-            "outcome_data_not_fresh" if status not in FRESH_STATUSES
-            else "decision_inputs_not_fresh"
-        )
+    if not Path(prices_path).is_file():
+        base["exclusion_reason"] = "outcome_data_not_fresh"
         _write_new_json(target, base)
         return target
     prices = _load_prices(Path(prices_path), as_of)
@@ -655,6 +679,13 @@ def evaluate_prediction(
     )
     if entry_index is None or entry_index + horizon >= len(prices):
         raise HorizonNotComplete("evaluation horizon has not completed")
+    if status not in FRESH_STATUSES or not manifest_fresh:
+        base["exclusion_reason"] = (
+            "outcome_data_not_fresh" if status not in FRESH_STATUSES
+            else "decision_inputs_not_fresh"
+        )
+        _write_new_json(target, base)
+        return target
     entry_time, entry_price = prices[entry_index]
     exit_time, exit_price = prices[entry_index + horizon]
     created = _parse_utc(prediction.get("created_at_utc"), "created_at_utc")

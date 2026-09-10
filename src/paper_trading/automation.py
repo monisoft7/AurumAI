@@ -31,9 +31,6 @@ from .ledger import (
 )
 
 
-STRATEGY_BASELINE = "46fd62f1212a225446694fb85655936571625148"
-HARNESS_BASELINE = "6ce0d848cd24167317f228ffd8772274e9a58166"
-COHORT_ID = "xauusd-paper-baseline-2acd5ad"
 REQUIRED_SECRETS = (
     "FRED_API_KEY",
     "TELEGRAM_BOT_TOKEN",
@@ -74,6 +71,25 @@ class ModePlan:
     mode: str
     run_pipeline: bool
     write_ledger: bool
+
+
+@dataclass(frozen=True)
+class LockedBaseline:
+    cohort_id: str
+    baseline_commit: str
+
+
+def _locked_baseline(path: Path) -> LockedBaseline:
+    config = _read_object(path)
+    cohort_id = str(config.get("cohort_id") or "").strip()
+    baseline_commit = str(config.get("baseline_commit") or "").strip().lower()
+    if not cohort_id:
+        raise AutomationFailure("preflight", "locked cohort identifier is missing")
+    if len(baseline_commit) != 40 or any(
+        character not in "0123456789abcdef" for character in baseline_commit
+    ):
+        raise AutomationFailure("preflight", "locked strategy baseline is invalid")
+    return LockedBaseline(cohort_id=cohort_id, baseline_commit=baseline_commit)
 
 
 def resolve_mode(event_name: str, dispatch_mode: str | None = None) -> str:
@@ -558,9 +574,11 @@ def _evaluate_due_predictions(
     *,
     freshness_status: str,
     as_of_utc: str,
+    cohort_id: str,
+    baseline_commit: str,
 ) -> tuple[int, str]:
-    if freshness_status != "fresh" or not prices_path.is_file():
-        return 0, "pending; compatible fresh price source unavailable"
+    if not prices_path.is_file():
+        return 0, "pending; compatible price source unavailable"
     try:
         with prices_path.open(encoding="utf-8-sig") as handle:
             header = handle.readline().lower()
@@ -574,8 +592,8 @@ def _evaluate_due_predictions(
     for prediction_path in sorted((ledger_dir / "predictions").glob("*.json")):
         prediction = _read_object(prediction_path)
         if (
-            prediction.get("cohort_id") != COHORT_ID
-            or prediction.get("baseline_commit") != STRATEGY_BASELINE
+            prediction.get("cohort_id") != cohort_id
+            or prediction.get("baseline_commit") != baseline_commit
         ):
             continue
         prediction_id = str(prediction.get("prediction_id") or "")
@@ -594,7 +612,7 @@ def _evaluate_due_predictions(
                     prices_path,
                     horizon_sessions=int(horizon),
                     as_of_utc=as_of_utc,
-                    freshness_status="fresh",
+                    freshness_status=freshness_status,
                 )
                 completed += 1
             except HorizonNotComplete:
@@ -615,7 +633,7 @@ def _preflight(
     ledger_dir: Path,
     ledger_repository: str,
     environment: Mapping[str, str],
-) -> tuple[str, str]:
+) -> tuple[LockedBaseline, str]:
     presence = secret_presence(environment)
     missing = [name for name, status in presence.items() if status == "MISSING"]
     if missing:
@@ -628,13 +646,13 @@ def _preflight(
         raise AutomationFailure("preflight", "private ledger repository mismatch")
     strategy_commit = _head(strategy_dir)
     harness_commit = _head(harness_dir)
-    if strategy_commit != STRATEGY_BASELINE:
-        raise AutomationFailure("preflight", "strategy baseline mismatch")
-    base_config = _read_object(harness_dir / "config" / "paper_trading_baseline.json")
-    if base_config.get("baseline_commit") != STRATEGY_BASELINE:
+    baseline = _locked_baseline(
+        harness_dir / "config" / "paper_trading_baseline.json"
+    )
+    if strategy_commit != baseline.baseline_commit:
         raise AutomationFailure("preflight", "locked paper configuration mismatch")
     _load_paper_trading_cli(harness_dir)
-    return strategy_commit, harness_commit
+    return baseline, harness_commit
 
 
 def _load_paper_trading_cli(harness_dir: Path) -> None:
@@ -678,10 +696,10 @@ def _create_daily_config(
     github_actions: Mapping[str, str],
 ) -> Path:
     config = _read_object(base_path)
+    baseline = _locked_baseline(base_path)
     config["evaluation_id"] = evaluation_id
-    config["cohort_id"] = COHORT_ID
     config["automation_context"] = {
-        "strategy_baseline_commit": STRATEGY_BASELINE,
+        "strategy_baseline_commit": baseline.baseline_commit,
         "harness_commit": harness_commit,
         "github_actions": dict(github_actions),
     }
@@ -775,7 +793,7 @@ def execute_automation(
     output_dir.mkdir(parents=True, exist_ok=True)
     secrets = _secret_values(environment)
     evaluation_id = deterministic_evaluation_id(market_date)
-    _, harness_commit = _preflight(
+    baseline, harness_commit = _preflight(
         strategy_dir=strategy_dir,
         harness_dir=harness_dir,
         ledger_dir=ledger_dir,
@@ -857,8 +875,10 @@ def execute_automation(
     _, outcome_note = _evaluate_due_predictions(
         ledger_dir,
         strategy_dir / "data" / "history" / "gold" / "gold.csv",
-        freshness_status=validated["freshness"]["outcome_price"],
+        freshness_status=validated["freshness"]["Gold"],
         as_of_utc=now.isoformat(),
+        cohort_id=baseline.cohort_id,
+        baseline_commit=baseline.baseline_commit,
     )
     daily_config = _create_daily_config(
         harness_dir / "config" / "paper_trading_baseline.json",
@@ -880,7 +900,7 @@ def execute_automation(
             "--config",
             str(daily_config),
             "--baseline-commit",
-            STRATEGY_BASELINE,
+            baseline.baseline_commit,
         ],
         cwd=harness_dir,
         timeout=60,
@@ -896,9 +916,9 @@ def execute_automation(
     manifest = _read_object(prediction_path)
     if manifest.get("evaluation_id") != evaluation_id:
         raise AutomationFailure("prediction", "evaluation identifier mismatch")
-    if manifest.get("cohort_id") != COHORT_ID:
+    if manifest.get("cohort_id") != baseline.cohort_id:
         raise AutomationFailure("prediction", "cohort identifier mismatch")
-    if manifest.get("strategy_baseline_commit") != STRATEGY_BASELINE:
+    if manifest.get("strategy_baseline_commit") != baseline.baseline_commit:
         raise AutomationFailure("prediction", "strategy provenance mismatch")
     if manifest.get("harness_commit") != harness_commit:
         raise AutomationFailure("prediction", "harness provenance mismatch")
@@ -912,13 +932,13 @@ def execute_automation(
         "evaluation_id": evaluation_id,
         "prediction_id": manifest["prediction_id"],
         "prediction_sha256": hashlib.sha256(prediction_path.read_bytes()).hexdigest(),
-        "strategy_baseline_commit": STRATEGY_BASELINE,
+        "strategy_baseline_commit": baseline.baseline_commit,
         "harness_commit": harness_commit,
         "paper_evaluation": validated["paper_evaluation"],
         "timing_evidence": "GitHub run metadata reference; not proof of prediction publication time",
     })
 
-    summary_path = ledger_dir / "cohorts" / COHORT_ID / "summary.json"
+    summary_path = ledger_dir / "cohorts" / baseline.cohort_id / "summary.json"
     summary = runner(
         [
             sys.executable,
@@ -927,7 +947,7 @@ def execute_automation(
             "--registry-dir",
             str(ledger_dir),
             "--cohort-id",
-            COHORT_ID,
+            baseline.cohort_id,
             "--output",
             str(summary_path),
         ],

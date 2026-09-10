@@ -43,7 +43,6 @@ def _run_343_outputs(*, include_cpi: bool = False) -> dict[str, object]:
         "T5YIE": _source("refreshed", "2026-09-08"),
         "Gold": _source("ok", "2026-09-09"),
         "DXY": _source("refreshed", "2026-09-09"),
-        "outcome_price": _source("ok", "2026-09-09"),
     }
     if include_cpi:
         sources["CPI"] = _source(
@@ -121,7 +120,7 @@ def _config(tmp_path: Path) -> Path:
         path,
         {
             "evaluation_id": "paper-2026-09-09-regression",
-            "cohort_id": "xauusd-paper-baseline-2acd5ad",
+            "cohort_id": "xauusd-paper-46fd62f-v2",
             "baseline_commit": BASELINE,
             "instrument": "XAU/USD",
             "timezone": "Africa/Tripoli",
@@ -207,6 +206,23 @@ def test_all_required_sources_fresh_are_eligible(tmp_path: Path) -> None:
         item["status"] == "fresh"
         for item in evaluation["source_freshness"].values()
     )
+    assert evaluation["financially_eligible"] is True
+    assert evaluation["integrity_exclusions"] == []
+
+
+def test_pending_outcome_price_is_not_a_prediction_input(tmp_path: Path) -> None:
+    outputs = _run_343_outputs(include_cpi=True)
+    outputs["finalize"]["source_freshness"]["outcome_price"] = {
+        "status": "unknown",
+        "observation_date": None,
+        "retrieved_at": None,
+        "max_age_days": 7,
+        "reason": "future horizon price is pending",
+    }
+    evaluation = ledger.build_paper_evaluation(outputs, {}, {"status": "pending"})
+    assert set(evaluation["source_freshness"]) == {
+        "DGS10", "DFII10", "T5YIE", "CPI", "Gold", "DXY"
+    }
     assert evaluation["financially_eligible"] is True
     assert evaluation["integrity_exclusions"] == []
 
