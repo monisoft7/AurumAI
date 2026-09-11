@@ -1,8 +1,8 @@
 # AurumAI Paper Trading Protocol
 
 Protocol version 1.0 is frozen before the first paper signal. Its evaluation
-cohort is `xauusd-paper-46fd62f-v2`, based on immutable baseline commit
-`46fd62f1212a225446694fb85655936571625148`.
+cohort is `xauusd-paper-57f7cf7-v3`, based on immutable baseline commit
+`57f7cf70878dd364c4cb346ef19d129d54877e30`.
 
 ## Scope and schedule
 
@@ -85,9 +85,9 @@ and never authorize real trading.
 ## Offline commands
 
 ```text
-python scripts/paper_trading.py create --runtime-dir RUN --registry-dir LEDGER --baseline-commit 46fd62f1212a225446694fb85655936571625148
+python scripts/paper_trading.py create --runtime-dir RUN --registry-dir LEDGER --baseline-commit 57f7cf70878dd364c4cb346ef19d129d54877e30
 python scripts/paper_trading.py evaluate --prediction PREDICTION --outcomes-dir LEDGER/outcomes --prices PRICES.csv --horizon 1 --as-of-utc 2026-09-10T21:00:00Z
-python scripts/paper_trading.py summarize --registry-dir LEDGER --evaluation-id xauusd-paper-46fd62f-v2
+python scripts/paper_trading.py summarize --registry-dir LEDGER --evaluation-id xauusd-paper-57f7cf7-v3
 ```
 
 These commands only read local artifacts and write ledger files. They contain

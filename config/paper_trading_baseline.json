@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "evaluation_id": "xauusd-paper-46fd62f-v2",
-  "cohort_id": "xauusd-paper-46fd62f-v2",
-  "baseline_commit": "46fd62f1212a225446694fb85655936571625148",
+  "evaluation_id": "xauusd-paper-57f7cf7-v3",
+  "cohort_id": "xauusd-paper-57f7cf7-v3",
+  "baseline_commit": "57f7cf70878dd364c4cb346ef19d129d54877e30",
   "instrument": "XAU/USD",
   "timezone": "Africa/Tripoli",
   "scheduled_runs_per_market_day": 1,

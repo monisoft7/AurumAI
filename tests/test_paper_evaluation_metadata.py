@@ -11,7 +11,7 @@ import paper_trading.ledger as ledger
 from paper_trading.automation import format_success_message
 
 
-BASELINE = "46fd62f1212a225446694fb85655936571625148"
+BASELINE = "57f7cf70878dd364c4cb346ef19d129d54877e30"
 RETRIEVED_AT = "2026-09-09T08:10:25Z"
 
 
@@ -120,7 +120,7 @@ def _config(tmp_path: Path) -> Path:
         path,
         {
             "evaluation_id": "paper-2026-09-09-regression",
-            "cohort_id": "xauusd-paper-46fd62f-v2",
+            "cohort_id": "xauusd-paper-57f7cf7-v3",
             "baseline_commit": BASELINE,
             "instrument": "XAU/USD",
             "timezone": "Africa/Tripoli",
