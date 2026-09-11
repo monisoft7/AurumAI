@@ -17,7 +17,7 @@ from paper_trading.ledger import (
 )
 
 
-BASELINE = "46fd62f1212a225446694fb85655936571625148"
+BASELINE = "57f7cf70878dd364c4cb346ef19d129d54877e30"
 EVALUATION_ID = "test-paper-v1"
 
 

@@ -31,8 +31,8 @@ from paper_trading.ledger import HorizonNotComplete, evaluate_prediction
 
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOW = ROOT / ".github" / "workflows" / "paper-trading-daily.yml"
-BASELINE = "46fd62f1212a225446694fb85655936571625148"
-COHORT_ID = "xauusd-paper-46fd62f-v2"
+BASELINE = "57f7cf70878dd364c4cb346ef19d129d54877e30"
+COHORT_ID = "xauusd-paper-57f7cf7-v3"
 HARNESS = "6ce0d848cd24167317f228ffd8772274e9a58166"
 
 
@@ -96,7 +96,7 @@ def test_strategy_baseline_is_pinned_and_does_not_follow_main() -> None:
     assert "ref: main" not in strategy_block
 
 
-def test_daily_config_uses_only_the_locked_v2_cohort(tmp_path: Path) -> None:
+def test_daily_config_uses_only_the_locked_v3_cohort(tmp_path: Path) -> None:
     target = automation._create_daily_config(
         ROOT / "config" / "paper_trading_baseline.json",
         tmp_path / "paper-config.json",
