@@ -688,7 +688,14 @@ def test_abstention_summary_is_research_only_and_does_not_change_trade_gate(
         "NO_TRADE",
         include_snapshot=False,
     )
-    for manifest in (buy, missed, justified, legacy):
+    structural, _ = _manifest(
+        tmp_path,
+        "structural-summary",
+        "NO_TRADE",
+        rr_gate_pass=None,
+    )
+    stale, _ = _manifest(tmp_path, "stale-summary", "NO_TRADE")
+    for manifest in (buy, missed, justified, legacy, structural):
         evaluate_prediction(
             manifest,
             ledger / "outcomes",
@@ -696,6 +703,14 @@ def test_abstention_summary_is_research_only_and_does_not_change_trade_gate(
             horizon_sessions=1,
             as_of_utc="2026-01-05T21:00:00Z",
         )
+    evaluate_prediction(
+        stale,
+        ledger / "outcomes",
+        prices,
+        horizon_sessions=1,
+        as_of_utc="2026-01-05T21:00:00Z",
+        freshness_status="stale",
+    )
 
     summary = summarize_cohort(ledger, EVALUATION_ID)
     research = summary["research_only_abstention_quality"]
@@ -703,18 +718,42 @@ def test_abstention_summary_is_research_only_and_does_not_change_trade_gate(
     assert summary["eligible_trades"] == 1
     assert summary["completed_trades"] == 1
     assert summary["net_expectancy_pct"] == pytest.approx(9.86)
+    assert summary["profit_factor"] is None
     assert summary["economic_gate"]["status"] == "INSUFFICIENT_SAMPLE"
     assert research["research_only"] is True
     assert research["excluded_from_trading_metrics_and_economic_gate"] is True
     assert research["evaluated_abstentions"] == 2
     assert research["justified_abstentions"] == 1
     assert research["missed_opportunities"] == 1
-    assert research["unevaluable"] == 0
-    assert research["unresolvable"] == 1
+    assert research["unevaluable"] == 1
+    assert research["unresolvable"] == 2
     assert research["missed_opportunity_rate"] == 0.5
+    assert research["counterfactual_sample_count"] == 2
+    assert research["mean_counterfactual_return_pct"] == pytest.approx(0.0)
+    assert research["median_counterfactual_return_pct"] == pytest.approx(0.0)
+    assert research["min_counterfactual_return_pct"] == pytest.approx(-10.0)
+    assert research["max_counterfactual_return_pct"] == pytest.approx(10.0)
+    assert research["counterfactual_return_basis"] == (
+        "gross_before_transaction_costs"
+    )
+    assert research["counterfactual_is_trade_pnl"] is False
     assert research["by_horizon"]["1"]["evaluated_abstentions"] == 2
-    assert research["by_horizon"]["1"]["unresolvable"] == 1
+    assert research["by_horizon"]["1"]["unresolvable"] == 2
+    assert research["by_horizon"]["1"]["counterfactual_sample_count"] == 2
+    assert research["by_horizon"]["1"]["min_counterfactual_return_pct"] == -10.0
+    assert research["by_horizon"]["1"]["max_counterfactual_return_pct"] == 10.0
     assert research["by_horizon"]["3"]["evaluated_abstentions"] == 0
+    assert research["by_horizon"]["3"]["counterfactual_sample_count"] == 0
+    assert research["by_horizon"]["3"]["mean_counterfactual_return_pct"] is None
+    assert research["by_horizon"]["3"]["median_counterfactual_return_pct"] is None
+    assert research["by_horizon"]["3"]["min_counterfactual_return_pct"] is None
+    assert research["by_horizon"]["3"]["max_counterfactual_return_pct"] is None
     assert research["by_confidence_bucket"]["high_[0.75,1]"][
         "missed_opportunity_rate"
     ] == 0.5
+    assert research["by_confidence_bucket"]["high_[0.75,1]"][
+        "counterfactual_sample_count"
+    ] == 2
+    assert research["by_confidence_bucket"]["high_[0.75,1]"][
+        "median_counterfactual_return_pct"
+    ] == pytest.approx(0.0)

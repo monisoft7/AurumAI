@@ -232,7 +232,8 @@ def format_success_message(
             "جودة الامتناع: "
             f"مبرر={safe(context.get('justified_abstentions', 0))}، "
             f"فرصة فائتة={safe(context.get('missed_opportunities', 0))}، "
-            f"قيد الانتظار={safe(context.get('pending_abstentions', 0))}"
+            f"قيد الانتظار={safe(context.get('pending_abstentions', 0))}، "
+            f"غير محسوم={safe(context.get('unresolved_abstentions', 0))}"
         ),
         f"GitHub Actions: {safe(context.get('run_url', 'غير متاح'))}",
     ]
@@ -1013,6 +1014,9 @@ def execute_automation(
         "pending_abstentions": (
             cohort_summary.get("research_only_abstention_quality") or {}
         ).get("unevaluable", 0),
+        "unresolved_abstentions": (
+            cohort_summary.get("research_only_abstention_quality") or {}
+        ).get("unresolvable", 0),
         "run_url": run_url,
     }
     _canonical_write(output_dir / "result.json", context)

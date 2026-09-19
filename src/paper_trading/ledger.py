@@ -11,6 +11,7 @@ import datetime as dt
 import hashlib
 import json
 import math
+import statistics
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Iterable
@@ -946,16 +947,26 @@ def _outcome_integrity(
 
 
 def _abstention_metrics(records: Iterable[dict[str, Any]]) -> dict[str, Any]:
+    materialized = list(records)
     counts = Counter(
         item.get("abstention_verdict")
         if item.get("abstention_verdict") in ABSTENTION_VERDICTS
         else VERDICT_UNRESOLVABLE
-        for item in records
+        for item in materialized
     )
     evaluated = (
         counts[VERDICT_JUSTIFIED_ABSTENTION]
         + counts[VERDICT_MISSED_OPPORTUNITY]
     )
+    counterfactual_returns = [
+        float(value)
+        for item in materialized
+        if item.get("abstention_verdict")
+        in {VERDICT_JUSTIFIED_ABSTENTION, VERDICT_MISSED_OPPORTUNITY}
+        and (
+            value := _safe_number(item.get("counterfactual_return_pct"))
+        ) is not None
+    ]
     return {
         "evaluated_abstentions": evaluated,
         "justified_abstentions": counts[VERDICT_JUSTIFIED_ABSTENTION],
@@ -964,6 +975,23 @@ def _abstention_metrics(records: Iterable[dict[str, Any]]) -> dict[str, Any]:
         "unresolvable": counts[VERDICT_UNRESOLVABLE],
         "missed_opportunity_rate": (
             counts[VERDICT_MISSED_OPPORTUNITY] / evaluated if evaluated else None
+        ),
+        "counterfactual_sample_count": len(counterfactual_returns),
+        "mean_counterfactual_return_pct": (
+            sum(counterfactual_returns) / len(counterfactual_returns)
+            if counterfactual_returns
+            else None
+        ),
+        "median_counterfactual_return_pct": (
+            statistics.median(counterfactual_returns)
+            if counterfactual_returns
+            else None
+        ),
+        "min_counterfactual_return_pct": (
+            min(counterfactual_returns) if counterfactual_returns else None
+        ),
+        "max_counterfactual_return_pct": (
+            max(counterfactual_returns) if counterfactual_returns else None
         ),
     }
 
@@ -1064,6 +1092,8 @@ def summarize_cohort(
         **_abstention_metrics(abstention_outcomes),
         "research_only": True,
         "excluded_from_trading_metrics_and_economic_gate": True,
+        "counterfactual_return_basis": "gross_before_transaction_costs",
+        "counterfactual_is_trade_pnl": False,
         "by_horizon": {
             str(horizon): _abstention_metrics(
                 item

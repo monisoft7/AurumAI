@@ -285,7 +285,10 @@ def test_success_formatter_covers_all_decisions_in_arabic(decision: str) -> None
     assert "PAPER TRADING فقط" in message
     assert f"القرار: {decision}" in message
     assert "حالة العينة:" in message
-    assert "جودة الامتناع: مبرر=0، فرصة فائتة=0، قيد الانتظار=0" in message
+    assert (
+        "جودة الامتناع: مبرر=0، فرصة فائتة=0، قيد الانتظار=0، غير محسوم=0"
+        in message
+    )
 
 
 def test_failure_formatter_is_short_and_confirms_no_prediction() -> None:
