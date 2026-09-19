@@ -63,6 +63,10 @@ def _runtime(
     decision: str = "BUY",
     *,
     secret: str | None = None,
+    rejected_direction: str = "bullish",
+    include_snapshot: bool = True,
+    rr_gate_pass: bool | None = True,
+    include_sensitive_snapshot_fields: bool = False,
 ) -> Path:
     run = tmp_path / runtime_id
     source_freshness = {
@@ -126,27 +130,63 @@ def _runtime(
             "debug_secret": secret,
         },
     )
-    _write_json(
-        run / "outcome.json",
-        {
-            "schema_version": "1.1",
-            "status": "pending",
-            "run_id": runtime_id,
-            "decision": decision,
-            "decision_snapshot": {
-                "gate_reasons": {"conviction_gate_pass": decision != "NO_TRADE"}
+    outcome = {
+        "schema_version": "1.1",
+        "status": "pending",
+        "run_id": runtime_id,
+        "decision": decision,
+    }
+    if include_snapshot:
+        snapshot = {
+            "best_rejected": {
+                "thesis_id": "th_rejected",
+                "direction": rejected_direction,
+                "composite_score": 0.49,
+                "unsafe_detail": {"must": "not be copied"},
             },
-        },
-    )
+            "gate_reasons": {
+                "conviction_gate_pass": decision != "NO_TRADE",
+                "rr_gate_pass": rr_gate_pass,
+                "risk_reward_ratio": 1.5 if rr_gate_pass is not None else None,
+                "bias_review_blocked": False,
+                "internal_note": "must not be copied",
+            },
+            "evidence_snapshot": {"raw_evidence": "must not be copied"},
+        }
+        if include_sensitive_snapshot_fields:
+            snapshot.update(
+                {
+                    "environment": {"AURUM_SECRET": "must not be copied"},
+                    "sensitive_path": "C:\\private\\ledger.json",
+                    "api_key": "must not be copied",
+                }
+            )
+        outcome["decision_snapshot"] = snapshot
+    _write_json(run / "outcome.json", outcome)
     return run
 
 
 def _manifest(
-    tmp_path: Path, runtime_id: str = "runtime_1", decision: str = "BUY"
+    tmp_path: Path,
+    runtime_id: str = "runtime_1",
+    decision: str = "BUY",
+    *,
+    rejected_direction: str = "bullish",
+    include_snapshot: bool = True,
+    rr_gate_pass: bool | None = True,
+    include_sensitive_snapshot_fields: bool = False,
 ) -> tuple[Path, Path]:
     ledger = tmp_path / "ledger"
     path = create_prediction_manifest(
-        _runtime(tmp_path / "runs", runtime_id, decision),
+        _runtime(
+            tmp_path / "runs",
+            runtime_id,
+            decision,
+            rejected_direction=rejected_direction,
+            include_snapshot=include_snapshot,
+            rr_gate_pass=rr_gate_pass,
+            include_sensitive_snapshot_fields=include_sensitive_snapshot_fields,
+        ),
         ledger,
         _config(tmp_path),
         baseline_commit=BASELINE,
@@ -444,3 +484,237 @@ def test_automation_provenance_is_frozen_into_prediction(tmp_path: Path) -> None
     assert manifest["github_actions"]["run_id"] == "123"
 
     assert manifest["github_actions"] == config["automation_context"]["github_actions"]
+
+
+def test_shadow_prediction_contains_only_redacted_decision_snapshot(
+    tmp_path: Path,
+) -> None:
+    manifest_path, _ = _manifest(
+        tmp_path,
+        decision="NO_TRADE",
+        include_sensitive_snapshot_fields=True,
+    )
+    snapshot = json.loads(manifest_path.read_text(encoding="utf-8"))["decision_snapshot"]
+
+    assert snapshot == {
+        "best_rejected": {
+            "thesis_id": "th_rejected",
+            "direction": "bullish",
+            "composite_score": 0.49,
+        },
+        "gate_reasons": {
+            "conviction_gate_pass": False,
+            "rr_gate_pass": True,
+            "risk_reward_ratio": 1.5,
+            "bias_review_blocked": False,
+        },
+    }
+    assert "unsafe_detail" not in manifest_path.read_text(encoding="utf-8")
+    assert "raw_evidence" not in manifest_path.read_text(encoding="utf-8")
+    assert "environment" not in manifest_path.read_text(encoding="utf-8")
+    assert "private" not in manifest_path.read_text(encoding="utf-8")
+    assert "api_key" not in manifest_path.read_text(encoding="utf-8")
+
+
+def test_no_trade_shadow_evaluates_all_locked_horizons_without_trade_metrics(
+    tmp_path: Path,
+) -> None:
+    manifest, ledger = _manifest(tmp_path, decision="NO_TRADE")
+    prediction_before = manifest.read_bytes()
+    prediction_hash = prediction_sha256(manifest)
+    prices = _prices(tmp_path / "prices.csv")
+
+    records = []
+    for horizon in (1, 3, 5):
+        outcome = evaluate_prediction(
+            manifest,
+            ledger / "outcomes",
+            prices,
+            horizon_sessions=horizon,
+            as_of_utc="2026-01-09T21:00:00Z",
+        )
+        records.append(json.loads(outcome.read_text(encoding="utf-8")))
+
+    assert manifest.read_bytes() == prediction_before
+    assert {record["horizon_sessions"] for record in records} == {1, 3, 5}
+    assert all(record["prediction_sha256"] == prediction_hash for record in records)
+    assert all(record["market_return_pct"] > 0.0 for record in records)
+    assert all(record["abstention_verdict"] == "missed_opportunity" for record in records)
+    assert all(record["counterfactual_return_pct"] > 0.10 for record in records)
+    assert all(
+        record["counterfactual_return_basis"] == "gross_before_transaction_costs"
+        for record in records
+    )
+    assert all(record["counterfactual_is_trade_pnl"] is False for record in records)
+    assert all(record["eligible_trade"] is False for record in records)
+    assert all(record["gross_return_pct"] is None for record in records)
+    assert all(record["net_return_pct"] is None for record in records)
+
+
+@pytest.mark.parametrize(
+    ("direction", "exit_price", "verdict", "counterfactual"),
+    [
+        ("bullish", 100.1, "justified_abstention", 0.1),
+        ("bullish", 100.11, "missed_opportunity", 0.11),
+        ("bearish", 99.9, "justified_abstention", 0.1),
+        ("bearish", 99.89, "missed_opportunity", 0.11),
+    ],
+)
+def test_no_trade_dead_zone_and_rejected_direction(
+    tmp_path: Path,
+    direction: str,
+    exit_price: float,
+    verdict: str,
+    counterfactual: float,
+) -> None:
+    case = tmp_path / f"{direction}-{exit_price}"
+    case.mkdir()
+    manifest, ledger = _manifest(
+        case,
+        decision="NO_TRADE",
+        rejected_direction=direction,
+    )
+    prices = case / "prices.csv"
+    prices.write_text(
+        "timestamp,close,available_at_utc\n"
+        "2026-01-02T21:00:00Z,100,2026-01-02T21:00:00Z\n"
+        f"2026-01-05T21:00:00Z,{exit_price},2026-01-05T21:00:00Z\n",
+        encoding="utf-8",
+    )
+
+    outcome = evaluate_prediction(
+        manifest,
+        ledger / "outcomes",
+        prices,
+        horizon_sessions=1,
+        as_of_utc="2026-01-05T21:00:00Z",
+    )
+    record = json.loads(outcome.read_text(encoding="utf-8"))
+
+    assert record["abstention_verdict"] == verdict
+    assert record["counterfactual_return_pct"] == pytest.approx(counterfactual)
+
+
+def test_no_trade_timing_and_legacy_snapshot_compatibility(tmp_path: Path) -> None:
+    manifest, ledger = _manifest(
+        tmp_path,
+        decision="NO_TRADE",
+        include_snapshot=False,
+    )
+    before = manifest.read_bytes()
+    prices = _prices(tmp_path / "prices.csv")
+
+    with pytest.raises(HorizonNotComplete):
+        evaluate_prediction(
+            manifest,
+            ledger / "outcomes",
+            prices,
+            horizon_sessions=3,
+            as_of_utc="2026-01-05T20:59:59Z",
+        )
+    assert not (ledger / "outcomes").exists()
+
+    outcome = evaluate_prediction(
+        manifest,
+        ledger / "outcomes",
+        prices,
+        horizon_sessions=1,
+        as_of_utc="2026-01-05T21:00:00Z",
+    )
+    record = json.loads(outcome.read_text(encoding="utf-8"))
+    assert manifest.read_bytes() == before
+    assert record["abstention_verdict"] == "unresolvable"
+    assert record["counterfactual_return_pct"] is None
+    assert record["abstention_basis"] == ["unscored_legacy_prediction"]
+
+
+def test_no_trade_unevaluable_and_structural_unresolvable_taxonomy(
+    tmp_path: Path,
+) -> None:
+    stale, ledger = _manifest(tmp_path, "stale", "NO_TRADE")
+    structural, _ = _manifest(
+        tmp_path,
+        "structural",
+        "NO_TRADE",
+        rr_gate_pass=None,
+    )
+    prices = _prices(tmp_path / "prices.csv")
+
+    stale_outcome = evaluate_prediction(
+        stale,
+        ledger / "outcomes",
+        prices,
+        horizon_sessions=1,
+        as_of_utc="2026-01-05T21:00:00Z",
+        freshness_status="stale",
+    )
+    structural_outcome = evaluate_prediction(
+        structural,
+        ledger / "outcomes",
+        prices,
+        horizon_sessions=1,
+        as_of_utc="2026-01-05T21:00:00Z",
+    )
+    stale_record = json.loads(stale_outcome.read_text(encoding="utf-8"))
+    structural_record = json.loads(structural_outcome.read_text(encoding="utf-8"))
+
+    assert stale_record["abstention_verdict"] == "unevaluable"
+    assert stale_record["counterfactual_return_pct"] is None
+    assert structural_record["abstention_verdict"] == "unresolvable"
+    assert structural_record["counterfactual_return_pct"] is None
+    assert structural_record["abstention_basis"] == ["no_eligible_thesis"]
+
+
+def test_abstention_summary_is_research_only_and_does_not_change_trade_gate(
+    tmp_path: Path,
+) -> None:
+    prices = _prices(tmp_path / "prices.csv")
+    buy, ledger = _manifest(tmp_path, "buy", "BUY")
+    missed, _ = _manifest(
+        tmp_path,
+        "missed",
+        "NO_TRADE",
+        rejected_direction="bullish",
+    )
+    justified, _ = _manifest(
+        tmp_path,
+        "justified",
+        "NO_TRADE",
+        rejected_direction="bearish",
+    )
+    legacy, _ = _manifest(
+        tmp_path,
+        "legacy",
+        "NO_TRADE",
+        include_snapshot=False,
+    )
+    for manifest in (buy, missed, justified, legacy):
+        evaluate_prediction(
+            manifest,
+            ledger / "outcomes",
+            prices,
+            horizon_sessions=1,
+            as_of_utc="2026-01-05T21:00:00Z",
+        )
+
+    summary = summarize_cohort(ledger, EVALUATION_ID)
+    research = summary["research_only_abstention_quality"]
+
+    assert summary["eligible_trades"] == 1
+    assert summary["completed_trades"] == 1
+    assert summary["net_expectancy_pct"] == pytest.approx(9.86)
+    assert summary["economic_gate"]["status"] == "INSUFFICIENT_SAMPLE"
+    assert research["research_only"] is True
+    assert research["excluded_from_trading_metrics_and_economic_gate"] is True
+    assert research["evaluated_abstentions"] == 2
+    assert research["justified_abstentions"] == 1
+    assert research["missed_opportunities"] == 1
+    assert research["unevaluable"] == 0
+    assert research["unresolvable"] == 1
+    assert research["missed_opportunity_rate"] == 0.5
+    assert research["by_horizon"]["1"]["evaluated_abstentions"] == 2
+    assert research["by_horizon"]["1"]["unresolvable"] == 1
+    assert research["by_horizon"]["3"]["evaluated_abstentions"] == 0
+    assert research["by_confidence_bucket"]["high_[0.75,1]"][
+        "missed_opportunity_rate"
+    ] == 0.5

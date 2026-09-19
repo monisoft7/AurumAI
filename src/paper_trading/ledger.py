@@ -10,6 +10,7 @@ import csv
 import datetime as dt
 import hashlib
 import json
+import math
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Iterable
@@ -29,6 +30,18 @@ REQUIRED_PAPER_SOURCES = (
     "DXY",
 )
 RELIABILITY_CATEGORIES = {"very_low", "low", "moderate", "high"}
+ABSTENTION_DECISIONS = {"NO_TRADE"}
+VERDICT_JUSTIFIED_ABSTENTION = "justified_abstention"
+VERDICT_MISSED_OPPORTUNITY = "missed_opportunity"
+VERDICT_UNRESOLVABLE = "unresolvable"
+VERDICT_UNEVALUABLE = "unevaluable"
+ABSTENTION_VERDICTS = (
+    VERDICT_JUSTIFIED_ABSTENTION,
+    VERDICT_MISSED_OPPORTUNITY,
+    VERDICT_UNEVALUABLE,
+    VERDICT_UNRESOLVABLE,
+)
+ABSTENTION_DEAD_ZONE_PCT = 0.10
 
 
 class PaperTradingError(ValueError):
@@ -443,6 +456,106 @@ def _first_gate(outcome: dict[str, Any], finalize: dict[str, Any]) -> dict[str, 
     }
 
 
+def _safe_identifier(value: Any) -> str | None:
+    if not isinstance(value, str) or not value or len(value) > 128:
+        return None
+    allowed = frozenset("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-.:")
+    return value if all(character in allowed for character in value) else None
+
+
+def _safe_number(value: Any) -> int | float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return value if math.isfinite(float(value)) else None
+
+
+def _safe_bool(value: Any) -> bool | None:
+    return value if isinstance(value, bool) else None
+
+
+def _redacted_decision_snapshot(outcome: dict[str, Any]) -> dict[str, Any]:
+    """Allowlist the immutable facts needed for shadow abstention scoring."""
+    source = outcome.get("decision_snapshot")
+    if not isinstance(source, dict) or not source:
+        return {}
+    result: dict[str, Any] = {}
+    candidate = source.get("best_rejected")
+    if isinstance(candidate, dict):
+        direction = candidate.get("direction")
+        direction = direction.strip().lower() if isinstance(direction, str) else None
+        result["best_rejected"] = {
+            "thesis_id": _safe_identifier(candidate.get("thesis_id")),
+            "direction": direction if direction in {"bullish", "bearish"} else None,
+            "composite_score": _safe_number(candidate.get("composite_score")),
+        }
+    gates = source.get("gate_reasons")
+    if isinstance(gates, dict):
+        result["gate_reasons"] = {
+            "conviction_gate_pass": _safe_bool(gates.get("conviction_gate_pass")),
+            "rr_gate_pass": _safe_bool(gates.get("rr_gate_pass")),
+            "risk_reward_ratio": _safe_number(gates.get("risk_reward_ratio")),
+            "bias_review_blocked": _safe_bool(gates.get("bias_review_blocked")),
+        }
+    return result
+
+
+def _candidate_sign(snapshot: dict[str, Any]) -> float | None:
+    candidate = snapshot.get("best_rejected")
+    direction = candidate.get("direction") if isinstance(candidate, dict) else None
+    if not isinstance(direction, str):
+        return None
+    return {"bullish": 1.0, "bearish": -1.0}.get(direction.strip().lower())
+
+
+def _abstention_basis(snapshot: dict[str, Any]) -> list[str]:
+    """Restate only the gate failures frozen at decision time."""
+    if not snapshot:
+        return ["unscored_legacy_prediction"]
+    gates = snapshot.get("gate_reasons")
+    if not isinstance(gates, dict) or not gates:
+        return ["unscored_legacy_prediction"]
+    basis: list[str] = []
+    if gates.get("rr_gate_pass") is None:
+        basis.append("no_eligible_thesis")
+        if gates.get("bias_review_blocked") is True:
+            basis.append("bias_review")
+        return basis
+    if gates.get("bias_review_blocked") is True:
+        basis.append("bias_review")
+    if gates.get("conviction_gate_pass") is False:
+        basis.append("low_conviction")
+    if gates.get("rr_gate_pass") is False:
+        basis.append("rr_asymmetry")
+    return basis
+
+
+def _abstention_result(
+    snapshot: dict[str, Any],
+    *,
+    market_return_pct: float | None,
+    outcome_evaluable: bool,
+) -> tuple[str, float | None, list[str]]:
+    """Apply the existing abstention taxonomy to a paper-only shadow result."""
+    basis = _abstention_basis(snapshot)
+    if not snapshot or basis == ["unscored_legacy_prediction"]:
+        return VERDICT_UNRESOLVABLE, None, basis
+    gates = snapshot.get("gate_reasons") or {}
+    if gates.get("rr_gate_pass") is None:
+        return VERDICT_UNRESOLVABLE, None, basis
+    sign = _candidate_sign(snapshot)
+    if sign is None:
+        return VERDICT_UNRESOLVABLE, None, basis
+    if not outcome_evaluable or market_return_pct is None:
+        return VERDICT_UNEVALUABLE, None, basis
+    counterfactual = round(sign * float(market_return_pct), 10)
+    verdict = (
+        VERDICT_MISSED_OPPORTUNITY
+        if counterfactual > ABSTENTION_DEAD_ZONE_PCT
+        else VERDICT_JUSTIFIED_ABSTENTION
+    )
+    return verdict, counterfactual, basis
+
+
 def _artifact_records(run_dir: Path, summary: dict[str, Any]) -> list[dict[str, str]]:
     names = ["stage_outputs.json", "outcome.json", "summary.json"]
     report_value = summary.get("report_path")
@@ -557,6 +670,7 @@ def create_prediction_manifest(
         "instrument": "XAU/USD",
         "decision": decision,
         "direction": direction,
+        "decision_snapshot": _redacted_decision_snapshot(outcome),
         "confidence": confidence if isinstance(confidence, (int, float)) else None,
         "reliability": reliability if isinstance(reliability, (int, float)) else None,
         "reliability_category": paper_evaluation["reliability_category"],
@@ -666,10 +780,33 @@ def evaluate_prediction(
         "transaction_cost_pct": None,
         "net_return_pct": None,
         "hit": None,
+        "market_return_pct": None,
+        "abstention_verdict": None,
+        "counterfactual_return_pct": None,
+        "counterfactual_return_basis": (
+            "gross_before_transaction_costs"
+            if decision in ABSTENTION_DECISIONS
+            else None
+        ),
+        "counterfactual_is_trade_pnl": (
+            False if decision in ABSTENTION_DECISIONS else None
+        ),
+        "abstention_basis": [],
         "integrity": {"lookahead_safe": True, "prediction_unchanged": True},
     }
     if not Path(prices_path).is_file():
         base["exclusion_reason"] = "outcome_data_not_fresh"
+        if decision in ABSTENTION_DECISIONS:
+            verdict, counterfactual, basis = _abstention_result(
+                prediction.get("decision_snapshot") or {},
+                market_return_pct=None,
+                outcome_evaluable=False,
+            )
+            base.update(
+                abstention_verdict=verdict,
+                counterfactual_return_pct=counterfactual,
+                abstention_basis=basis,
+            )
         _write_new_json(target, base)
         return target
     prices = _load_prices(Path(prices_path), as_of)
@@ -684,6 +821,17 @@ def evaluate_prediction(
             "outcome_data_not_fresh" if status not in FRESH_STATUSES
             else "decision_inputs_not_fresh"
         )
+        if decision in ABSTENTION_DECISIONS:
+            verdict, counterfactual, basis = _abstention_result(
+                prediction.get("decision_snapshot") or {},
+                market_return_pct=None,
+                outcome_evaluable=False,
+            )
+            base.update(
+                abstention_verdict=verdict,
+                counterfactual_return_pct=counterfactual,
+                abstention_basis=basis,
+            )
         _write_new_json(target, base)
         return target
     entry_time, entry_price = prices[entry_index]
@@ -696,10 +844,21 @@ def evaluate_prediction(
     base["entry"] = {"timestamp": _utc_text(entry_time), "close": entry_price}
     base["exit"] = {"timestamp": _utc_text(exit_time), "close": exit_price}
     base["status"] = "completed"
+    market_return = (exit_price - entry_price) / entry_price * 100.0
+    base["market_return_pct"] = round(market_return, 10)
     if decision == "NO_TRADE":
         base["exclusion_reason"] = "no_trade"
+        verdict, counterfactual, basis = _abstention_result(
+            prediction.get("decision_snapshot") or {},
+            market_return_pct=market_return,
+            outcome_evaluable=True,
+        )
+        base.update(
+            abstention_verdict=verdict,
+            counterfactual_return_pct=counterfactual,
+            abstention_basis=basis,
+        )
     else:
-        market_return = (exit_price - entry_price) / entry_price * 100.0
         gross = market_return if decision == "BUY" else -market_return
         costs = prediction.get("transaction_costs") or {}
         round_trip = float(costs.get("round_trip_cost_bps", 0.0))
@@ -786,6 +945,29 @@ def _outcome_integrity(
     return None
 
 
+def _abstention_metrics(records: Iterable[dict[str, Any]]) -> dict[str, Any]:
+    counts = Counter(
+        item.get("abstention_verdict")
+        if item.get("abstention_verdict") in ABSTENTION_VERDICTS
+        else VERDICT_UNRESOLVABLE
+        for item in records
+    )
+    evaluated = (
+        counts[VERDICT_JUSTIFIED_ABSTENTION]
+        + counts[VERDICT_MISSED_OPPORTUNITY]
+    )
+    return {
+        "evaluated_abstentions": evaluated,
+        "justified_abstentions": counts[VERDICT_JUSTIFIED_ABSTENTION],
+        "missed_opportunities": counts[VERDICT_MISSED_OPPORTUNITY],
+        "unevaluable": counts[VERDICT_UNEVALUABLE],
+        "unresolvable": counts[VERDICT_UNRESOLVABLE],
+        "missed_opportunity_rate": (
+            counts[VERDICT_MISSED_OPPORTUNITY] / evaluated if evaluated else None
+        ),
+    }
+
+
 def summarize_cohort(
     registry_dir: Path,
     evaluation_id: str | None = None,
@@ -811,6 +993,7 @@ def summarize_cohort(
         except (PaperTradingError, KeyError):
             exclusions["invalid_prediction_record"] += 1
     outcomes: list[dict[str, Any]] = []
+    abstention_outcomes: list[dict[str, Any]] = []
     seen_horizons: set[tuple[str, int]] = set()
     for path in sorted((root / "outcomes").glob("*.json")):
         try:
@@ -835,6 +1018,8 @@ def summarize_cohort(
             if integrity_error:
                 exclusions[integrity_error] += 1
                 continue
+            if pred_pair[0].get("decision") == "NO_TRADE":
+                abstention_outcomes.append(item)
             if item.get("status") != "completed":
                 exclusions[str(item.get("exclusion_reason") or "unevaluable_outcome")] += 1
                 continue
@@ -871,6 +1056,27 @@ def summarize_cohort(
         prediction = predictions[item["prediction_id"]][0]
         by_confidence[_bucket(prediction.get("confidence"))].append(item)
         by_reliability[_bucket(prediction.get("reliability"))].append(item)
+    abstentions_by_confidence: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for item in abstention_outcomes:
+        prediction = predictions[item["prediction_id"]][0]
+        abstentions_by_confidence[_bucket(prediction.get("confidence"))].append(item)
+    abstention_research = {
+        **_abstention_metrics(abstention_outcomes),
+        "research_only": True,
+        "excluded_from_trading_metrics_and_economic_gate": True,
+        "by_horizon": {
+            str(horizon): _abstention_metrics(
+                item
+                for item in abstention_outcomes
+                if int(item["horizon_sessions"]) == horizon
+            )
+            for horizon in horizons
+        },
+        "by_confidence_bucket": {
+            key: _abstention_metrics(value)
+            for key, value in sorted(abstentions_by_confidence.items())
+        },
+    }
     headline = _trade_metrics(primary_trades)
     decision_times = [
         _parse_utc(item["decision_timestamp"], "decision_timestamp")
@@ -946,6 +1152,7 @@ def summarize_cohort(
             key: _trade_metrics(value)
             for key, value in sorted(by_reliability.items())
         },
+        "research_only_abstention_quality": abstention_research,
         "data_integrity_exclusions": dict(sorted(exclusions.items())),
         "calendar_days_observed": calendar_days,
         "economic_gate": {
