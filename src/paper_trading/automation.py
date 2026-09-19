@@ -228,6 +228,13 @@ def format_success_message(
         f"الحالة: {safe(context.get('eligibility', 'DRY_RUN'))}",
         f"أسباب الاستبعاد: {safe(exclusion_text)}",
         f"تقييم outcomes: {safe(context.get('outcome_note', 'لم يُنفّذ'))}",
+        (
+            "جودة الامتناع: "
+            f"مبرر={safe(context.get('justified_abstentions', 0))}، "
+            f"فرصة فائتة={safe(context.get('missed_opportunities', 0))}، "
+            f"قيد الانتظار={safe(context.get('pending_abstentions', 0))}، "
+            f"غير محسوم={safe(context.get('unresolved_abstentions', 0))}"
+        ),
         f"GitHub Actions: {safe(context.get('run_url', 'غير متاح'))}",
     ]
     return _message(lines)
@@ -998,6 +1005,18 @@ def execute_automation(
             manifest.get("paper_evaluation") or {}
         ).get("integrity_exclusions", []),
         "outcome_note": outcome_note,
+        "justified_abstentions": (
+            cohort_summary.get("research_only_abstention_quality") or {}
+        ).get("justified_abstentions", 0),
+        "missed_opportunities": (
+            cohort_summary.get("research_only_abstention_quality") or {}
+        ).get("missed_opportunities", 0),
+        "pending_abstentions": (
+            cohort_summary.get("research_only_abstention_quality") or {}
+        ).get("unevaluable", 0),
+        "unresolved_abstentions": (
+            cohort_summary.get("research_only_abstention_quality") or {}
+        ).get("unresolvable", 0),
         "run_url": run_url,
     }
     _canonical_write(output_dir / "result.json", context)
