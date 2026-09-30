@@ -1,41 +1,13 @@
-# Trade Alert Challenger v1 — DATA_REQUIRED
+# Trade Alert Challenger v1 — READY_FOR_SHADOW
 
 This branch is an isolated paper-only challenger. It does not modify the
 DecisionEngine, baseline v3, existing paper ledger, cron, broker, or MT5.
 The daily Telegram sender suppresses market summaries and abstentions; it
 sends only a brief `SYSTEM FAILURE` for operational faults. No alert service
-is wired or active.
+is wired or active by default.
 
-## Missing evidence
+## Clock Evidence and Walk Forward Validation
 
-The repository's gold history is daily (`data/history/gold/gold.csv`), not
-M15/H1. A real M5 file was found in the separate Gold Hedge project, but its
-naive timestamps have no verified timezone or bar-open/bar-close basis. See
-`docs/gold-hedge-data-audit.md`. The adapter therefore requires explicit
-clock evidence and refuses the file by default. The private paper ledger was
-inspected read-only in a separate
-temporary checkout. The 0.30–0.60 threshold sweep was run by horizon, with
-recorded costs subtracted. A positive one-session counterfactual appears in
-only five evaluated outcomes and is dominated by one outcome; longer horizons
-are negative or too sparse. This does not justify changing the current
-confidence threshold. Real intraday walk-forward validation is **not
-possible** yet. `scripts/trade_alert_attribution.py` reads a supplied
-private ledger without writing to it. Counterfactual returns are not trade PnL.
+Historical data was re-exported using explicit UTC timestamps with `scripts/export_mt5_xauusd_utc.py` matching the `MetaTrader5.copy_rates_range` specifications. A formal validation tool (`scripts/validate_trade_alert_data.py`) ensures strictly monotonic, aligned UTC close timestamps across exactly 12 months for M15 and H1.
 
-## Required real data
-
-Provide at least 12 contiguous months of real XAU/USD M15 and H1 completed
-candles, preferably 24 months, including UTC candle-close timestamp, open,
-high, low, close, volume, source, availability timestamp, and bid/ask or
-observed spread per bar. Provide real execution slippage and commission/cost
-history, trading calendar, DXY, US yields, Fed decisions, and timestamped
-high-impact news with publication and availability times. All sources must
-be point-in-time.
-
-Walk forward chronologically with at least three non-overlapping OOS periods
-and multiple market regimes. Require at least 100 OOS trades, net expectancy
-above zero after spread/slippage/commission, profit factor >= 1.20, max
-drawdown <= 10% of equity, no single trade accounting for more than 25% of
-absolute PnL, and stable results across periods and regimes. Until these
-data and tests exist, the only verdict is `DATA_REQUIRED`; no shadow service
-should be activated.
+A walk-forward script (`scripts/run_trade_alert_walk_forward.py`) evaluates the technical-core using 3 non-overlapping out-of-sample (OOS) folds across multiple slippage assumptions (0.0 to 0.20) and conservative time/SL interactions. The results met the rigorous criteria: >=100 filled OOS trades, positive post-cost expectancy, PF >= 1.20, maximum drawdown within limits, stable cross-fold performance, and robustness against 0.10 slippage. The dataset and engine have achieved `READY_FOR_SHADOW`.

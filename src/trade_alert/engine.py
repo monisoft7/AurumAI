@@ -156,19 +156,25 @@ def evaluate(provider: CandleProvider, technical: TechnicalEngine, as_of: dateti
 
 def format_alert(alert: Alert) -> str:
     """Render the complete executable paper alert, with no market commentary."""
+    action = alert.action.replace("TRADE_ALERT ", "")
     return "\n".join((
-        alert.action, f"ACTION: {alert.action.rsplit(' ', 1)[-1]}",
+        "🚨 TRADE ALERT — XAU/USD",
+        f"ACTION: {action}",
         f"SETUP: {alert.setup}",
-        f"ENTRY range: {alert.entry_low:.2f}-{alert.entry_high:.2f}",
-        f"Current price: {alert.current_price:.2f}", f"SL: {alert.sl:.2f}",
-        f"TP1: {alert.tp1:.2f} | R:R {alert.rr1:.2f}",
-        f"TP2: {alert.tp2:.2f} | R:R {alert.rr2:.2f}",
-        f"TP3: {alert.tp3:.2f} | R:R {alert.rr3:.2f}",
-        f"Directional Conviction: {alert.directional_conviction:.2f}",
-        f"Execution Quality: {alert.execution_quality:.2f}",
-        f"Strongest counterargument: {alert.strongest_counterargument}",
-        f"Invalidation: {alert.invalidation}",
-        f"Valid-until: {alert.valid_until.isoformat()}",
-        f"Entry reason: {alert.reason}",
-        f"Paper allocation: {alert.initial_allocation:.0%} | risk budget: {alert.risk_budget_pct:.2f}%",
+        f"ENTRY: {alert.entry_low:.2f}-{alert.entry_high:.2f}",
+        f"INITIAL ALLOCATION: {alert.initial_allocation:.0%}",
+        f"RISK BUDGET: {alert.risk_budget_pct:.2f}%",
+        f"SL: {alert.sl:.2f}",
+        f"TP1: {alert.tp1:.2f}",
+        f"TP2: {alert.tp2:.2f}",
+        f"TP3: {alert.tp3:.2f}",
+        f"R:R: {alert.rr1:.2f}/{alert.rr2:.2f}/{alert.rr3:.2f}",
+        f"CONVICTION: {alert.directional_conviction:.2f}",
+        f"DIRECTIONAL CONVICTION: {alert.directional_conviction:.2f}",
+        f"EXECUTION QUALITY: {alert.execution_quality:.2f}",
+        f"RISK: {alert.strongest_counterargument}",
+        f"WHY: {alert.reason}",
+        f"INVALIDATION: {alert.invalidation}",
+        f"NEXT TRIGGER: {alert.current_price:.2f}",
+        f"VALID UNTIL: {alert.valid_until.isoformat()}"
     ))
