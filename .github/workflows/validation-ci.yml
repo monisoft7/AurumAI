@@ -109,3 +109,8 @@ jobs:
         run: |
           mkdir -p .pytest-tmp
           python -m pytest -q tests/test_paper_trading.py tests/test_paper_trading_automation.py tests/test_paper_evaluation_metadata.py tests/test_cpi_runtime_provenance.py --tb=short --basetemp=.pytest-tmp/paper-trading
+
+      - name: Trade Alert Challenger Contract Pack
+        run: |
+          mkdir -p .pytest-tmp
+          python -m pytest -q tests/test_trade_alert.py tests/test_gold_hedge_adapter.py tests/test_paper_timing_audit.py tests/test_export_mt5_xauusd_utc.py tests/test_trade_alert_challenger_publisher.py tests/test_validate_trade_alert_data.py tests/test_mt5_utc_provider.py tests/test_trade_alert_integration.py --tb=short --basetemp=.pytest-tmp/trade-alert

@@ -59,11 +59,15 @@ def main(argv: list[str] | None = None) -> int:
                     run_url=args.run_url,
                 )
             )
-            send_telegram_message(
-                message,
-                token=os.environ.get("TELEGRAM_BOT_TOKEN", ""),
-                chat_id=os.environ.get("TELEGRAM_CHAT_ID", ""),
-            )
+            # The daily paper job only reports system failures now.
+            if message.strip().startswith("SYSTEM FAILURE") or message.strip().startswith("🚨 SYSTEM FAILURE"):
+                send_telegram_message(
+                    message,
+                    token=os.environ.get("TELEGRAM_BOT_TOKEN", ""),
+                    chat_id=os.environ.get("TELEGRAM_CHAT_ID", ""),
+                )
+            else:
+                print("Skipped Telegram notification for non-failure message.")
         except (AutomationFailure, OSError) as exc:
             print(f"Telegram notification failed: {type(exc).__name__}", file=sys.stderr)
             return 1

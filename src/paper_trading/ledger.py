@@ -437,16 +437,20 @@ def build_paper_evaluation(
 
 def _first_gate(outcome: dict[str, Any], finalize: dict[str, Any]) -> dict[str, Any] | None:
     gates = _nested(outcome, "decision_snapshot", "gate_reasons")
+    actual_reason = _nested(finalize, "decision", "metadata", "gate_reason")
+    if actual_reason == "confidence_below_threshold":
+        return {"gate": actual_reason, "recorded_value": False,
+                "rejection_reason": actual_reason}
     if not isinstance(gates, dict):
         return None
     selected: tuple[str, Any] | None = None
     for name, value in gates.items():
-        blocked = value is False or (name.endswith("blocked") and value is True)
+        blocked = (value is False and not name.endswith("blocked")) or (
+            name.endswith("blocked") and value is True
+        )
         if blocked:
             selected = (str(name), value)
             break
-    if selected is None and gates:
-        selected = next(iter(gates.items()))
     if selected is None:
         return None
     explanation = _nested(finalize, "decision", "decision_explanation")

@@ -297,8 +297,8 @@ def test_failure_formatter_is_short_and_confirms_no_prediction() -> None:
         reason="exit code 1",
         run_url="https://github.example/actions/runs/1",
     )
-    assert "المرحلة: pipeline" in message
-    assert "لم يتم إنشاء prediction مؤهلة" in message
+    assert message.startswith("SYSTEM FAILURE\n")
+    assert "Stage: pipeline" in message
     assert "Traceback" not in message
     assert len(message) < 3500
 

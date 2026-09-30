@@ -250,12 +250,10 @@ def format_failure_message(
 ) -> str:
     return _message(
         [
-            f"<b>AurumAI Paper Trading — {sanitize_text(status, secrets)}</b>",
-            "PAPER TRADING فقط — لا تداول فعلي",
-            f"المرحلة: {sanitize_text(stage, secrets)}",
-            f"السبب: {sanitize_text(reason, secrets)}",
-            "لم يتم إنشاء prediction مؤهلة.",
-            f"GitHub Actions: {sanitize_text(run_url, secrets)}",
+            "SYSTEM FAILURE",
+            f"Stage: {sanitize_text(stage, secrets)}",
+            f"Reason: {sanitize_text(reason, secrets)}",
+            f"Run: {sanitize_text(run_url, secrets)}",
         ]
     )
 
@@ -988,8 +986,9 @@ def execute_automation(
         "decision": manifest.get("decision"),
         "direction": _direction(manifest),
         "confidence": manifest.get("confidence"),
-        "reliability": manifest.get("reliability_category")
-        or manifest.get("reliability"),
+        "reliability": (manifest.get("paper_evaluation") or {}).get(
+            "reliability_category"
+        ),
         "first_gate": first_gate,
         "gate_reason": gate_reason,
         "risk_size": manifest.get("recommended_risk_size"),
