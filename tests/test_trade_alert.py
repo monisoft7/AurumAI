@@ -85,4 +85,19 @@ def test_paper_exit_uses_next_open_and_stop_first():
                           index=pd.DatetimeIndex([NOW + timedelta(minutes=15)]))
     result = evaluate_exit(alert, future, spread=.1, slippage=.1, alert_id="test")
     assert result.exit_reason == "SL"
-    assert result.net_pnl < 0
+    assert result.net_pnl == pytest.approx(-.064375)  # % equity: -1.03R * .25% * 25%
+    with_commission = evaluate_exit(alert, future, spread=.1, slippage=.1,
+                                    commission_per_lot_per_side=5, alert_id="commission")
+    assert with_commission.transaction_costs == pytest.approx(.4)  # USD/oz round trip
+    assert with_commission.net_pnl == pytest.approx(-.065)
+
+
+def test_shadow_units_and_percentage_drawdown():
+    first = ShadowOutcome("loss", NOW, NOW + timedelta(minutes=15),
+                          2000, 1990, 2015, 2020, 2030, 1990, "SL",
+                          .1, .1, .3, 10, 0, -.25, .25)
+    report = metrics([first])
+    assert report["expectancy"] == -.25  # percent of equity, not USD or fraction
+    assert report["max_drawdown"] == pytest.approx(.25)  # percent of peak equity
+    with pytest.raises(ValueError, match="risk cap"):
+        ShadowOutcome(**(first.__dict__ | {"risk_budget_pct": .51}))

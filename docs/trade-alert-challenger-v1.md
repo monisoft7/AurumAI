@@ -2,13 +2,18 @@
 
 This branch is an isolated paper-only challenger. It does not modify the
 DecisionEngine, baseline v3, existing paper ledger, cron, broker, or MT5.
-The daily Telegram sender suppresses every non-`TRADE_ALERT BUY/SELL` message.
-No alert service is wired or active.
+The daily Telegram sender suppresses market summaries and abstentions; it
+sends only a brief `SYSTEM FAILURE` for operational faults. No alert service
+is wired or active.
 
 ## Missing evidence
 
 The repository's gold history is daily (`data/history/gold/gold.csv`), not
-M15/H1. The private paper ledger was inspected read-only in a separate
+M15/H1. A real M5 file was found in the separate Gold Hedge project, but its
+naive timestamps have no verified timezone or bar-open/bar-close basis. See
+`docs/gold-hedge-data-audit.md`. The adapter therefore requires explicit
+clock evidence and refuses the file by default. The private paper ledger was
+inspected read-only in a separate
 temporary checkout. The 0.30–0.60 threshold sweep was run by horizon, with
 recorded costs subtracted. A positive one-session counterfactual appears in
 only five evaluated outcomes and is dominated by one outcome; longer horizons
