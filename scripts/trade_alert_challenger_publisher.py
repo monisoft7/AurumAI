@@ -22,7 +22,7 @@ from paper_trading.automation import (
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="AurumAI Trade Alert Challenger publisher")
     commands = parser.add_subparsers(dest="command", required=True)
-    
+
     send = commands.add_parser("send-telegram")
     send.add_argument("--message-file", type=Path, required=True)
     send.add_argument("--mode", choices=("dry-run", "live-paper"), required=True)
@@ -47,13 +47,19 @@ def main(argv: list[str] | None = None) -> int:
                     run_url=args.run_url,
                 )
             )
-            
-            # Challenger only sends TRADE ALERT BUY, TRADE ALERT SELL, or SYSTEM FAILURE
-            if not (message.startswith("TRADE ALERT BUY\n") or 
-                    message.startswith("TRADE ALERT SELL\n") or 
-                    message.startswith("SYSTEM FAILURE\n")):
+
+            # Challenger only sends canonical TRADE ALERT or SYSTEM FAILURE
+            lines = message.strip().split("\n")
+            is_valid_alert = (
+                len(lines) >= 2 and
+                lines[0].strip() == "🚨 TRADE ALERT — XAU/USD" and
+                lines[1].strip() in ("ACTION: BUY", "ACTION: SELL")
+            )
+            is_system_failure = message.strip().startswith("SYSTEM FAILURE") or message.strip().startswith("🚨 SYSTEM FAILURE")
+
+            if not (is_valid_alert or is_system_failure):
                 return 0
-                
+
             send_telegram_message(
                 message,
                 token=os.environ.get("TELEGRAM_BOT_TOKEN", ""),
