@@ -59,10 +59,8 @@ def main(argv: list[str] | None = None) -> int:
                     run_url=args.run_url,
                 )
             )
-            # This daily job is never an alert publisher. Market abstention
-            # stays silent; operational failure remains visible.
-            if not message.startswith("SYSTEM FAILURE\n"):
-                return 0
+            # The daily paper job continues to report all market abstractions,
+            # no-trades, and summaries to Telegram as it always has.
             send_telegram_message(
                 message,
                 token=os.environ.get("TELEGRAM_BOT_TOKEN", ""),
