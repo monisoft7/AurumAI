@@ -18,7 +18,7 @@ def mock_send_telegram():
 
 def test_publisher_inactive_by_default(mock_send_telegram, tmp_path, monkeypatch):
     msg_file = tmp_path / "msg.txt"
-    msg_file.write_text("🚨 TRADE ALERT — XAU/USD\nACTION: BUY")
+    msg_file.write_text("🚨 TRADE ALERT — XAU/USD\nACTION: BUY", encoding="utf-8")
 
     monkeypatch.setattr(sys, "argv", ["prog", "send-telegram", "--message-file", str(msg_file), "--mode", "live-paper", "--run-url", "url"])
     assert main() == 0
@@ -34,7 +34,7 @@ def test_publisher_active_sends_allowed_messages(mock_send_telegram, tmp_path, m
     ]
     for msg in allowed:
         msg_file = tmp_path / "msg.txt"
-        msg_file.write_text(msg)
+        msg_file.write_text(msg, encoding="utf-8")
 
         monkeypatch.setattr(sys, "argv", ["prog", "send-telegram", "--message-file", str(msg_file), "--mode", "live-paper", "--run-url", "url", "--active"])
         assert main() == 0
@@ -56,7 +56,7 @@ def test_publisher_active_drops_invalid_format(mock_send_telegram, tmp_path, mon
     ]
     for msg in disallowed:
         msg_file = tmp_path / "msg.txt"
-        msg_file.write_text(msg)
+        msg_file.write_text(msg, encoding="utf-8")
 
         monkeypatch.setattr(sys, "argv", ["prog", "send-telegram", "--message-file", str(msg_file), "--mode", "live-paper", "--run-url", "url", "--active"])
         assert main() == 0
