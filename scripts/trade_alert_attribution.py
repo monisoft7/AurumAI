@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 
@@ -21,15 +22,21 @@ def analyze(root: Path) -> dict:
     for path in (root / "outcomes").glob("*.json"):
         outcome = json.loads(path.read_text(encoding="utf-8"))
         prediction = predictions.get(outcome.get("prediction_id"))
-        if not prediction or outcome.get("status") != "completed":
+        if (not prediction or outcome.get("status") != "completed"
+                or not isinstance(outcome.get("counterfactual_return_pct"), (int, float))):
             continue
+        reason = (prediction.get("first_decision_gate") or {}).get("rejection_reason") or ""
+        def extracted(name):
+            match = re.search(rf"\b{name}=([0-9]+(?:\.[0-9]+)?)", reason)
+            return float(match.group(1)) if match else None
+        snapshot = prediction.get("decision_snapshot") or {}
         rows.append({
             "prediction": outcome["prediction_id"],
             "date": prediction.get("decision_timestamp"),
             "direction": prediction.get("direction"),
             "confidence": prediction.get("confidence"),
-            "composite": (prediction.get("decision_snapshot", {}).get("best_rejected") or {}).get("composite_score"),
-            "rr": (prediction.get("decision_snapshot", {}).get("gate_reasons") or {}).get("risk_reward_ratio"),
+            "composite": (snapshot.get("best_rejected") or {}).get("composite_score") or extracted("composite_score"),
+            "rr": (snapshot.get("gate_reasons") or {}).get("risk_reward_ratio") or extracted("risk_reward_ratio"),
             "horizon": outcome.get("horizon_sessions"),
             "verdict": outcome.get("abstention_verdict"),
             "counterfactual_return_pct": outcome.get("counterfactual_return_pct"),

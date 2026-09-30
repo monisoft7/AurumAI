@@ -8,14 +8,14 @@ No alert service is wired or active.
 ## Missing evidence
 
 The repository's gold history is daily (`data/history/gold/gold.csv`), not
-M15/H1. The private paper ledger is not present in this checkout and GitHub
-authentication is unavailable in this environment. Consequently, attribution,
-the 0.30–0.60 threshold sweep, and real walk-forward validation are **not
-verified**. The supplied cohort counts (12/12 NO_TRADE; 6 justified and 3
-missed of 9 evaluated) are observations, not proof that lowering confidence
-would be profitable. `scripts/trade_alert_attribution.py` reads a supplied
-private ledger without writing to it; each horizon is swept separately and
-costs are subtracted. Counterfactual returns are not trade PnL.
+M15/H1. The private paper ledger was inspected read-only in a separate
+temporary checkout. The 0.30–0.60 threshold sweep was run by horizon, with
+recorded costs subtracted. A positive one-session counterfactual appears in
+only five evaluated outcomes and is dominated by one outcome; longer horizons
+are negative or too sparse. This does not justify changing the current
+confidence threshold. Real intraday walk-forward validation is **not
+possible** yet. `scripts/trade_alert_attribution.py` reads a supplied
+private ledger without writing to it. Counterfactual returns are not trade PnL.
 
 ## Required real data
 
@@ -25,8 +25,7 @@ high, low, close, volume, source, availability timestamp, and bid/ask or
 observed spread per bar. Provide real execution slippage and commission/cost
 history, trading calendar, DXY, US yields, Fed decisions, and timestamped
 high-impact news with publication and availability times. All sources must
-be point-in-time. Supply the read-only private daily paper ledger with
-`predictions/` and `outcomes/` to run the attribution sweep.
+be point-in-time.
 
 Walk forward chronologically with at least three non-overlapping OOS periods
 and multiple market regimes. Require at least 100 OOS trades, net expectancy
