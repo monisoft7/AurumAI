@@ -196,9 +196,7 @@ def test_telegram_mode_and_failure_delivery_are_hermetic(tmp_path, monkeypatch, 
         "send-telegram", "--mode", mode, "--run-url", "https://github.example/actions/runs/123",
         "--message-file", str(tmp_path / "telegram_message.txt"),
     ]) == 0
-    assert len(sent) == (1 if mode == "live-paper" else 0)
-    if sent and failed:
-        assert "pipeline" in sent[0]
+    assert sent == []
 
 
 def test_live_failure_before_message_exists_has_fallback(tmp_path, monkeypatch):
@@ -209,7 +207,7 @@ def test_live_failure_before_message_exists_has_fallback(tmp_path, monkeypatch):
     assert cli.main(["send-telegram", "--mode", "live-paper", "--run-url",
                      "https://github.example/actions/runs/123", "--message-file",
                      str(tmp_path / "missing.txt")]) == 0
-    assert len(sent) == 1 and "workflow" in sent[0]
+    assert sent == []
 
 
 def test_workflow_schedule_provenance_and_explicit_telegram_condition():

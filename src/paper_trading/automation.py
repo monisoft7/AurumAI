@@ -988,8 +988,9 @@ def execute_automation(
         "decision": manifest.get("decision"),
         "direction": _direction(manifest),
         "confidence": manifest.get("confidence"),
-        "reliability": manifest.get("reliability_category")
-        or manifest.get("reliability"),
+        "reliability": (manifest.get("paper_evaluation") or {}).get(
+            "reliability_category"
+        ),
         "first_gate": first_gate,
         "gate_reason": gate_reason,
         "risk_size": manifest.get("recommended_risk_size"),

@@ -59,6 +59,10 @@ def main(argv: list[str] | None = None) -> int:
                     run_url=args.run_url,
                 )
             )
+            # The daily paper job may still run, but only executable alerts may
+            # reach Telegram. A separate shadow run must pass the alert gate.
+            if not message.startswith(("TRADE_ALERT BUY\n", "TRADE_ALERT SELL\n")):
+                return 0
             send_telegram_message(
                 message,
                 token=os.environ.get("TELEGRAM_BOT_TOKEN", ""),
