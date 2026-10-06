@@ -40,7 +40,10 @@ class ConfidenceComputer:
 
     PENALTY_WEIGHTS: dict[str, float] = {
         "counter_evidence": 0.35,
-        "missing_evidence": 0.25,
+        # Phase 8 calibration: reduced from 0.25 to 0.10 — structurally
+        # unavailable channels (CB_GOLD) imposed a permanent -8.3% penalty
+        # that was the single largest contributor to sub-0.50 confidence.
+        "missing_evidence": 0.10,
         "internal_consistency": 0.40,
     }
 
@@ -86,7 +89,9 @@ class ConfidenceComputer:
         # Correction 049-B retained: institutional_support enters exactly
         # ONCE, through evidence_quality / positive_score (the ThesisBuilder
         # mean of supporting net weights).
-        final = positive_score * (1.0 - min(penalty_score, 1.0))
+        # Phase 8 calibration: penalty cap reduced from 1.0 to 0.50 so
+        # penalties can never erase more than half the positive signal.
+        final = positive_score * (1.0 - min(penalty_score, 0.50))
         final = round(max(0.0, min(final, 1.0)), 4)
 
         positive_contributors = [
@@ -116,15 +121,24 @@ class ConfidenceComputer:
 
     @staticmethod
     def _diversity(n_sets: int) -> float:
-        """Independent-source diversity: diminishing returns, never saturates."""
+        """Independent-source diversity: diminishing returns, never saturates.
+
+        Phase 8 calibration: damping constant reduced from 3.0 to 1.5 so
+        that 1 source scores 0.40 (was 0.25) and 2 sources score 0.57 (was
+        0.40).  The old constant starved single- and dual-source pipelines.
+        """
         n = max(0, int(n_sets))
-        return n / (n + 3.0)
+        return n / (n + 1.5)
 
     @staticmethod
     def _provenance_quality(n_entries: int) -> float:
-        """Provenance depth quality: diminishing returns, never saturates."""
+        """Provenance depth quality: diminishing returns, never saturates.
+
+        Phase 8 calibration: damping constant reduced from 2.0 to 1.0 so
+        that 2 entries score 0.67 (was 0.50).
+        """
         p = max(0, int(n_entries))
-        return p / (p + 2.0)
+        return p / (p + 1.0)
 
     @staticmethod
     def reliability_category(final_confidence: float) -> str:

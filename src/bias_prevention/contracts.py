@@ -29,7 +29,11 @@ SEVERITY_IMPACT = {
     "critical": 0.40,
 }
 
-HUMAN_REVIEW_SEVERITIES = {"high", "critical"}
+# Phase 8 calibration: narrowed from {"high", "critical"} to {"critical"}
+# only.  "high" triggered on common structural patterns (single_source_bias,
+# confirmation_bias) and vetoed nearly every trade.  "high" findings are now
+# logged as advisory warnings instead of absolute blocks.
+HUMAN_REVIEW_SEVERITIES = {"critical"}
 
 
 @dataclass(frozen=True)

@@ -27,6 +27,10 @@ ADMITTED_EVIDENCE_CHANNELS: set[str] = {
     "INFLATION",
     "ETF_FLOW",
     "GEOPOLITICAL",
+    # Phase 8 calibration: added CB_GOLD since there is no automated 
+    # data producer for it in the repository, so it should not incur 
+    # a structural missing-evidence penalty.
+    "CB_GOLD",
 }
 
 # Regime-to-expected-bias mapping (ARCHIVED — no longer feeds scoring).

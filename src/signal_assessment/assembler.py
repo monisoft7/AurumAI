@@ -99,11 +99,14 @@ class SignalAssessmentAssembler:
                 changes=changes_dict,
                 regime=self._regime,
             )
+            # Phase 8 calibration: magnitude threshold lowered from 2.0σ to
+            # 1.2σ.  A 1.2σ daily move is in the top 23% and is directionally
+            # notable; the old 2.0σ gate discarded virtually every overnight move.
             magnitude_criteria = CriterionScore(
                 criterion="magnitude",
                 score=min(abs(change.change_sigma) / 3.0, 1.0) if math.isfinite(change.change_sigma) else 0.0,
-                threshold=2.0,
-                passed=math.isfinite(change.change_sigma) and abs(change.change_sigma) >= 2.0,
+                threshold=1.2,
+                passed=math.isfinite(change.change_sigma) and abs(change.change_sigma) >= 1.2,
                 detail=f"z-score={change.change_sigma:.2f}",
             )
             narrative = self._narrative.evaluate(
@@ -249,10 +252,14 @@ class SignalAssessmentAssembler:
             ))
 
         for news in briefing.news_items:
+            # Phase 8 calibration: news breadth is now derived from
+            # multi-source corroboration.  3+ news items = breadth confirmed.
+            news_breadth_score = min(len(briefing.news_items) / 5.0, 1.0)
+            news_breadth_passed = len(briefing.news_items) >= 3
             news_criteria = [
                 CriterionScore("persistence", 0.0, 0.5, False, "single headline"),
                 CriterionScore("narrative_fit", news.relevance_score, 0.3, news.relevance_score >= 0.3, detail=f"relevance={news.relevance_score:.2f}"),
-                CriterionScore("breadth", 0.0, 0.5, False, "single source"),
+                CriterionScore("breadth", news_breadth_score, 0.5, news_breadth_passed, f"{len(briefing.news_items)} news sources"),
                 CriterionScore("magnitude", 0.0, 2.0, False, "text data"),
                 CriterionScore("volume_flow", news.sentiment_confidence, 0.5, news.sentiment_confidence >= 0.5, detail=f"sentiment={news.sentiment_label} conf={news.sentiment_confidence:.2f}"),
             ]
@@ -293,10 +300,18 @@ class SignalAssessmentAssembler:
         ):
             impact = str(cpi_release.get("expected_impact", "medium")).lower()
             impact_score = {"high": 0.9, "medium": 0.5, "low": 0.2}.get(impact, 0.5)
+            # Phase 8 calibration: CPI releases now contribute persistence
+            # (macro events persist beyond a single day) and magnitude based
+            # on expected impact.  Previously all 4 criteria except
+            # narrative_fit were hardcoded to 0/False, making every CPI
+            # release a "Watch" regardless of its significance.
+            cpi_persistence_passed = impact in ("high", "medium")
+            cpi_magnitude_score = {"high": 0.8, "medium": 0.4, "low": 0.1}.get(impact, 0.3)
+            cpi_magnitude_passed = impact == "high"
             cpi_criteria = [
-                CriterionScore("persistence", 0.0, 0.5, False, "macro release, no persistence series"),
+                CriterionScore("persistence", 0.7 if cpi_persistence_passed else 0.0, 0.5, cpi_persistence_passed, f"macro release impact={impact}"),
                 CriterionScore("breadth", 0.0, 0.5, False, "macro release, no breadth series"),
-                CriterionScore("magnitude", 0.0, 2.0, False, "no volatility z-score for macro release"),
+                CriterionScore("magnitude", cpi_magnitude_score, 1.2, cpi_magnitude_passed, f"CPI impact={impact}"),
                 CriterionScore("narrative_fit", impact_score, 0.3, impact_score >= 0.3, detail=f"expected_impact={impact}"),
                 CriterionScore("volume_flow", 0.0, 0.5, False, "macro release, no volume flow"),
             ]
