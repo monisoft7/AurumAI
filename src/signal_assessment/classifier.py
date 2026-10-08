@@ -48,17 +48,23 @@ class NoiseSignalClassifier:
         persistence_passed = next(
             (s.passed for s in scores if s.criterion == "persistence"), False
         )
-        magnitude_passed = abs(magnitude_z) >= 2.0
+        # Phase 8 calibration: magnitude threshold lowered to 1.2σ
+        magnitude_passed = abs(magnitude_z) >= 1.2
+        narrative_passed = next(
+            (s.passed for s in scores if s.criterion == "narrative_fit"), False
+        )
 
-        if positive_count >= 3 or (positive_count >= 2 and persistence_passed):
+        # Signal now requires 3 criteria, OR (2 criteria AND (persistence OR narrative))
+        if positive_count >= 3 or (positive_count >= 2 and (persistence_passed or narrative_passed)):
             label = ClassificationLabel.SIGNAL
             confidence = min(0.5 + 0.1 * positive_count, 0.95)
             reason = self._build_reason("Signal", positive_count, scores)
-        elif positive_count >= 2:
+        # Weak Signal now requires 2 criteria, OR (1 criterion AND magnitude >= 1.2σ)
+        elif positive_count >= 2 or (positive_count >= 1 and magnitude_passed):
             label = ClassificationLabel.WEAK_SIGNAL
-            confidence = min(0.3 + 0.1 * positive_count, 0.6)
-            reason = self._build_reason("Weak Signal", positive_count, scores)
-        elif positive_count == 1 or magnitude_passed:
+            confidence = min(0.3 + 0.1 * max(positive_count, 2), 0.6)
+            reason = self._build_reason("Weak Signal", max(positive_count, 2), scores)
+        elif positive_count == 1:
             label = ClassificationLabel.WATCH
             confidence = min(0.2 + 0.1 * positive_count, 0.4)
             reason = self._build_reason("Watch", positive_count, scores)

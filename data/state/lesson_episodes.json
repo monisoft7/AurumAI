@@ -1,0 +1,2614 @@
+{
+  "context": {
+    "calendar": "calendar",
+    "timezone": "UTC",
+    "frequency": "daily",
+    "business_calendar": null,
+    "metadata": {}
+  },
+  "entries": [
+    {
+      "state_id": "CPI_GOLD_2015-02-01",
+      "date": "2015-02-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2015-02-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2015-02-02",
+        "gold_close_at_event": 1276.199951,
+        "gold_return_1d_pct": -1.292901,
+        "gold_return_5d_pct": -2.773852,
+        "gold_return_20d_pct": -5.657417,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2015-03-01",
+      "date": "2015-03-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2015-03-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2015-03-02",
+        "gold_close_at_event": 1207.699951,
+        "gold_return_1d_pct": -0.306363,
+        "gold_return_5d_pct": -3.419718,
+        "gold_return_20d_pct": -1.896158,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2015-04-01",
+      "date": "2015-04-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2015-04-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2015-04-01",
+        "gold_close_at_event": 1208.099976,
+        "gold_return_1d_pct": -0.595973,
+        "gold_return_5d_pct": -1.200232,
+        "gold_return_20d_pct": -2.127303,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2015-05-01",
+      "date": "2015-05-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2015-05-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2015-05-01",
+        "gold_close_at_event": 1174.5,
+        "gold_return_1d_pct": 1.047258,
+        "gold_return_5d_pct": 1.24308,
+        "gold_return_20d_pct": 1.174972,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2015-06-01",
+      "date": "2015-06-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2015-06-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2015-06-01",
+        "gold_close_at_event": 1188.300049,
+        "gold_return_1d_pct": 0.488086,
+        "gold_return_5d_pct": -1.270731,
+        "gold_return_20d_pct": -0.824712,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2015-07-01",
+      "date": "2015-07-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2015-07-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2015-07-01",
+        "gold_close_at_event": 1169.0,
+        "gold_return_1d_pct": -0.513259,
+        "gold_return_5d_pct": -0.855432,
+        "gold_return_20d_pct": -6.89478,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2015-08-01",
+      "date": "2015-08-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2015-08-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_down",
+        "anchor_gold_date": "2015-08-03",
+        "gold_close_at_event": 1089.400024,
+        "gold_return_1d_pct": 0.119325,
+        "gold_return_5d_pct": 1.358539,
+        "gold_return_20d_pct": 3.873687,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2015-09-01",
+      "date": "2015-09-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2015-09-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_down",
+        "anchor_gold_date": "2015-09-01",
+        "gold_close_at_event": 1138.699951,
+        "gold_return_1d_pct": -0.544476,
+        "gold_return_5d_pct": -3.20541,
+        "gold_return_20d_pct": -2.037407,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2015-10-01",
+      "date": "2015-10-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2015-10-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2015-10-01",
+        "gold_close_at_event": 1114.199951,
+        "gold_return_1d_pct": 2.055289,
+        "gold_return_5d_pct": 2.73739,
+        "gold_return_20d_pct": 2.961766,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2015-11-01",
+      "date": "2015-11-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2015-11-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2015-11-02",
+        "gold_close_at_event": 1135.800049,
+        "gold_return_1d_pct": -1.901752,
+        "gold_return_5d_pct": -4.217294,
+        "gold_return_20d_pct": -6.339144,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2015-12-01",
+      "date": "2015-12-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2015-12-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_down",
+        "anchor_gold_date": "2015-12-01",
+        "gold_close_at_event": 1063.800049,
+        "gold_return_1d_pct": -0.902434,
+        "gold_return_5d_pct": 1.175033,
+        "gold_return_20d_pct": -0.347817,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2016-01-01",
+      "date": "2016-01-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2016-01-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_down",
+        "anchor_gold_date": "2016-01-04",
+        "gold_close_at_event": 1075.099976,
+        "gold_return_1d_pct": 0.306953,
+        "gold_return_5d_pct": 1.990515,
+        "gold_return_20d_pct": 4.855369,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2016-02-01",
+      "date": "2016-02-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2016-02-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_down",
+        "anchor_gold_date": "2016-02-01",
+        "gold_close_at_event": 1127.900024,
+        "gold_return_1d_pct": -0.053194,
+        "gold_return_5d_pct": 6.206224,
+        "gold_return_20d_pct": 9.078821,
+        "gold_direction_1d": "FLAT",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2016-03-01",
+      "date": "2016-03-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2016-03-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2016-03-01",
+        "gold_close_at_event": 1230.300049,
+        "gold_return_1d_pct": 0.877829,
+        "gold_return_5d_pct": 2.584729,
+        "gold_return_20d_pct": -0.276357,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2016-04-01",
+      "date": "2016-04-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2016-04-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2016-04-01",
+        "gold_close_at_event": 1222.199951,
+        "gold_return_1d_pct": -0.343639,
+        "gold_return_5d_pct": 1.660943,
+        "gold_return_20d_pct": 5.481918,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2016-05-01",
+      "date": "2016-05-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2016-05-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2016-05-02",
+        "gold_close_at_event": 1294.699951,
+        "gold_return_1d_pct": -0.308952,
+        "gold_return_5d_pct": -2.247623,
+        "gold_return_20d_pct": -6.171307,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2016-06-01",
+      "date": "2016-06-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2016-06-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2016-06-01",
+        "gold_close_at_event": 1211.900024,
+        "gold_return_1d_pct": -0.17328,
+        "gold_return_5d_pct": 3.952473,
+        "gold_return_20d_pct": 9.241686,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2016-07-01",
+      "date": "2016-07-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2016-07-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_down",
+        "anchor_gold_date": "2016-07-01",
+        "gold_close_at_event": 1336.699951,
+        "gold_return_1d_pct": 1.473784,
+        "gold_return_5d_pct": 1.369047,
+        "gold_return_20d_pct": 1.099729,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 1
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2016-08-01",
+      "date": "2016-08-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2016-08-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2016-08-01",
+        "gold_close_at_event": 1351.400024,
+        "gold_return_1d_pct": 0.961965,
+        "gold_return_5d_pct": -1.331952,
+        "gold_return_20d_pct": -2.108924,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2016-09-01",
+      "date": "2016-09-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2016-09-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2016-09-01",
+        "gold_close_at_event": 1312.199951,
+        "gold_return_1d_pct": 0.75446,
+        "gold_return_5d_pct": 1.364123,
+        "gold_return_20d_pct": 0.083836,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "FLAT",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2016-10-01",
+      "date": "2016-10-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2016-10-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2016-10-03",
+        "gold_close_at_event": 1309.0,
+        "gold_return_1d_pct": -3.262028,
+        "gold_return_5d_pct": -4.278075,
+        "gold_return_20d_pct": -1.726507,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2016-11-01",
+      "date": "2016-11-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2016-11-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2016-11-01",
+        "gold_close_at_event": 1286.400024,
+        "gold_return_1d_pct": 1.585823,
+        "gold_return_5d_pct": -1.010572,
+        "gold_return_20d_pct": -9.28949,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2016-12-01",
+      "date": "2016-12-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2016-12-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2016-12-01",
+        "gold_close_at_event": 1166.900024,
+        "gold_return_1d_pct": 0.702712,
+        "gold_return_5d_pct": 0.248524,
+        "gold_return_20d_pct": -1.448284,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2017-01-01",
+      "date": "2017-01-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2017-01-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2017-01-03",
+        "gold_close_at_event": 1160.400024,
+        "gold_return_1d_pct": 0.293005,
+        "gold_return_5d_pct": 2.051011,
+        "gold_return_20d_pct": 3.895204,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2017-02-01",
+      "date": "2017-02-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2017-02-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2017-02-01",
+        "gold_close_at_event": 1205.599976,
+        "gold_return_1d_pct": 0.920701,
+        "gold_return_5d_pct": 2.65428,
+        "gold_return_20d_pct": 2.18149,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2017-03-01",
+      "date": "2017-03-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2017-03-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_down",
+        "anchor_gold_date": "2017-03-01",
+        "gold_close_at_event": 1248.900024,
+        "gold_return_1d_pct": -1.361198,
+        "gold_return_5d_pct": -3.234849,
+        "gold_return_20d_pct": 0.360317,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2017-04-01",
+      "date": "2017-04-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2017-04-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2017-04-03",
+        "gold_close_at_event": 1250.800049,
+        "gold_return_1d_pct": 0.335781,
+        "gold_return_5d_pct": 0.023979,
+        "gold_return_20d_pct": 0.343774,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "FLAT",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2017-05-01",
+      "date": "2017-05-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2017-05-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_down",
+        "anchor_gold_date": "2017-05-01",
+        "gold_close_at_event": 1253.300049,
+        "gold_return_1d_pct": 0.143615,
+        "gold_return_5d_pct": -2.234102,
+        "gold_return_20d_pct": 0.70214,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2017-06-01",
+      "date": "2017-06-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2017-06-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2017-06-01",
+        "gold_close_at_event": 1267.0,
+        "gold_return_1d_pct": 0.773485,
+        "gold_return_5d_pct": 0.734021,
+        "gold_return_20d_pct": -1.79953,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2017-07-01",
+      "date": "2017-07-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2017-07-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2017-07-03",
+        "gold_close_at_event": 1217.900024,
+        "gold_return_1d_pct": 0.205271,
+        "gold_return_5d_pct": -0.353071,
+        "gold_return_20d_pct": 4.491333,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2017-08-01",
+      "date": "2017-08-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2017-08-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2017-08-01",
+        "gold_close_at_event": 1272.599976,
+        "gold_return_1d_pct": -0.062858,
+        "gold_return_5d_pct": -1.272981,
+        "gold_return_20d_pct": 3.182461,
+        "gold_direction_1d": "FLAT",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2017-09-01",
+      "date": "2017-09-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2017-09-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2017-09-01",
+        "gold_close_at_event": 1324.5,
+        "gold_return_1d_pct": 1.109849,
+        "gold_return_5d_pct": 0.490751,
+        "gold_return_20d_pct": -3.910913,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2017-10-01",
+      "date": "2017-10-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2017-10-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2017-10-02",
+        "gold_close_at_event": 1272.699951,
+        "gold_return_1d_pct": -0.094284,
+        "gold_return_5d_pct": 0.715023,
+        "gold_return_20d_pct": 0.110004,
+        "gold_direction_1d": "FLAT",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2017-11-01",
+      "date": "2017-11-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2017-11-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2017-11-01",
+        "gold_close_at_event": 1274.099976,
+        "gold_return_1d_pct": 0.062793,
+        "gold_return_5d_pct": 0.588651,
+        "gold_return_20d_pct": -0.07064,
+        "gold_direction_1d": "FLAT",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "FLAT",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2017-12-01",
+      "date": "2017-12-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2017-12-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2017-12-01",
+        "gold_close_at_event": 1278.800049,
+        "gold_return_1d_pct": -0.351892,
+        "gold_return_5d_pct": -2.627471,
+        "gold_return_20d_pct": 2.729113,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2018-01-01",
+      "date": "2018-01-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2018-01-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2018-01-02",
+        "gold_close_at_event": 1313.699951,
+        "gold_return_1d_pct": 0.190302,
+        "gold_return_5d_pct": -0.152242,
+        "gold_return_20d_pct": 2.329306,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2018-02-01",
+      "date": "2018-02-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2018-02-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2018-02-01",
+        "gold_close_at_event": 1344.300049,
+        "gold_return_1d_pct": -0.788522,
+        "gold_return_5d_pct": -2.038237,
+        "gold_return_20d_pct": -1.725811,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2018-03-01",
+      "date": "2018-03-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2018-03-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2018-03-01",
+        "gold_close_at_event": 1302.900024,
+        "gold_return_1d_pct": 1.39688,
+        "gold_return_5d_pct": 1.304782,
+        "gold_return_20d_pct": 1.527364,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2018-04-01",
+      "date": "2018-04-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2018-04-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2018-04-02",
+        "gold_close_at_event": 1342.099976,
+        "gold_return_1d_pct": -0.692938,
+        "gold_return_5d_pct": -0.432153,
+        "gold_return_20d_pct": -1.929813,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2018-05-01",
+      "date": "2018-05-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2018-05-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2018-05-01",
+        "gold_close_at_event": 1303.800049,
+        "gold_return_1d_pct": -0.092044,
+        "gold_return_5d_pct": 0.628927,
+        "gold_return_20d_pct": -0.176411,
+        "gold_direction_1d": "FLAT",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2018-06-01",
+      "date": "2018-06-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2018-06-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2018-06-01",
+        "gold_close_at_event": 1294.800049,
+        "gold_return_1d_pct": -0.1313,
+        "gold_return_5d_pct": 0.25486,
+        "gold_return_20d_pct": -3.359592,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2018-07-01",
+      "date": "2018-07-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2018-07-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2018-07-02",
+        "gold_close_at_event": 1239.800049,
+        "gold_return_1d_pct": 0.95176,
+        "gold_return_5d_pct": 1.129214,
+        "gold_return_20d_pct": -1.298604,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2018-08-01",
+      "date": "2018-08-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2018-08-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2018-08-01",
+        "gold_close_at_event": 1217.900024,
+        "gold_return_1d_pct": -0.599396,
+        "gold_return_5d_pct": -0.435179,
+        "gold_return_20d_pct": -1.100257,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2018-09-01",
+      "date": "2018-09-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2018-09-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2018-09-04",
+        "gold_close_at_event": 1192.699951,
+        "gold_return_1d_pct": 0.184462,
+        "gold_return_5d_pct": 0.226383,
+        "gold_return_20d_pct": 0.813287,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2018-10-01",
+      "date": "2018-10-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2018-10-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2018-10-01",
+        "gold_close_at_event": 1187.099976,
+        "gold_return_1d_pct": 1.288859,
+        "gold_return_5d_pct": -0.227441,
+        "gold_return_20d_pct": 3.150537,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2018-11-01",
+      "date": "2018-11-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2018-11-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_down",
+        "anchor_gold_date": "2018-11-01",
+        "gold_close_at_event": 1236.0,
+        "gold_return_1d_pct": -0.412619,
+        "gold_return_5d_pct": -1.059869,
+        "gold_return_20d_pct": -1.278321,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2018-12-01",
+      "date": "2018-12-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2018-12-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2018-12-03",
+        "gold_close_at_event": 1233.900024,
+        "gold_return_1d_pct": 0.583512,
+        "gold_return_5d_pct": 0.648351,
+        "gold_return_20d_pct": 4.69244,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2019-01-01",
+      "date": "2019-01-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2019-01-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_down",
+        "anchor_gold_date": "2019-01-02",
+        "gold_close_at_event": 1281.0,
+        "gold_return_1d_pct": 0.843095,
+        "gold_return_5d_pct": 0.647935,
+        "gold_return_20d_pct": 3.021073,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2019-02-01",
+      "date": "2019-02-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2019-02-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2019-02-01",
+        "gold_close_at_event": 1316.900024,
+        "gold_return_1d_pct": -0.197432,
+        "gold_return_5d_pct": -0.243,
+        "gold_return_20d_pct": -2.437541,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2019-03-01",
+      "date": "2019-03-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2019-03-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2019-03-01",
+        "gold_close_at_event": 1296.400024,
+        "gold_return_1d_pct": -0.894784,
+        "gold_return_5d_pct": 0.04628,
+        "gold_return_20d_pct": -0.262267,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "FLAT",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 1
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2019-04-01",
+      "date": "2019-04-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2019-04-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2019-04-01",
+        "gold_close_at_event": 1288.400024,
+        "gold_return_1d_pct": 0.124183,
+        "gold_return_5d_pct": 0.675252,
+        "gold_return_20d_pct": -0.434646,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2019-05-01",
+      "date": "2019-05-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2019-05-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2019-05-01",
+        "gold_close_at_event": 1281.400024,
+        "gold_return_1d_pct": -0.91307,
+        "gold_return_5d_pct": -0.156079,
+        "gold_return_20d_pct": 0.444822,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 1
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2019-06-01",
+      "date": "2019-06-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2019-06-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_down",
+        "anchor_gold_date": "2019-06-03",
+        "gold_close_at_event": 1322.699951,
+        "gold_return_1d_pct": 0.052928,
+        "gold_return_5d_pct": 0.151206,
+        "gold_return_20d_pct": 4.755427,
+        "gold_direction_1d": "FLAT",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2019-07-01",
+      "date": "2019-07-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2019-07-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2019-07-01",
+        "gold_close_at_event": 1385.599976,
+        "gold_return_1d_pct": 1.371247,
+        "gold_return_5d_pct": 0.858835,
+        "gold_return_20d_pct": 3.182735,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2019-08-01",
+      "date": "2019-08-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2019-08-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2019-08-01",
+        "gold_close_at_event": 1420.900024,
+        "gold_return_1d_pct": 1.738331,
+        "gold_return_5d_pct": 5.40502,
+        "gold_return_20d_pct": 7.431908,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2019-09-01",
+      "date": "2019-09-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2019-09-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2019-09-03",
+        "gold_close_at_event": 1545.900024,
+        "gold_return_1d_pct": 0.284625,
+        "gold_return_5d_pct": -3.596609,
+        "gold_return_20d_pct": -4.133516,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2019-10-01",
+      "date": "2019-10-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2019-10-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2019-10-01",
+        "gold_close_at_event": 1482.0,
+        "gold_return_1d_pct": 1.282051,
+        "gold_return_5d_pct": 1.025638,
+        "gold_return_20d_pct": 0.337382,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 1
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2019-11-01",
+      "date": "2019-11-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2019-11-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2019-11-01",
+        "gold_close_at_event": 1508.0,
+        "gold_return_1d_pct": 0.0,
+        "gold_return_5d_pct": -3.096814,
+        "gold_return_20d_pct": -3.030501,
+        "gold_direction_1d": "FLAT",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2019-12-01",
+      "date": "2019-12-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2019-12-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2019-12-02",
+        "gold_close_at_event": 1462.300049,
+        "gold_return_1d_pct": 1.087321,
+        "gold_return_5d_pct": -0.205156,
+        "gold_return_20d_pct": 3.911643,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2020-01-01",
+      "date": "2020-01-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2020-01-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2020-01-02",
+        "gold_close_at_event": 1524.5,
+        "gold_return_1d_pct": 1.6202,
+        "gold_return_5d_pct": 1.784188,
+        "gold_return_20d_pct": 3.830766,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2020-02-01",
+      "date": "2020-02-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2020-02-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2020-02-03",
+        "gold_close_at_event": 1577.199951,
+        "gold_return_1d_pct": -1.699209,
+        "gold_return_5d_pct": -0.158509,
+        "gold_return_20d_pct": 4.114889,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2020-03-01",
+      "date": "2020-03-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2020-03-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_down",
+        "anchor_gold_date": "2020-03-02",
+        "gold_close_at_event": 1592.300049,
+        "gold_return_1d_pct": 3.127547,
+        "gold_return_5d_pct": 5.162341,
+        "gold_return_20d_pct": 1.865223,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2020-04-01",
+      "date": "2020-04-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2020-04-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_down",
+        "anchor_gold_date": "2020-04-01",
+        "gold_close_at_event": 1578.199951,
+        "gold_return_1d_pct": 3.009758,
+        "gold_return_5d_pct": 5.525287,
+        "gold_return_20d_pct": 6.716513,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2020-05-01",
+      "date": "2020-05-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2020-05-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_down",
+        "anchor_gold_date": "2020-05-01",
+        "gold_close_at_event": 1694.5,
+        "gold_return_1d_pct": 0.731781,
+        "gold_return_5d_pct": 0.908824,
+        "gold_return_20d_pct": 2.555329,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2020-06-01",
+      "date": "2020-06-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2020-06-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2020-06-01",
+        "gold_close_at_event": 1737.800049,
+        "gold_return_1d_pct": -0.72506,
+        "gold_return_5d_pct": -2.272989,
+        "gold_return_20d_pct": 2.129129,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2020-07-01",
+      "date": "2020-07-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2020-07-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2020-07-01",
+        "gold_close_at_event": 1773.199951,
+        "gold_return_1d_pct": 0.609071,
+        "gold_return_5d_pct": 1.466276,
+        "gold_return_20d_pct": 9.536437,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2020-08-01",
+      "date": "2020-08-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2020-08-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2020-08-03",
+        "gold_close_at_event": 1966.0,
+        "gold_return_1d_pct": 1.790435,
+        "gold_return_5d_pct": 2.9705,
+        "gold_return_20d_pct": 0.081382,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "FLAT",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2020-09-01",
+      "date": "2020-09-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2020-09-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2020-09-01",
+        "gold_close_at_event": 1968.199951,
+        "gold_return_1d_pct": -1.717301,
+        "gold_return_5d_pct": -1.193984,
+        "gold_return_20d_pct": -4.100191,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2020-10-01",
+      "date": "2020-10-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2020-10-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2020-10-01",
+        "gold_close_at_event": 1908.400024,
+        "gold_return_1d_pct": -0.429683,
+        "gold_return_5d_pct": -1.037521,
+        "gold_return_20d_pct": -2.242719,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2020-11-01",
+      "date": "2020-11-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2020-11-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2020-11-02",
+        "gold_close_at_event": 1890.400024,
+        "gold_return_1d_pct": 0.957468,
+        "gold_return_5d_pct": -1.967841,
+        "gold_return_20d_pct": -4.036185,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2020-12-01",
+      "date": "2020-12-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2020-12-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2020-12-01",
+        "gold_close_at_event": 1814.099976,
+        "gold_return_1d_pct": 0.639434,
+        "gold_return_5d_pct": 3.125521,
+        "gold_return_20d_pct": 4.239018,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2021-01-01",
+      "date": "2021-01-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2021-01-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2021-01-04",
+        "gold_close_at_event": 1944.699951,
+        "gold_return_1d_pct": 0.411375,
+        "gold_return_5d_pct": -4.890213,
+        "gold_return_20d_pct": -5.872369,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2021-02-01",
+      "date": "2021-02-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2021-02-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2021-02-01",
+        "gold_close_at_event": 1860.800049,
+        "gold_return_1d_pct": -1.628334,
+        "gold_return_5d_pct": -1.553097,
+        "gold_return_20d_pct": -6.862643,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2021-03-01",
+      "date": "2021-03-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2021-03-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2021-03-01",
+        "gold_close_at_event": 1722.5,
+        "gold_return_1d_pct": 0.615383,
+        "gold_return_5d_pct": -2.600874,
+        "gold_return_20d_pct": -0.603775,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2021-04-01",
+      "date": "2021-04-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2021-04-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2021-04-01",
+        "gold_close_at_event": 1726.5,
+        "gold_return_1d_pct": 0.02896,
+        "gold_return_5d_pct": 0.97307,
+        "gold_return_20d_pct": 2.363165,
+        "gold_direction_1d": "FLAT",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2021-05-01",
+      "date": "2021-05-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2021-05-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2021-05-03",
+        "gold_close_at_event": 1791.400024,
+        "gold_return_1d_pct": -0.870826,
+        "gold_return_5d_pct": 2.573405,
+        "gold_return_20d_pct": 6.224182,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2021-06-01",
+      "date": "2021-06-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2021-06-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2021-06-01",
+        "gold_close_at_event": 1902.900024,
+        "gold_return_1d_pct": 0.241735,
+        "gold_return_5d_pct": -0.562303,
+        "gold_return_20d_pct": -7.362445,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2021-07-01",
+      "date": "2021-07-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2021-07-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2021-07-01",
+        "gold_close_at_event": 1775.900024,
+        "gold_return_1d_pct": 0.377271,
+        "gold_return_5d_pct": 1.920152,
+        "gold_return_20d_pct": 2.066555,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2021-08-01",
+      "date": "2021-08-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2021-08-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2021-08-02",
+        "gold_close_at_event": 1818.099976,
+        "gold_return_1d_pct": -0.44002,
+        "gold_return_5d_pct": -5.208732,
+        "gold_return_20d_pct": -0.500521,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2021-09-01",
+      "date": "2021-09-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2021-09-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2021-09-01",
+        "gold_close_at_event": 1813.099976,
+        "gold_return_1d_pct": -0.24268,
+        "gold_return_5d_pct": -0.865918,
+        "gold_return_20d_pct": -3.187906,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2021-10-01",
+      "date": "2021-10-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2021-10-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2021-10-01",
+        "gold_close_at_event": 1757.0,
+        "gold_return_1d_pct": 0.523617,
+        "gold_return_5d_pct": -0.039838,
+        "gold_return_20d_pct": 1.479795,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "FLAT",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2021-11-01",
+      "date": "2021-11-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2021-11-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2021-11-01",
+        "gold_close_at_event": 1795.099976,
+        "gold_return_1d_pct": -0.356527,
+        "gold_return_5d_pct": 1.799345,
+        "gold_return_20d_pct": -1.197705,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2021-12-01",
+      "date": "2021-12-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2021-12-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2021-12-01",
+        "gold_close_at_event": 1781.599976,
+        "gold_return_1d_pct": -1.173104,
+        "gold_return_5d_pct": 0.101036,
+        "gold_return_20d_pct": 1.745621,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2022-01-01",
+      "date": "2022-01-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2022-01-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2022-01-03",
+        "gold_close_at_event": 1799.400024,
+        "gold_return_1d_pct": 0.81138,
+        "gold_return_5d_pct": -0.055574,
+        "gold_return_20d_pct": 0.050018,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "FLAT",
+        "gold_direction_20d": "FLAT",
+        "primary_horizon_days": 1
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2022-02-01",
+      "date": "2022-02-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2022-02-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2022-02-01",
+        "gold_close_at_event": 1800.300049,
+        "gold_return_1d_pct": 0.494357,
+        "gold_return_5d_pct": 1.460864,
+        "gold_return_20d_pct": 6.698882,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2022-03-01",
+      "date": "2022-03-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2022-03-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2022-03-01",
+        "gold_close_at_event": 1942.400024,
+        "gold_return_1d_pct": -1.106878,
+        "gold_return_5d_pct": 5.029857,
+        "gold_return_20d_pct": -1.565075,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2022-04-01",
+      "date": "2022-04-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2022-04-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2022-04-01",
+        "gold_close_at_event": 1919.099976,
+        "gold_return_1d_pct": 0.526287,
+        "gold_return_5d_pct": 1.172425,
+        "gold_return_20d_pct": -2.985771,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2022-05-01",
+      "date": "2022-05-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2022-05-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2022-05-02",
+        "gold_close_at_event": 1861.800049,
+        "gold_return_1d_pct": 0.37598,
+        "gold_return_5d_pct": -0.252448,
+        "gold_return_20d_pct": -1.025894,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2022-06-01",
+      "date": "2022-06-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2022-06-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2022-06-01",
+        "gold_close_at_event": 1843.300049,
+        "gold_return_1d_pct": 1.25861,
+        "gold_return_5d_pct": 0.466553,
+        "gold_return_20d_pct": -2.126625,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2022-07-01",
+      "date": "2022-07-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2022-07-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_down",
+        "anchor_gold_date": "2022-07-01",
+        "gold_close_at_event": 1798.900024,
+        "gold_return_1d_pct": -2.06237,
+        "gold_return_5d_pct": -3.83012,
+        "gold_return_20d_pct": -1.662128,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2022-08-01",
+      "date": "2022-08-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2022-08-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2022-08-01",
+        "gold_close_at_event": 1769.0,
+        "gold_return_1d_pct": 0.11871,
+        "gold_return_5d_pct": 1.006221,
+        "gold_return_20d_pct": -1.831545,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2022-09-01",
+      "date": "2022-09-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2022-09-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2022-09-01",
+        "gold_close_at_event": 1696.599976,
+        "gold_return_1d_pct": 0.778031,
+        "gold_return_5d_pct": 1.15525,
+        "gold_return_20d_pct": -2.015793,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2022-10-01",
+      "date": "2022-10-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2022-10-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2022-10-03",
+        "gold_close_at_event": 1692.900024,
+        "gold_return_1d_pct": 1.665778,
+        "gold_return_5d_pct": -1.512197,
+        "gold_return_20d_pct": -3.367003,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2022-11-01",
+      "date": "2022-11-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2022-11-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2022-11-01",
+        "gold_close_at_event": 1645.0,
+        "gold_return_1d_pct": 0.04255,
+        "gold_return_5d_pct": 4.079026,
+        "gold_return_20d_pct": 6.139818,
+        "gold_direction_1d": "FLAT",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2022-12-01",
+      "date": "2022-12-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2022-12-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2022-12-01",
+        "gold_close_at_event": 1801.099976,
+        "gold_return_1d_pct": -0.28871,
+        "gold_return_5d_pct": -0.68847,
+        "gold_return_20d_pct": 1.032701,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2023-01-01",
+      "date": "2023-01-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2023-01-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2023-01-03",
+        "gold_close_at_event": 1839.699951,
+        "gold_return_1d_pct": 0.712078,
+        "gold_return_5d_pct": 1.73398,
+        "gold_return_20d_pct": 4.78883,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2023-02-01",
+      "date": "2023-02-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2023-02-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2023-02-01",
+        "gold_close_at_event": 1927.800049,
+        "gold_return_1d_pct": -0.596535,
+        "gold_return_5d_pct": -2.61438,
+        "gold_return_20d_pct": -4.891589,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2023-03-01",
+      "date": "2023-03-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2023-03-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2023-03-01",
+        "gold_close_at_event": 1837.699951,
+        "gold_return_1d_pct": -0.228544,
+        "gold_return_5d_pct": -1.360396,
+        "gold_return_20d_pct": 6.986996,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2023-04-01",
+      "date": "2023-04-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2023-04-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2023-04-03",
+        "gold_close_at_event": 1983.900024,
+        "gold_return_1d_pct": 1.930537,
+        "gold_return_5d_pct": 1.053482,
+        "gold_return_20d_pct": 1.532337,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 1
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2023-05-01",
+      "date": "2023-05-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2023-05-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2023-05-01",
+        "gold_close_at_event": 1983.400024,
+        "gold_return_1d_pct": 1.557932,
+        "gold_return_5d_pct": 2.162954,
+        "gold_return_20d_pct": -1.28063,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2023-06-01",
+      "date": "2023-06-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2023-06-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2023-06-01",
+        "gold_close_at_event": 1978.0,
+        "gold_return_1d_pct": -1.294235,
+        "gold_return_5d_pct": -0.728009,
+        "gold_return_20d_pct": -2.876644,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2023-07-01",
+      "date": "2023-07-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2023-07-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2023-07-03",
+        "gold_close_at_event": 1921.699951,
+        "gold_return_1d_pct": -0.109277,
+        "gold_return_5d_pct": 0.499563,
+        "gold_return_20d_pct": 0.988708,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2023-08-01",
+      "date": "2023-08-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2023-08-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2023-08-01",
+        "gold_close_at_event": 1940.699951,
+        "gold_return_1d_pct": -0.170038,
+        "gold_return_5d_pct": -0.85536,
+        "gold_return_20d_pct": -0.216414,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2023-09-01",
+      "date": "2023-09-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2023-09-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2023-09-01",
+        "gold_close_at_event": 1939.800049,
+        "gold_return_1d_pct": -0.701108,
+        "gold_return_5d_pct": -0.850603,
+        "gold_return_20d_pct": -5.66038,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2023-10-01",
+      "date": "2023-10-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2023-10-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2023-10-02",
+        "gold_close_at_event": 1830.0,
+        "gold_return_1d_pct": -0.295083,
+        "gold_return_5d_pct": 1.065574,
+        "gold_return_20d_pct": 9.081965,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2023-11-01",
+      "date": "2023-11-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2023-11-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2023-11-01",
+        "gold_close_at_event": 1978.800049,
+        "gold_return_1d_pct": 0.343639,
+        "gold_return_5d_pct": -1.379626,
+        "gold_return_20d_pct": 2.996762,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2023-12-01",
+      "date": "2023-12-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2023-12-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2023-12-01",
+        "gold_close_at_event": 2071.0,
+        "gold_return_1d_pct": -2.264608,
+        "gold_return_5d_pct": -3.510379,
+        "gold_return_20d_pct": -0.318691,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2024-01-01",
+      "date": "2024-01-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2024-01-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2024-01-02",
+        "gold_close_at_event": 2064.399902,
+        "gold_return_1d_pct": -1.462892,
+        "gold_return_5d_pct": -1.840723,
+        "gold_return_20d_pct": -0.775044,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2024-02-01",
+      "date": "2024-02-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2024-02-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2024-02-01",
+        "gold_close_at_event": 2053.0,
+        "gold_return_1d_pct": -0.823187,
+        "gold_return_5d_pct": -1.013154,
+        "gold_return_20d_pct": 1.651237,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2024-03-01",
+      "date": "2024-03-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2024-03-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2024-03-01",
+        "gold_close_at_event": 2086.899902,
+        "gold_return_1d_pct": 1.475876,
+        "gold_return_5d_pct": 4.394087,
+        "gold_return_20d_pct": 7.168532,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2024-04-01",
+      "date": "2024-04-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2024-04-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2024-04-01",
+        "gold_close_at_event": 2236.5,
+        "gold_return_1d_pct": 1.095462,
+        "gold_return_5d_pct": 4.256649,
+        "gold_return_20d_pct": 4.869211,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2024-05-01",
+      "date": "2024-05-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2024-05-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2024-05-01",
+        "gold_close_at_event": 2299.899902,
+        "gold_return_1d_pct": -0.030434,
+        "gold_return_5d_pct": 0.595687,
+        "gold_return_20d_pct": 1.869647,
+        "gold_direction_1d": "FLAT",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2024-06-01",
+      "date": "2024-06-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2024-06-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_down",
+        "anchor_gold_date": "2024-06-03",
+        "gold_close_at_event": 2346.600098,
+        "gold_return_1d_pct": -0.899177,
+        "gold_return_5d_pct": -1.657724,
+        "gold_return_20d_pct": -1.005715,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2024-07-01",
+      "date": "2024-07-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2024-07-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2024-07-01",
+        "gold_close_at_event": 2327.600098,
+        "gold_return_1d_pct": -0.197633,
+        "gold_return_5d_pct": 1.396288,
+        "gold_return_20d_pct": 3.325309,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2024-08-01",
+      "date": "2024-08-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2024-08-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2024-08-01",
+        "gold_close_at_event": 2435.0,
+        "gold_return_1d_pct": -0.381932,
+        "gold_return_5d_pct": -0.525669,
+        "gold_return_20d_pct": 3.724844,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2024-09-01",
+      "date": "2024-09-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2024-09-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2024-09-03",
+        "gold_close_at_event": 2489.899902,
+        "gold_return_1d_pct": 0.140568,
+        "gold_return_5d_pct": 0.89964,
+        "gold_return_20d_pct": 7.12479,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2024-10-01",
+      "date": "2024-10-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2024-10-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2024-10-01",
+        "gold_close_at_event": 2667.300049,
+        "gold_return_1d_pct": -0.757318,
+        "gold_return_5d_pct": -1.960786,
+        "gold_return_20d_pct": 3.790344,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2024-11-01",
+      "date": "2024-11-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2024-11-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2024-11-01",
+        "gold_close_at_event": 2738.600098,
+        "gold_return_1d_pct": -0.091288,
+        "gold_return_5d_pct": -1.86592,
+        "gold_return_20d_pct": -3.786613,
+        "gold_direction_1d": "FLAT",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2024-12-01",
+      "date": "2024-12-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2024-12-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2024-12-02",
+        "gold_close_at_event": 2634.899902,
+        "gold_return_1d_pct": 0.371932,
+        "gold_return_5d_pct": 1.138563,
+        "gold_return_20d_pct": -0.216325,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2025-01-01",
+      "date": "2025-01-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2025-01-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2025-01-02",
+        "gold_close_at_event": 2658.899902,
+        "gold_return_1d_pct": -0.522769,
+        "gold_return_5d_pct": 0.936483,
+        "gold_return_20d_pct": 5.776829,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2025-02-01",
+      "date": "2025-02-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2025-02-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2025-02-03",
+        "gold_close_at_event": 2833.899902,
+        "gold_return_1d_pct": 0.684574,
+        "gold_return_5d_pct": 2.837085,
+        "gold_return_20d_pct": 2.671237,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2025-03-01",
+      "date": "2025-03-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2025-03-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2025-03-03",
+        "gold_close_at_event": 2890.199951,
+        "gold_return_1d_pct": 0.671239,
+        "gold_return_5d_pct": 0.027681,
+        "gold_return_20d_pct": 8.047889,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "FLAT",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2025-04-01",
+      "date": "2025-04-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2025-04-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2025-04-01",
+        "gold_close_at_event": 3118.899902,
+        "gold_return_1d_pct": 0.673314,
+        "gold_return_5d_pct": -4.825419,
+        "gold_return_20d_pct": 5.966851,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2025-05-01",
+      "date": "2025-05-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2025-05-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2025-05-01",
+        "gold_close_at_event": 3210.0,
+        "gold_return_1d_pct": 0.68224,
+        "gold_return_5d_pct": 2.697822,
+        "gold_return_20d_pct": 2.457941,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2025-06-01",
+      "date": "2025-06-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2025-06-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2025-06-02",
+        "gold_close_at_event": 3370.600098,
+        "gold_return_1d_pct": -0.605238,
+        "gold_return_5d_pct": -1.14223,
+        "gold_return_20d_pct": -1.00576,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2025-07-01",
+      "date": "2025-07-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2025-07-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2025-07-01",
+        "gold_close_at_event": 3336.699951,
+        "gold_return_1d_pct": 0.338659,
+        "gold_return_5d_pct": -0.8901,
+        "gold_return_20d_pct": -0.398599,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 5
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2025-08-01",
+      "date": "2025-08-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2025-08-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2025-08-01",
+        "gold_close_at_event": 3347.699951,
+        "gold_return_1d_pct": 0.797561,
+        "gold_return_5d_pct": 2.730237,
+        "gold_return_20d_pct": 3.763778,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2025-09-01",
+      "date": "2025-09-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2025-09-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2025-09-02",
+        "gold_close_at_event": 3549.399902,
+        "gold_return_1d_pct": 1.234013,
+        "gold_return_5d_pct": 2.645522,
+        "gold_return_20d_pct": 8.209843,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2025-11-01",
+      "date": "2025-11-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2025-11-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2025-11-03",
+        "gold_close_at_event": 4000.300049,
+        "gold_return_1d_pct": -1.314904,
+        "gold_return_5d_pct": 2.787285,
+        "gold_return_20d_pct": 4.657152,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2025-12-01",
+      "date": "2025-12-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2025-12-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2025-12-01",
+        "gold_close_at_event": 4239.299805,
+        "gold_return_1d_pct": -1.243123,
+        "gold_return_5d_pct": -1.228967,
+        "gold_return_20d_pct": 3.085422,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2026-01-01",
+      "date": "2026-01-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2026-01-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2026-01-02",
+        "gold_close_at_event": 4314.399902,
+        "gold_return_1d_pct": 2.839329,
+        "gold_return_5d_pct": 4.077042,
+        "gold_return_20d_pct": 7.141204,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2026-02-01",
+      "date": "2026-02-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2026-02-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2026-02-02",
+        "gold_close_at_event": 4622.5,
+        "gold_return_1d_pct": 6.083292,
+        "gold_return_5d_pct": 9.26771,
+        "gold_return_20d_pct": 10.489992,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2026-03-01",
+      "date": "2026-03-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2026-03-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2026-03-02",
+        "gold_close_at_event": 5294.399902,
+        "gold_return_1d_pct": -3.532034,
+        "gold_return_5d_pct": -3.832349,
+        "gold_return_20d_pct": -14.513447,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2026-04-01",
+      "date": "2026-04-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2026-04-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2026-04-01",
+        "gold_close_at_event": 4783.200195,
+        "gold_return_1d_pct": -2.753391,
+        "gold_return_5d_pct": 0.188159,
+        "gold_return_20d_pct": -3.522746,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2026-05-01",
+      "date": "2026-05-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2026-05-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2026-05-01",
+        "gold_close_at_event": 4629.899902,
+        "gold_return_1d_pct": -2.384499,
+        "gold_return_5d_pct": 1.954686,
+        "gold_return_20d_pct": -3.341319,
+        "gold_direction_1d": "DOWN",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2026-06-01",
+      "date": "2026-06-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2026-06-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_down",
+        "anchor_gold_date": "2026-06-01",
+        "gold_close_at_event": 4475.200195,
+        "gold_return_1d_pct": 0.310598,
+        "gold_return_5d_pct": -3.112716,
+        "gold_return_20d_pct": -10.106817,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "DOWN",
+        "gold_direction_20d": "DOWN",
+        "primary_horizon_days": 20
+      }
+    },
+    {
+      "state_id": "CPI_GOLD_2026-07-01",
+      "date": "2026-07-01",
+      "source_type": "lesson",
+      "source_id": "CPI_GOLD_2026-07-01",
+      "tags": [],
+      "metadata": {
+        "cpi_pressure": "inflation_pressure_up",
+        "anchor_gold_date": "2026-07-01",
+        "gold_close_at_event": 4068.300049,
+        "gold_return_1d_pct": 1.091369,
+        "gold_return_5d_pct": 1.531353,
+        "gold_return_20d_pct": 0.781654,
+        "gold_direction_1d": "UP",
+        "gold_direction_5d": "UP",
+        "gold_direction_20d": "UP",
+        "primary_horizon_days": 5
+      }
+    }
+  ]
+}

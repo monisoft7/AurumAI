@@ -1,6 +1,63 @@
 {
+  "composite_provenance": {
+    "excluded_indicators": [
+      {
+        "detail": {
+          "excluded_from_live": true,
+          "generated_by": "src/simulation/historical_replay.py::_write_synthetic_csv",
+          "generator": "numpy.random.default_rng(42).normal(52.0, 4.0, 36)",
+          "reason": "ISM PMI history was never downloaded; this file was auto-generated as a replay filler and must not feed the macro regime composite.",
+          "start": "2022-01-31"
+        },
+        "file": "PMI.csv",
+        "indicator": "PMI",
+        "reason": "synthetic_placeholder"
+      }
+    ],
+    "source": "csv"
+  },
   "confidence": 0.6,
   "cross_asset_consistency": {},
+  "fact_references": {
+    "desk_provenance": {
+      "as_of": "2026-08-29",
+      "assessment_id": "regime_diagnosis#2026-08-29",
+      "confidence": 0.6,
+      "derived_facts": [],
+      "desk_id": "macro_regime",
+      "facts_used": [
+        "fct_8bc257c29b528799"
+      ],
+      "horizon_scope": "macro_regime",
+      "metadata": {},
+      "source_artifacts": [
+        "composite_score"
+      ]
+    },
+    "facts": [
+      {
+        "as_of": "2026-08-29",
+        "asset": "GOLD",
+        "confidence": 0.6,
+        "derived_from": [],
+        "fact_id": "fct_8bc257c29b528799",
+        "metadata": {},
+        "observed_at": "2026-08-29",
+        "producer": "macro_regime",
+        "record_hash": "0e36fc44b364441d684ad6a99e19a42c0ffe7d501e8e1b13e9bcc0b018267486",
+        "schema_version": "1.0",
+        "source": "institutional_regime_detector",
+        "source_artifact_id": "regime_diagnosis#2026-08-29",
+        "source_hash": "",
+        "topic": "macro_regime_state",
+        "unit": "state",
+        "valid_from": "2026-08-29",
+        "valid_until": "",
+        "value": "INFLATIONARY"
+      }
+    ],
+    "status": "ok"
+  },
   "gram_residual": 0.0,
   "gram_trend": "stable",
   "in_transition": false,
@@ -117,7 +174,7 @@
   },
   "regime": "INFLATIONARY",
   "regime_duration_days": 0,
-  "timestamp": "2026-08-09T21:51:08.154275+00:00",
+  "timestamp": "2026-08-29T13:13:53.475024+00:00",
   "transition_confidence": 0.4,
   "transition_type": "none",
   "trigger_levels": [

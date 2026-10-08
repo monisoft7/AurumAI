@@ -1,0 +1,1182 @@
+{
+  "composite_primitives": [
+    {
+      "bias_flags": [
+        "regime_conflict",
+        "missing_evidence",
+        "cross_set_conflict"
+      ],
+      "confidence_penalties": [
+        {
+          "name": "counter_evidence",
+          "penalty": 0.1167,
+          "value": 0.3333
+        },
+        {
+          "name": "missing_evidence",
+          "penalty": 0.0833,
+          "value": 0.3333333333333333
+        },
+        {
+          "name": "internal_consistency",
+          "penalty": 0.1333,
+          "value": 0.3333
+        }
+      ],
+      "confidence_penalty": 0.3333,
+      "conflict_severity": 0.3333,
+      "contradicting_set_ids": [
+        "es_general",
+        "es_inflation"
+      ],
+      "counter_evidence_ids": [
+        "es_general",
+        "es_inflation"
+      ],
+      "counter_evidence_penalty": 0.3333,
+      "evidence_consensus": 1.0,
+      "evidence_quality": 0.59,
+      "final_confidence": 0.4817,
+      "institutional_support": 0.3934,
+      "internal_consistency_penalty": 0.3333,
+      "is_selected_in_w13": true,
+      "knowledge_record_quality": 1.0,
+      "missing_evidence_penalty": 0.3333333333333333,
+      "negative_contributors": [
+        {
+          "name": "counter_evidence",
+          "value": 0.3333,
+          "weight": 0.35
+        },
+        {
+          "name": "missing_evidence",
+          "value": 0.3333333333333333,
+          "weight": 0.25
+        },
+        {
+          "name": "internal_consistency",
+          "value": 0.3333,
+          "weight": 0.4
+        }
+      ],
+      "penalty_score": 0.3333,
+      "positive_contributors": [
+        {
+          "name": "evidence_quality",
+          "value": 0.59,
+          "weight": 0.25
+        },
+        {
+          "name": "evidence_consensus",
+          "value": 1.0,
+          "weight": 0.25
+        },
+        {
+          "name": "regime_alignment",
+          "value": 0.5,
+          "weight": 0.15
+        },
+        {
+          "name": "source_diversity",
+          "value": 0.3333,
+          "weight": 0.15
+        },
+        {
+          "name": "knowledge_record_quality",
+          "value": 1.0,
+          "weight": 0.1
+        },
+        {
+          "name": "temporal_recency",
+          "value": 1.0,
+          "weight": 0.1
+        }
+      ],
+      "positive_score": 0.7225,
+      "primitive_sources": {
+        "confidence_breakdown": "W9 ConfidenceComputer via W9 ConfidenceEngine",
+        "counter_evidence_and_severity": "W7 CounterEvidenceAssessor",
+        "final_confidence": "W9 ConfidenceEngine",
+        "institutional_support": "W8 ThesisBuilder._compute_institutional_support",
+        "risk_reward_fields": "W12 RiskRewardValidator (consumed by W13 DecisionEngine)",
+        "scenario_fields": "W12 ScenarioGenerator (Correction 052-A labels)",
+        "supporting_set_ids": "W8 ThesisBuilder (W6 evidence sets)"
+      },
+      "regime_alignment": 0.5,
+      "regime_conflict_flag": true,
+      "reliability_category": "low",
+      "remaining_uncertainty": 0.5183,
+      "risk_reward_consumed_by_w13": [
+        {
+          "expected_reward": 0.2014,
+          "expected_risk": 0.2536,
+          "expected_upside": 0.4028,
+          "liquidity_risk": 0.3733,
+          "maximum_downside": 0.5072,
+          "metadata_probability": 0.5,
+          "metadata_scenario_label": "Base Case",
+          "regime_risk": 0.3,
+          "risk_reward_ratio": 1.6624,
+          "tail_risk": 0.5533,
+          "validation_status": "borderline",
+          "volatility_impact": 0.4533
+        },
+        {
+          "expected_reward": 0.1439,
+          "expected_risk": 0.0725,
+          "expected_upside": 0.5754,
+          "liquidity_risk": 0.3733,
+          "maximum_downside": 0.2898,
+          "metadata_probability": 0.25,
+          "metadata_scenario_label": "Bull Case",
+          "regime_risk": 0.75,
+          "risk_reward_ratio": 2.3224,
+          "tail_risk": 0.5533,
+          "validation_status": "borderline",
+          "volatility_impact": 0.6783
+        },
+        {
+          "expected_reward": 0.0575,
+          "expected_risk": 0.1812,
+          "expected_upside": 0.2302,
+          "liquidity_risk": 0.3733,
+          "maximum_downside": 0.7246,
+          "metadata_probability": 0.25,
+          "metadata_scenario_label": "Bear Case",
+          "regime_risk": 0.75,
+          "risk_reward_ratio": 6.7583,
+          "tail_risk": 0.5533,
+          "validation_status": "reject",
+          "volatility_impact": 0.6783
+        }
+      ],
+      "scenarios": [
+        {
+          "expected_direction": "neutral",
+          "regime_path": [
+            "INFLATIONARY"
+          ],
+          "reliability_category": "low",
+          "remaining_uncertainty": 0.6066,
+          "scenario_confidence": 0.3934,
+          "scenario_confidence_source": "institutional_support",
+          "scenario_confidence_type": "conviction_proxy",
+          "scenario_probability": 0.5,
+          "scenario_type": "base",
+          "time_horizon_days": 90
+        },
+        {
+          "expected_direction": "bullish",
+          "regime_path": [
+            "INFLATIONARY",
+            "NORMAL_GROWTH"
+          ],
+          "reliability_category": "low",
+          "remaining_uncertainty": 0.6066,
+          "scenario_confidence": 0.3934,
+          "scenario_confidence_source": "institutional_support",
+          "scenario_confidence_type": "conviction_proxy",
+          "scenario_probability": 0.25,
+          "scenario_type": "bull",
+          "time_horizon_days": 90
+        },
+        {
+          "expected_direction": "bearish",
+          "regime_path": [
+            "INFLATIONARY",
+            "STAGFLATIONARY"
+          ],
+          "reliability_category": "low",
+          "remaining_uncertainty": 0.6066,
+          "scenario_confidence": 0.3934,
+          "scenario_confidence_source": "institutional_support",
+          "scenario_confidence_type": "conviction_proxy",
+          "scenario_probability": 0.25,
+          "scenario_type": "bear",
+          "time_horizon_days": 90
+        }
+      ],
+      "source_diversity": 0.3333,
+      "supporting_set_count": 1,
+      "supporting_set_ids": [
+        "es_inflation"
+      ],
+      "temporal_recency": 1.0,
+      "thesis_direction": "neutral",
+      "thesis_id": "th_4b70ab198dee.v2"
+    },
+    {
+      "bias_flags": [
+        "regime_conflict",
+        "missing_evidence",
+        "cross_set_conflict"
+      ],
+      "confidence_penalties": [
+        {
+          "name": "counter_evidence",
+          "penalty": 0.1167,
+          "value": 0.3333
+        },
+        {
+          "name": "missing_evidence",
+          "penalty": 0.0833,
+          "value": 0.3333333333333333
+        },
+        {
+          "name": "internal_consistency",
+          "penalty": 0.1333,
+          "value": 0.3333
+        }
+      ],
+      "confidence_penalty": 0.3333,
+      "conflict_severity": 0.3333,
+      "contradicting_set_ids": [
+        "es_general",
+        "es_inflation"
+      ],
+      "counter_evidence_ids": [
+        "es_general",
+        "es_inflation"
+      ],
+      "counter_evidence_penalty": 0.3333,
+      "evidence_consensus": 1.0,
+      "evidence_quality": 0.4666,
+      "final_confidence": 0.4111,
+      "institutional_support": 0.3111,
+      "internal_consistency_penalty": 0.3333,
+      "is_selected_in_w13": false,
+      "knowledge_record_quality": 1.0,
+      "missing_evidence_penalty": 0.3333333333333333,
+      "negative_contributors": [
+        {
+          "name": "counter_evidence",
+          "value": 0.3333,
+          "weight": 0.35
+        },
+        {
+          "name": "missing_evidence",
+          "value": 0.3333333333333333,
+          "weight": 0.25
+        },
+        {
+          "name": "internal_consistency",
+          "value": 0.3333,
+          "weight": 0.4
+        }
+      ],
+      "penalty_score": 0.3333,
+      "positive_contributors": [
+        {
+          "name": "evidence_quality",
+          "value": 0.4666,
+          "weight": 0.25
+        },
+        {
+          "name": "evidence_consensus",
+          "value": 1.0,
+          "weight": 0.25
+        },
+        {
+          "name": "regime_alignment",
+          "value": 0.0,
+          "weight": 0.15
+        },
+        {
+          "name": "source_diversity",
+          "value": 0.3333,
+          "weight": 0.15
+        },
+        {
+          "name": "knowledge_record_quality",
+          "value": 1.0,
+          "weight": 0.1
+        },
+        {
+          "name": "temporal_recency",
+          "value": 1.0,
+          "weight": 0.1
+        }
+      ],
+      "positive_score": 0.6166,
+      "primitive_sources": {
+        "confidence_breakdown": "W9 ConfidenceComputer via W9 ConfidenceEngine",
+        "counter_evidence_and_severity": "W7 CounterEvidenceAssessor",
+        "final_confidence": "W9 ConfidenceEngine",
+        "institutional_support": "W8 ThesisBuilder._compute_institutional_support",
+        "risk_reward_fields": "W12 RiskRewardValidator (consumed by W13 DecisionEngine)",
+        "scenario_fields": "W12 ScenarioGenerator (Correction 052-A labels)",
+        "supporting_set_ids": "W8 ThesisBuilder (W6 evidence sets)"
+      },
+      "regime_alignment": 0.0,
+      "regime_conflict_flag": true,
+      "reliability_category": "low",
+      "remaining_uncertainty": 0.5889,
+      "risk_reward_consumed_by_w13": [
+        {
+          "expected_reward": 0.1036,
+          "expected_risk": 0.3911,
+          "expected_upside": 0.2071,
+          "liquidity_risk": 0.3733,
+          "maximum_downside": 0.7822,
+          "metadata_probability": 0.5,
+          "metadata_scenario_label": "Base Case",
+          "regime_risk": 0.3,
+          "risk_reward_ratio": 3.9749,
+          "tail_risk": 0.5944,
+          "validation_status": "reject",
+          "volatility_impact": 0.4944
+        },
+        {
+          "expected_reward": 0.1004,
+          "expected_risk": 0.0607,
+          "expected_upside": 0.5178,
+          "liquidity_risk": 0.3733,
+          "maximum_downside": 0.3129,
+          "metadata_probability": 0.1939,
+          "metadata_scenario_label": "Bull Case",
+          "regime_risk": 0.75,
+          "risk_reward_ratio": 3.3526,
+          "tail_risk": 0.5944,
+          "validation_status": "reject",
+          "volatility_impact": 0.7194
+        },
+        {
+          "expected_reward": 0.0634,
+          "expected_risk": 0.2394,
+          "expected_upside": 0.2071,
+          "liquidity_risk": 0.3733,
+          "maximum_downside": 0.7822,
+          "metadata_probability": 0.3061,
+          "metadata_scenario_label": "Bear Case",
+          "regime_risk": 0.75,
+          "risk_reward_ratio": 6.7177,
+          "tail_risk": 0.5944,
+          "validation_status": "reject",
+          "volatility_impact": 0.7194
+        }
+      ],
+      "scenarios": [
+        {
+          "expected_direction": "bearish",
+          "regime_path": [
+            "INFLATIONARY"
+          ],
+          "reliability_category": "low",
+          "remaining_uncertainty": 0.6889,
+          "scenario_confidence": 0.3111,
+          "scenario_confidence_source": "institutional_support",
+          "scenario_confidence_type": "conviction_proxy",
+          "scenario_probability": 0.5,
+          "scenario_type": "base",
+          "time_horizon_days": 90
+        },
+        {
+          "expected_direction": "bullish",
+          "regime_path": [
+            "INFLATIONARY",
+            "NORMAL_GROWTH"
+          ],
+          "reliability_category": "low",
+          "remaining_uncertainty": 0.6889,
+          "scenario_confidence": 0.3111,
+          "scenario_confidence_source": "institutional_support",
+          "scenario_confidence_type": "conviction_proxy",
+          "scenario_probability": 0.1939,
+          "scenario_type": "bull",
+          "time_horizon_days": 90
+        },
+        {
+          "expected_direction": "bearish",
+          "regime_path": [
+            "INFLATIONARY",
+            "STAGFLATIONARY"
+          ],
+          "reliability_category": "low",
+          "remaining_uncertainty": 0.6889,
+          "scenario_confidence": 0.3111,
+          "scenario_confidence_source": "institutional_support",
+          "scenario_confidence_type": "conviction_proxy",
+          "scenario_probability": 0.3061,
+          "scenario_type": "bear",
+          "time_horizon_days": 90
+        }
+      ],
+      "source_diversity": 0.3333,
+      "supporting_set_count": 1,
+      "supporting_set_ids": [
+        "es_usd_fx"
+      ],
+      "temporal_recency": 1.0,
+      "thesis_direction": "bearish",
+      "thesis_id": "th_a90aa225c272"
+    },
+    {
+      "bias_flags": [
+        "regime_conflict",
+        "missing_evidence",
+        "cross_set_conflict"
+      ],
+      "confidence_penalties": [
+        {
+          "name": "counter_evidence",
+          "penalty": 0.1167,
+          "value": 0.3333
+        },
+        {
+          "name": "missing_evidence",
+          "penalty": 0.0833,
+          "value": 0.3333333333333333
+        },
+        {
+          "name": "internal_consistency",
+          "penalty": 0.1333,
+          "value": 0.3333
+        }
+      ],
+      "confidence_penalty": 0.3333,
+      "conflict_severity": 0.3333,
+      "contradicting_set_ids": [
+        "es_general",
+        "es_inflation"
+      ],
+      "counter_evidence_ids": [
+        "es_usd_fx",
+        "es_general",
+        "es_inflation"
+      ],
+      "counter_evidence_penalty": 0.3333,
+      "evidence_consensus": 1.0,
+      "evidence_quality": 0.4409,
+      "final_confidence": 0.5068,
+      "institutional_support": 0.2939,
+      "internal_consistency_penalty": 0.3333,
+      "is_selected_in_w13": false,
+      "knowledge_record_quality": 1.0,
+      "missing_evidence_penalty": 0.3333333333333333,
+      "negative_contributors": [
+        {
+          "name": "counter_evidence",
+          "value": 0.3333,
+          "weight": 0.35
+        },
+        {
+          "name": "missing_evidence",
+          "value": 0.3333333333333333,
+          "weight": 0.25
+        },
+        {
+          "name": "internal_consistency",
+          "value": 0.3333,
+          "weight": 0.4
+        }
+      ],
+      "penalty_score": 0.3333,
+      "positive_contributors": [
+        {
+          "name": "evidence_quality",
+          "value": 0.4409,
+          "weight": 0.25
+        },
+        {
+          "name": "evidence_consensus",
+          "value": 1.0,
+          "weight": 0.25
+        },
+        {
+          "name": "regime_alignment",
+          "value": 1.0,
+          "weight": 0.15
+        },
+        {
+          "name": "source_diversity",
+          "value": 0.3333,
+          "weight": 0.15
+        },
+        {
+          "name": "knowledge_record_quality",
+          "value": 1.0,
+          "weight": 0.1
+        },
+        {
+          "name": "temporal_recency",
+          "value": 1.0,
+          "weight": 0.1
+        }
+      ],
+      "positive_score": 0.7602,
+      "primitive_sources": {
+        "confidence_breakdown": "W9 ConfidenceComputer via W9 ConfidenceEngine",
+        "counter_evidence_and_severity": "W7 CounterEvidenceAssessor",
+        "final_confidence": "W9 ConfidenceEngine",
+        "institutional_support": "W8 ThesisBuilder._compute_institutional_support",
+        "risk_reward_fields": "W12 RiskRewardValidator (consumed by W13 DecisionEngine)",
+        "scenario_fields": "W12 ScenarioGenerator (Correction 052-A labels)",
+        "supporting_set_ids": "W8 ThesisBuilder (W6 evidence sets)"
+      },
+      "regime_alignment": 1.0,
+      "regime_conflict_flag": true,
+      "reliability_category": "moderate",
+      "remaining_uncertainty": 0.4932,
+      "risk_reward_consumed_by_w13": [
+        {
+          "expected_reward": 0.2529,
+          "expected_risk": 0.1588,
+          "expected_upside": 0.5057,
+          "liquidity_risk": 0.4983,
+          "maximum_downside": 0.3177,
+          "metadata_probability": 0.5,
+          "metadata_scenario_label": "Base Case",
+          "regime_risk": 0.3,
+          "risk_reward_ratio": 1.3238,
+          "tail_risk": 0.728,
+          "validation_status": "borderline",
+          "volatility_impact": 0.503
+        },
+        {
+          "expected_reward": 0.1539,
+          "expected_risk": 0.0967,
+          "expected_upside": 0.5057,
+          "liquidity_risk": 0.4983,
+          "maximum_downside": 0.3177,
+          "metadata_probability": 0.3044,
+          "metadata_scenario_label": "Bull Case",
+          "regime_risk": 0.75,
+          "risk_reward_ratio": 2.5588,
+          "tail_risk": 0.728,
+          "validation_status": "borderline",
+          "volatility_impact": 0.728
+        },
+        {
+          "expected_reward": 0.0396,
+          "expected_risk": 0.1554,
+          "expected_upside": 0.2023,
+          "liquidity_risk": 0.4983,
+          "maximum_downside": 0.7943,
+          "metadata_probability": 0.1956,
+          "metadata_scenario_label": "Bear Case",
+          "regime_risk": 0.75,
+          "risk_reward_ratio": 10.0,
+          "tail_risk": 0.728,
+          "validation_status": "reject",
+          "volatility_impact": 0.728
+        }
+      ],
+      "scenarios": [
+        {
+          "expected_direction": "bullish",
+          "regime_path": [
+            "INFLATIONARY"
+          ],
+          "reliability_category": "very_low",
+          "remaining_uncertainty": 0.7061,
+          "scenario_confidence": 0.2939,
+          "scenario_confidence_source": "institutional_support",
+          "scenario_confidence_type": "conviction_proxy",
+          "scenario_probability": 0.5,
+          "scenario_type": "base",
+          "time_horizon_days": 90
+        },
+        {
+          "expected_direction": "bullish",
+          "regime_path": [
+            "INFLATIONARY",
+            "NORMAL_GROWTH"
+          ],
+          "reliability_category": "very_low",
+          "remaining_uncertainty": 0.7061,
+          "scenario_confidence": 0.2939,
+          "scenario_confidence_source": "institutional_support",
+          "scenario_confidence_type": "conviction_proxy",
+          "scenario_probability": 0.3044,
+          "scenario_type": "bull",
+          "time_horizon_days": 90
+        },
+        {
+          "expected_direction": "bearish",
+          "regime_path": [
+            "INFLATIONARY",
+            "STAGFLATIONARY"
+          ],
+          "reliability_category": "very_low",
+          "remaining_uncertainty": 0.7061,
+          "scenario_confidence": 0.2939,
+          "scenario_confidence_source": "institutional_support",
+          "scenario_confidence_type": "conviction_proxy",
+          "scenario_probability": 0.1956,
+          "scenario_type": "bear",
+          "time_horizon_days": 90
+        }
+      ],
+      "source_diversity": 0.3333,
+      "supporting_set_count": 1,
+      "supporting_set_ids": [
+        "es_general"
+      ],
+      "temporal_recency": 1.0,
+      "thesis_direction": "bullish",
+      "thesis_id": "th_cfe2b053fff8"
+    }
+  ],
+  "confidence": {
+    "agreement_score": 1.0,
+    "context_coherence": 0.118,
+    "overall": 0.7181691359753363,
+    "spread_score": 0.9425637865844545
+  },
+  "context": {
+    "context_timestamp": "2026-08-24T17:51:39.371573+00:00",
+    "current_regime": "LATE_CYCLE",
+    "data_date_range": [
+      "2015-01-02",
+      "2026-08-24"
+    ],
+    "fomc_confidence": 0.0,
+    "fomc_mood": null,
+    "institutional_regime": "INFLATIONARY",
+    "news_confidence": 0.0,
+    "news_mood": null,
+    "recent_events": [],
+    "regime_confidence": 0.354,
+    "source_variable": "AutoARIMA"
+  },
+  "decision": {
+    "decision": "NO_TRADE",
+    "decision_drivers": [
+      {
+        "name": "institutional_confidence",
+        "score": 0.1445,
+        "value": 0.4817,
+        "weight": 0.3
+      },
+      {
+        "name": "risk_reward_quality",
+        "score": 0.1284,
+        "value": 0.6419,
+        "weight": 0.2
+      },
+      {
+        "name": "evidence_quality",
+        "score": 0.0885,
+        "value": 0.59,
+        "weight": 0.15
+      },
+      {
+        "name": "counter_evidence_quality",
+        "score": 0.1,
+        "value": 0.6667,
+        "weight": 0.15
+      },
+      {
+        "name": "scenario_probability",
+        "score": 0.05,
+        "value": 0.5,
+        "weight": 0.1
+      }
+    ],
+    "decision_explanation": "decision=NO_TRADE; selected_thesis=th_4b70ab198dee.v2 (neutral); selected_scenario=sc_a6e248ab692d (base, p=0.5); composite_score=0.5114; institutional_confidence=0.4817; risk_reward_status=borderline; risk_reward_ratio=1.6624; reason=no thesis clears institutional confidence and risk/reward thresholds",
+    "decision_id": "dec_b9f9a885838b",
+    "institutional_confidence": 0.4817,
+    "invalidation_conditions": [
+      "Counter-evidence from sets es_general, es_inflation strengthens",
+      "Current regime conflicts with thesis direction",
+      "Regime-dependent evidence weakening thesis",
+      "Missing evidence channels: CB_GOLD"
+    ],
+    "metadata": {
+      "bias_review": {
+        "findings": [
+          "single_source_bias",
+          "false_precision"
+        ],
+        "human_review_flag": false,
+        "overall_severity": "medium",
+        "review_id": "bias-th_4b70ab198dee.v2",
+        "total_confidence_impact": 0.25
+      },
+      "composite_score": 0.5114,
+      "selected_scenario_type": "base",
+      "selected_thesis_direction": "neutral",
+      "total_rejected_alternatives": 2,
+      "total_theses_evaluated": 3
+    },
+    "preconditions": [
+      "Inflation premium channel as gold serves as inflation hedge continues to develop as expected"
+    ],
+    "provenance_chain": [
+      {
+        "created_at": "2026-08-24T17:52:18.596320+00:00",
+        "created_by": "W7 CounterEvidenceAssessor",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      },
+      {
+        "created_at": "2026-08-24T17:52:18.596364+00:00",
+        "created_by": "W8 ThesisBuilder",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      },
+      {
+        "created_at": "2026-08-24T17:52:18.585291+00:00",
+        "created_by": "W10 ThesisUpdater",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      },
+      {
+        "created_at": "2026-08-24T17:52:18.632068+00:00",
+        "created_by": "W12 ScenarioGenerator",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      },
+      {
+        "created_at": "2026-08-24T17:52:18.645506+00:00",
+        "created_by": "W12 RiskRewardValidator",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      },
+      {
+        "created_at": "2026-08-24T17:52:18.666540+00:00",
+        "created_by": "W13 DecisionEngine",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      }
+    ],
+    "rejected_alternatives": [
+      {
+        "composite_score": 0.4756,
+        "rejection_reason": "lower composite score (0.4756) than selected thesis (0.5114)",
+        "thesis_direction": "bullish",
+        "thesis_id": "th_cfe2b053fff8"
+      },
+      {
+        "composite_score": 0.4497,
+        "rejection_reason": "no acceptable or borderline scenario: all scenarios rejected by W12 risk/reward validation (best status=reject)",
+        "thesis_direction": "bearish",
+        "thesis_id": "th_a90aa225c272"
+      }
+    ],
+    "risk_reward_summary": {
+      "expected_reward": 0.2014,
+      "expected_risk": 0.2536,
+      "expected_upside": 0.4028,
+      "liquidity_risk": 0.3733,
+      "maximum_downside": 0.5072,
+      "regime_risk": 0.3,
+      "risk_reward_ratio": 1.6624,
+      "status": "borderline",
+      "tail_risk": 0.5533,
+      "volatility_impact": 0.4533
+    },
+    "selected_scenario_id": "sc_a6e248ab692d",
+    "selected_thesis_id": "th_4b70ab198dee.v2"
+  },
+  "forecast_result": {
+    "confidence_level": 0.95,
+    "metadata": {
+      "freq": "ME",
+      "h": 12,
+      "n_obs": 2926,
+      "season_length": 12
+    },
+    "model_name": "AutoARIMA",
+    "points": [
+      {
+        "ds": "2026-08-31 00:00:00",
+        "y": 4699.42666844029,
+        "y_hi": 4758.014821904167,
+        "y_lo": 4640.8385149764135
+      },
+      {
+        "ds": "2026-09-30 00:00:00",
+        "y": 4697.040815891116,
+        "y_hi": 4778.5893839915525,
+        "y_lo": 4615.492247790679
+      },
+      {
+        "ds": "2026-10-31 00:00:00",
+        "y": 4703.828875427162,
+        "y_hi": 4800.897865728256,
+        "y_lo": 4606.759885126067
+      },
+      {
+        "ds": "2026-11-30 00:00:00",
+        "y": 4713.230314498194,
+        "y_hi": 4824.690735727603,
+        "y_lo": 4601.769893268785
+      },
+      {
+        "ds": "2026-12-31 00:00:00",
+        "y": 4712.208878589403,
+        "y_hi": 4836.518153327012,
+        "y_lo": 4587.8996038517935
+      },
+      {
+        "ds": "2027-01-31 00:00:00",
+        "y": 4710.931991153013,
+        "y_hi": 4846.802915542971,
+        "y_lo": 4575.061066763054
+      },
+      {
+        "ds": "2027-02-28 00:00:00",
+        "y": 4717.182045332052,
+        "y_hi": 4863.759022869771,
+        "y_lo": 4570.605067794334
+      },
+      {
+        "ds": "2027-03-31 00:00:00",
+        "y": 4715.753302719544,
+        "y_hi": 4872.344063904242,
+        "y_lo": 4559.162541534846
+      },
+      {
+        "ds": "2027-04-30 00:00:00",
+        "y": 4729.438966310756,
+        "y_hi": 4895.464390560769,
+        "y_lo": 4563.413542060743
+      },
+      {
+        "ds": "2027-05-31 00:00:00",
+        "y": 4733.465460804973,
+        "y_hi": 4908.444562314715,
+        "y_lo": 4558.4863592952315
+      },
+      {
+        "ds": "2027-06-30 00:00:00",
+        "y": 4749.023588357204,
+        "y_hi": 4932.546173257014,
+        "y_lo": 4565.501003457394
+      },
+      {
+        "ds": "2027-07-31 00:00:00",
+        "y": 4758.512570724188,
+        "y_hi": 4950.222710200957,
+        "y_lo": 4566.802431247418
+      }
+    ]
+  },
+  "legacy_decision": {
+    "confidence": 0.540433,
+    "context": {
+      "event_type": "CPI",
+      "institutional_context": {},
+      "metadata": {},
+      "query": ""
+    },
+    "decision_id": "dec_reason_CPI_inflation_pressure_up",
+    "decision_type": "POSITIVE",
+    "evidence_count": 3,
+    "explanation": "Decision POSITIVE based on reasoning chain 'reason_CPI_inflation_pressure_up': aggregated evidence of 3 items shows average return of +0.392255% with overall confidence of 0.540.",
+    "metadata": {
+      "avg_return_pct": 0.392255,
+      "chain_confidence": 0.540433
+    },
+    "provenance": null,
+    "reasoning_chain_id": "reason_CPI_inflation_pressure_up"
+  },
+  "position_sizing": {
+    "current_vol": 0.004651,
+    "drawdown_state": "normal",
+    "kelly_cap": null,
+    "scaling_factor": 1.0,
+    "target_vol": 0.15
+  },
+  "position_sizing_status": "ok",
+  "risk_budget": {
+    "method": "risk_parity",
+    "risk_contributions": [
+      1.0
+    ],
+    "weights": [
+      1.0
+    ]
+  },
+  "risk_decision": {
+    "action": "proceed",
+    "components": {
+      "has_room_to_act": true,
+      "not_caution": true,
+      "not_halted": true,
+      "regime_acceptable": true,
+      "uncertainty_acceptable": true
+    },
+    "reason": "All risk gates pass. Full allocation advised.",
+    "score": 0.1062
+  },
+  "risk_metrics": {
+    "cvar_95": 117.176307,
+    "method": "historical",
+    "tail_index": null,
+    "var_95": 142.432763,
+    "var_99": 122.227598
+  },
+  "thesis_historical_assessments": [
+    {
+      "historical_assessment": {
+        "direction_support_summary": "historical outcomes remain mixed/context-dependent; mixed history supports a neutral/uncertain interpretation",
+        "evidence_ids": [
+          "CPI_GOLD_2017-07-01",
+          "CPI_GOLD_2018-02-01",
+          "CPI_GOLD_2025-05-01"
+        ],
+        "horizon_results": {
+          "1d": {
+            "count": 3,
+            "direction_summary": "mixed",
+            "status": "mixed",
+            "verdict": "supports neutral/uncertain interpretation"
+          },
+          "20d": {
+            "count": 3,
+            "direction_summary": "mixed",
+            "status": "mixed",
+            "verdict": "supports neutral/uncertain interpretation"
+          },
+          "5d": {
+            "count": 3,
+            "direction_summary": "mixed",
+            "status": "mixed",
+            "verdict": "supports neutral/uncertain interpretation"
+          }
+        },
+        "provenance": {
+          "query": {
+            "condition": {
+              "cpi_pressure": "inflation_pressure_up",
+              "dxy_trend": "dxy_falling",
+              "us10y_trend": "yields_rising"
+            },
+            "event_type": "CPI",
+            "institutional_context": {
+              "regime": "INFLATIONARY"
+            }
+          },
+          "similarity": {
+            "CPI_GOLD_2017-07-01": {
+              "overall_similarity": 0.8122523963562356,
+              "retrieval_method": "exact"
+            },
+            "CPI_GOLD_2018-02-01": {
+              "overall_similarity": 0.8122523963562356,
+              "retrieval_method": "exact"
+            },
+            "CPI_GOLD_2025-05-01": {
+              "overall_similarity": 0.8122523963562356,
+              "retrieval_method": "exact"
+            }
+          },
+          "sources": [
+            {
+              "event_date": "2017-07-01",
+              "horizon": "1d",
+              "lesson_id": "CPI_GOLD_2017-07-01",
+              "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\CPIAUCSL.csv",
+              "source_artifact_sha256": "a2a36d518762dc7f1a8606551fc62c013b742e62355fb485dbcb516df9bcd78d"
+            },
+            {
+              "event_date": "2018-02-01",
+              "horizon": "1d",
+              "lesson_id": "CPI_GOLD_2018-02-01",
+              "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\CPIAUCSL.csv",
+              "source_artifact_sha256": "a2a36d518762dc7f1a8606551fc62c013b742e62355fb485dbcb516df9bcd78d"
+            },
+            {
+              "event_date": "2025-05-01",
+              "horizon": "1d",
+              "lesson_id": "CPI_GOLD_2025-05-01",
+              "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\CPIAUCSL.csv",
+              "source_artifact_sha256": "a2a36d518762dc7f1a8606551fc62c013b742e62355fb485dbcb516df9bcd78d"
+            }
+          ]
+        },
+        "thesis_direction": "neutral"
+      },
+      "thesis_direction": "neutral",
+      "thesis_id": "th_4b70ab198dee.v2"
+    },
+    {
+      "historical_assessment": {
+        "direction_support_summary": "history provides no directional confirmation for bearish",
+        "evidence_ids": [
+          "CPI_GOLD_2017-07-01",
+          "CPI_GOLD_2018-02-01",
+          "CPI_GOLD_2025-05-01"
+        ],
+        "horizon_results": {
+          "1d": {
+            "count": 3,
+            "direction_summary": "mixed",
+            "status": "mixed",
+            "verdict": "no directional confirmation"
+          },
+          "20d": {
+            "count": 3,
+            "direction_summary": "mixed",
+            "status": "mixed",
+            "verdict": "no directional confirmation"
+          },
+          "5d": {
+            "count": 3,
+            "direction_summary": "mixed",
+            "status": "mixed",
+            "verdict": "no directional confirmation"
+          }
+        },
+        "provenance": {
+          "query": {
+            "condition": {
+              "cpi_pressure": "inflation_pressure_up",
+              "dxy_trend": "dxy_falling",
+              "us10y_trend": "yields_rising"
+            },
+            "event_type": "CPI",
+            "institutional_context": {
+              "regime": "INFLATIONARY"
+            }
+          },
+          "similarity": {
+            "CPI_GOLD_2017-07-01": {
+              "overall_similarity": 0.8122523963562356,
+              "retrieval_method": "exact"
+            },
+            "CPI_GOLD_2018-02-01": {
+              "overall_similarity": 0.8122523963562356,
+              "retrieval_method": "exact"
+            },
+            "CPI_GOLD_2025-05-01": {
+              "overall_similarity": 0.8122523963562356,
+              "retrieval_method": "exact"
+            }
+          },
+          "sources": [
+            {
+              "event_date": "2017-07-01",
+              "horizon": "1d",
+              "lesson_id": "CPI_GOLD_2017-07-01",
+              "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\CPIAUCSL.csv",
+              "source_artifact_sha256": "a2a36d518762dc7f1a8606551fc62c013b742e62355fb485dbcb516df9bcd78d"
+            },
+            {
+              "event_date": "2018-02-01",
+              "horizon": "1d",
+              "lesson_id": "CPI_GOLD_2018-02-01",
+              "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\CPIAUCSL.csv",
+              "source_artifact_sha256": "a2a36d518762dc7f1a8606551fc62c013b742e62355fb485dbcb516df9bcd78d"
+            },
+            {
+              "event_date": "2025-05-01",
+              "horizon": "1d",
+              "lesson_id": "CPI_GOLD_2025-05-01",
+              "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\CPIAUCSL.csv",
+              "source_artifact_sha256": "a2a36d518762dc7f1a8606551fc62c013b742e62355fb485dbcb516df9bcd78d"
+            }
+          ]
+        },
+        "thesis_direction": "bearish"
+      },
+      "thesis_direction": "bearish",
+      "thesis_id": "th_a90aa225c272"
+    },
+    {
+      "historical_assessment": {
+        "direction_support_summary": "history provides no directional confirmation for bullish",
+        "evidence_ids": [
+          "CPI_GOLD_2017-07-01",
+          "CPI_GOLD_2018-02-01",
+          "CPI_GOLD_2025-05-01"
+        ],
+        "horizon_results": {
+          "1d": {
+            "count": 3,
+            "direction_summary": "mixed",
+            "status": "mixed",
+            "verdict": "no directional confirmation"
+          },
+          "20d": {
+            "count": 3,
+            "direction_summary": "mixed",
+            "status": "mixed",
+            "verdict": "no directional confirmation"
+          },
+          "5d": {
+            "count": 3,
+            "direction_summary": "mixed",
+            "status": "mixed",
+            "verdict": "no directional confirmation"
+          }
+        },
+        "provenance": {
+          "query": {
+            "condition": {
+              "cpi_pressure": "inflation_pressure_up",
+              "dxy_trend": "dxy_falling",
+              "us10y_trend": "yields_rising"
+            },
+            "event_type": "CPI",
+            "institutional_context": {
+              "regime": "INFLATIONARY"
+            }
+          },
+          "similarity": {
+            "CPI_GOLD_2017-07-01": {
+              "overall_similarity": 0.8122523963562356,
+              "retrieval_method": "exact"
+            },
+            "CPI_GOLD_2018-02-01": {
+              "overall_similarity": 0.8122523963562356,
+              "retrieval_method": "exact"
+            },
+            "CPI_GOLD_2025-05-01": {
+              "overall_similarity": 0.8122523963562356,
+              "retrieval_method": "exact"
+            }
+          },
+          "sources": [
+            {
+              "event_date": "2017-07-01",
+              "horizon": "1d",
+              "lesson_id": "CPI_GOLD_2017-07-01",
+              "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\CPIAUCSL.csv",
+              "source_artifact_sha256": "a2a36d518762dc7f1a8606551fc62c013b742e62355fb485dbcb516df9bcd78d"
+            },
+            {
+              "event_date": "2018-02-01",
+              "horizon": "1d",
+              "lesson_id": "CPI_GOLD_2018-02-01",
+              "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\CPIAUCSL.csv",
+              "source_artifact_sha256": "a2a36d518762dc7f1a8606551fc62c013b742e62355fb485dbcb516df9bcd78d"
+            },
+            {
+              "event_date": "2025-05-01",
+              "horizon": "1d",
+              "lesson_id": "CPI_GOLD_2025-05-01",
+              "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\CPIAUCSL.csv",
+              "source_artifact_sha256": "a2a36d518762dc7f1a8606551fc62c013b742e62355fb485dbcb516df9bcd78d"
+            }
+          ]
+        },
+        "thesis_direction": "bullish"
+      },
+      "thesis_direction": "bullish",
+      "thesis_id": "th_cfe2b053fff8"
+    }
+  ],
+  "validation": {
+    "horizon": 1,
+    "metrics": {
+      "coverage": 0.0,
+      "directional_accuracy": 0.0,
+      "mae": 0.0,
+      "mape": 0.0,
+      "rmse": 0.0
+    },
+    "notes": "No aligned forecast- actual pairs available for validation",
+    "passed": false,
+    "sample_size": 0,
+    "validation_strategy": "walk_forward"
+  }
+}

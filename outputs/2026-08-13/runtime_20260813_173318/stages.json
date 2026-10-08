@@ -1,0 +1,132 @@
+[
+  {
+    "duration_ms": 2.547500000218861,
+    "stage_id": "ingest_news",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 32400.318599989987,
+    "stage_id": "ingest_event",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 1302.2086999990279,
+    "stage_id": "build_legacy_pipeline",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 79883.1147000019,
+    "stage_id": "forecast",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 14.948700001696125,
+    "stage_id": "position_sizing",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 228.0021000042325,
+    "stage_id": "forecast_validation",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 25.352399999974295,
+    "stage_id": "risk_measures",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 229.25640000903513,
+    "stage_id": "build_context",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 372.8839999967022,
+    "stage_id": "forecast_confidence",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 29859.517699995195,
+    "stage_id": "regime_diagnosis",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 3.5829999978886917,
+    "stage_id": "risk_gate",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 10948.719299994991,
+    "stage_id": "pre_market_scan",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 24.923999997554347,
+    "stage_id": "signal_assessment",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 7.936699999845587,
+    "stage_id": "event_triage",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 10.486500003025867,
+    "stage_id": "evidence_collection",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 13.08479999715928,
+    "stage_id": "evidence_reasoning",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 10.710300004575402,
+    "stage_id": "counter_evidence",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 12.55140001012478,
+    "stage_id": "thesis_construction",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 13.289599999552593,
+    "stage_id": "thesis_update",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 17.508399992948398,
+    "stage_id": "scenario_generation",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 13.808399991830811,
+    "stage_id": "risk_reward_validation",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 13.754300001892261,
+    "stage_id": "confidence_engine",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 16.853499997523613,
+    "stage_id": "bias_prevention",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 0.5265000072540715,
+    "stage_id": "decision_engine",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 0.09359999967273325,
+    "stage_id": "finalize",
+    "status": "ok"
+  },
+  {
+    "duration_ms": 7.571599999209866,
+    "stage_id": "trade_recommendation",
+    "status": "ok"
+  }
+]

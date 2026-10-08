@@ -1,0 +1,18 @@
+{
+  "artifact": "outcome_calibration",
+  "as_of": "2026-08-28",
+  "oos_ece": null,
+  "sample_count": 0,
+  "schema_version": "1.0",
+  "source": "outcome.evaluated.json sweep",
+  "source_run_ids": [],
+  "statistics": {
+    "accuracy": null,
+    "brier": null,
+    "mean_abs_error": null,
+    "mean_confidence": null,
+    "min_samples_required": 10,
+    "oos_ece": null,
+    "sample_count": 0
+  }
+}

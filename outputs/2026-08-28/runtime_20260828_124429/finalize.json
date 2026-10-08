@@ -1,0 +1,2217 @@
+{
+  "canonical_fact_registry": {
+    "cross_producer_convergence": [
+      {
+        "agreement": true,
+        "fact_id": "fct_682b8d15b1e981d0",
+        "producers": [
+          "reference_price",
+          "technical_research"
+        ],
+        "values": [
+          "4660.600098"
+        ]
+      }
+    ],
+    "lineage_edges": 9,
+    "sources": [
+      "reference_price",
+      "technical_research"
+    ],
+    "status": "ok",
+    "summary": {
+      "desk_declaration_count": 0,
+      "observation_count": 5,
+      "observations_by_producer": {
+        "reference_price": 1,
+        "technical_research": 4
+      },
+      "primitive_count": 4
+    }
+  },
+  "composite_primitives": [
+    {
+      "bias_flags": [
+        "regime_conflict",
+        "missing_evidence"
+      ],
+      "confidence_penalties": [
+        {
+          "name": "counter_evidence",
+          "penalty": 0.0292,
+          "value": 0.0833
+        },
+        {
+          "name": "missing_evidence",
+          "penalty": 0.0833,
+          "value": 0.3333333333333333
+        },
+        {
+          "name": "internal_consistency",
+          "penalty": 0.0933,
+          "value": 0.2333
+        }
+      ],
+      "confidence_penalty": 0.2333,
+      "conflict_severity": 0.0833,
+      "contradicting_set_ids": [],
+      "counter_evidence_ids": [],
+      "counter_evidence_penalty": 0.0833,
+      "evidence_consensus": 0.7826,
+      "evidence_quality": 0.5626,
+      "final_confidence": 0.4992,
+      "institutional_support": 0.3376,
+      "internal_consistency_penalty": 0.2333,
+      "is_selected_in_w13": true,
+      "knowledge_record_quality": 1.0,
+      "missing_evidence_penalty": 0.3333333333333333,
+      "negative_contributors": [
+        {
+          "name": "counter_evidence",
+          "value": 0.0833,
+          "weight": 0.35
+        },
+        {
+          "name": "missing_evidence",
+          "value": 0.3333333333333333,
+          "weight": 0.25
+        },
+        {
+          "name": "internal_consistency",
+          "value": 0.2333,
+          "weight": 0.4
+        }
+      ],
+      "penalty_score": 0.2058,
+      "positive_contributors": [
+        {
+          "name": "evidence_quality",
+          "value": 0.5626,
+          "weight": 0.3
+        },
+        {
+          "name": "evidence_consensus",
+          "value": 0.7826,
+          "weight": 0.3
+        },
+        {
+          "name": "regime_alignment",
+          "value": 0.5,
+          "weight": 0.15
+        },
+        {
+          "name": "source_diversity",
+          "value": 0.3333,
+          "weight": 0.15
+        },
+        {
+          "name": "knowledge_record_quality",
+          "value": 1.0,
+          "weight": 0.1
+        }
+      ],
+      "positive_score": 0.6286,
+      "primitive_sources": {
+        "confidence_breakdown": "W9 ConfidenceComputer via W9 ConfidenceEngine",
+        "counter_evidence_and_severity": "W7 CounterEvidenceAssessor",
+        "final_confidence": "W9 ConfidenceEngine",
+        "institutional_support": "W8 ThesisBuilder._compute_institutional_support",
+        "risk_reward_fields": "W12 RiskRewardValidator (consumed by W13 DecisionEngine)",
+        "scenario_fields": "W12 ScenarioGenerator (Correction 052-A labels)",
+        "supporting_set_ids": "W8 ThesisBuilder (W6 evidence sets)"
+      },
+      "regime_alignment": 0.5,
+      "regime_conflict_flag": true,
+      "reliability_category": "low",
+      "remaining_uncertainty": 0.5008,
+      "risk_reward_consumed_by_w13": [
+        {
+          "expected_reward": 0.1877,
+          "expected_risk": 0.2673,
+          "expected_upside": 0.3754,
+          "liquidity_risk": 0.3733,
+          "maximum_downside": 0.5346,
+          "metadata_probability": 0.5,
+          "metadata_scenario_label": "Base Case",
+          "regime_risk": 0.3,
+          "risk_reward_ratio": 1.8498,
+          "tail_risk": 0.5812,
+          "validation_status": "borderline",
+          "volatility_impact": 0.4812
+        },
+        {
+          "expected_reward": 0.1341,
+          "expected_risk": 0.0764,
+          "expected_upside": 0.5363,
+          "liquidity_risk": 0.3733,
+          "maximum_downside": 0.3055,
+          "metadata_probability": 0.25,
+          "metadata_scenario_label": "Bull Case",
+          "regime_risk": 0.75,
+          "risk_reward_ratio": 2.5488,
+          "tail_risk": 0.5812,
+          "validation_status": "borderline",
+          "volatility_impact": 0.7062
+        },
+        {
+          "expected_reward": 0.0536,
+          "expected_risk": 0.1909,
+          "expected_upside": 0.2145,
+          "liquidity_risk": 0.3733,
+          "maximum_downside": 0.7637,
+          "metadata_probability": 0.25,
+          "metadata_scenario_label": "Bear Case",
+          "regime_risk": 0.75,
+          "risk_reward_ratio": 7.444,
+          "tail_risk": 0.5812,
+          "validation_status": "reject",
+          "volatility_impact": 0.7062
+        }
+      ],
+      "scenarios": [
+        {
+          "expected_direction": "neutral",
+          "regime_path": [
+            "INFLATIONARY"
+          ],
+          "reliability_category": "low",
+          "remaining_uncertainty": 0.6624,
+          "scenario_confidence": 0.3376,
+          "scenario_confidence_source": "institutional_support",
+          "scenario_confidence_type": "conviction_proxy",
+          "scenario_probability": 0.5,
+          "scenario_type": "base",
+          "time_horizon_days": 90
+        },
+        {
+          "expected_direction": "bullish",
+          "regime_path": [
+            "INFLATIONARY",
+            "NORMAL_GROWTH"
+          ],
+          "reliability_category": "low",
+          "remaining_uncertainty": 0.6624,
+          "scenario_confidence": 0.3376,
+          "scenario_confidence_source": "institutional_support",
+          "scenario_confidence_type": "conviction_proxy",
+          "scenario_probability": 0.25,
+          "scenario_type": "bull",
+          "time_horizon_days": 90
+        },
+        {
+          "expected_direction": "bearish",
+          "regime_path": [
+            "INFLATIONARY",
+            "STAGFLATIONARY"
+          ],
+          "reliability_category": "low",
+          "remaining_uncertainty": 0.6624,
+          "scenario_confidence": 0.3376,
+          "scenario_confidence_source": "institutional_support",
+          "scenario_confidence_type": "conviction_proxy",
+          "scenario_probability": 0.25,
+          "scenario_type": "bear",
+          "time_horizon_days": 90
+        }
+      ],
+      "source_diversity": 0.3333,
+      "supporting_set_count": 1,
+      "supporting_set_ids": [
+        "es_general"
+      ],
+      "thesis_direction": "neutral",
+      "thesis_id": "th_08765d8c75a0.v2"
+    },
+    {
+      "bias_flags": [
+        "regime_conflict",
+        "missing_evidence"
+      ],
+      "confidence_penalties": [
+        {
+          "name": "counter_evidence",
+          "penalty": 0.0292,
+          "value": 0.0833
+        },
+        {
+          "name": "missing_evidence",
+          "penalty": 0.0833,
+          "value": 0.3333333333333333
+        },
+        {
+          "name": "internal_consistency",
+          "penalty": 0.0933,
+          "value": 0.2333
+        }
+      ],
+      "confidence_penalty": 0.2333,
+      "conflict_severity": 0.0833,
+      "contradicting_set_ids": [],
+      "counter_evidence_ids": [
+        "es_inflation"
+      ],
+      "counter_evidence_penalty": 0.0833,
+      "evidence_consensus": 0.5,
+      "evidence_quality": 0.5955,
+      "final_confidence": 0.3801,
+      "institutional_support": 0.2283,
+      "internal_consistency_penalty": 0.2333,
+      "is_selected_in_w13": false,
+      "knowledge_record_quality": 1.0,
+      "missing_evidence_penalty": 0.3333333333333333,
+      "negative_contributors": [
+        {
+          "name": "counter_evidence",
+          "value": 0.0833,
+          "weight": 0.35
+        },
+        {
+          "name": "missing_evidence",
+          "value": 0.3333333333333333,
+          "weight": 0.25
+        },
+        {
+          "name": "internal_consistency",
+          "value": 0.2333,
+          "weight": 0.4
+        }
+      ],
+      "penalty_score": 0.2058,
+      "positive_contributors": [
+        {
+          "name": "evidence_quality",
+          "value": 0.5955,
+          "weight": 0.3
+        },
+        {
+          "name": "evidence_consensus",
+          "value": 0.5,
+          "weight": 0.3
+        },
+        {
+          "name": "regime_alignment",
+          "value": 0.0,
+          "weight": 0.15
+        },
+        {
+          "name": "source_diversity",
+          "value": 0.3333,
+          "weight": 0.15
+        },
+        {
+          "name": "knowledge_record_quality",
+          "value": 1.0,
+          "weight": 0.1
+        }
+      ],
+      "positive_score": 0.4786,
+      "primitive_sources": {
+        "confidence_breakdown": "W9 ConfidenceComputer via W9 ConfidenceEngine",
+        "counter_evidence_and_severity": "W7 CounterEvidenceAssessor",
+        "final_confidence": "W9 ConfidenceEngine",
+        "institutional_support": "W8 ThesisBuilder._compute_institutional_support",
+        "risk_reward_fields": "W12 RiskRewardValidator (consumed by W13 DecisionEngine)",
+        "scenario_fields": "W12 ScenarioGenerator (Correction 052-A labels)",
+        "supporting_set_ids": "W8 ThesisBuilder (W6 evidence sets)"
+      },
+      "regime_alignment": 0.0,
+      "regime_conflict_flag": true,
+      "reliability_category": "low",
+      "remaining_uncertainty": 0.6199,
+      "risk_reward_consumed_by_w13": [
+        {
+          "expected_reward": 0.092,
+          "expected_risk": 0.4201,
+          "expected_upside": 0.1839,
+          "liquidity_risk": 0.4983,
+          "maximum_downside": 0.8402,
+          "metadata_probability": 0.5,
+          "metadata_scenario_label": "Base Case",
+          "regime_risk": 0.3,
+          "risk_reward_ratio": 5.1315,
+          "tail_risk": 0.7609,
+          "validation_status": "reject",
+          "volatility_impact": 0.5359
+        },
+        {
+          "expected_reward": 0.093,
+          "expected_risk": 0.068,
+          "expected_upside": 0.4598,
+          "liquidity_risk": 0.4983,
+          "maximum_downside": 0.3361,
+          "metadata_probability": 0.2022,
+          "metadata_scenario_label": "Bull Case",
+          "regime_risk": 0.75,
+          "risk_reward_ratio": 4.1505,
+          "tail_risk": 0.7609,
+          "validation_status": "reject",
+          "volatility_impact": 0.7609
+        },
+        {
+          "expected_reward": 0.0548,
+          "expected_risk": 0.2502,
+          "expected_upside": 0.1839,
+          "liquidity_risk": 0.4983,
+          "maximum_downside": 0.8402,
+          "metadata_probability": 0.2978,
+          "metadata_scenario_label": "Bear Case",
+          "regime_risk": 0.75,
+          "risk_reward_ratio": 8.7062,
+          "tail_risk": 0.7609,
+          "validation_status": "reject",
+          "volatility_impact": 0.7609
+        }
+      ],
+      "scenarios": [
+        {
+          "expected_direction": "bearish",
+          "regime_path": [
+            "INFLATIONARY"
+          ],
+          "reliability_category": "very_low",
+          "remaining_uncertainty": 0.7717,
+          "scenario_confidence": 0.2283,
+          "scenario_confidence_source": "institutional_support",
+          "scenario_confidence_type": "conviction_proxy",
+          "scenario_probability": 0.5,
+          "scenario_type": "base",
+          "time_horizon_days": 90
+        },
+        {
+          "expected_direction": "bullish",
+          "regime_path": [
+            "INFLATIONARY",
+            "NORMAL_GROWTH"
+          ],
+          "reliability_category": "very_low",
+          "remaining_uncertainty": 0.7717,
+          "scenario_confidence": 0.2283,
+          "scenario_confidence_source": "institutional_support",
+          "scenario_confidence_type": "conviction_proxy",
+          "scenario_probability": 0.2022,
+          "scenario_type": "bull",
+          "time_horizon_days": 90
+        },
+        {
+          "expected_direction": "bearish",
+          "regime_path": [
+            "INFLATIONARY",
+            "STAGFLATIONARY"
+          ],
+          "reliability_category": "very_low",
+          "remaining_uncertainty": 0.7717,
+          "scenario_confidence": 0.2283,
+          "scenario_confidence_source": "institutional_support",
+          "scenario_confidence_type": "conviction_proxy",
+          "scenario_probability": 0.2978,
+          "scenario_type": "bear",
+          "time_horizon_days": 90
+        }
+      ],
+      "source_diversity": 0.3333,
+      "supporting_set_count": 1,
+      "supporting_set_ids": [
+        "es_usd_fx"
+      ],
+      "thesis_direction": "bearish",
+      "thesis_id": "th_3a6a4a6c3b1f"
+    },
+    {
+      "bias_flags": [
+        "regime_conflict",
+        "missing_evidence"
+      ],
+      "confidence_penalties": [
+        {
+          "name": "counter_evidence",
+          "penalty": 0.0292,
+          "value": 0.0833
+        },
+        {
+          "name": "missing_evidence",
+          "penalty": 0.0833,
+          "value": 0.3333333333333333
+        },
+        {
+          "name": "internal_consistency",
+          "penalty": 0.0933,
+          "value": 0.2333
+        }
+      ],
+      "confidence_penalty": 0.2333,
+      "conflict_severity": 0.0833,
+      "contradicting_set_ids": [],
+      "counter_evidence_ids": [
+        "es_usd_fx"
+      ],
+      "counter_evidence_penalty": 0.0833,
+      "evidence_consensus": 0.0,
+      "evidence_quality": 0.59,
+      "final_confidence": 0.3788,
+      "institutional_support": 0.0,
+      "internal_consistency_penalty": 0.2333,
+      "is_selected_in_w13": false,
+      "knowledge_record_quality": 1.0,
+      "missing_evidence_penalty": 0.3333333333333333,
+      "negative_contributors": [
+        {
+          "name": "counter_evidence",
+          "value": 0.0833,
+          "weight": 0.35
+        },
+        {
+          "name": "missing_evidence",
+          "value": 0.3333333333333333,
+          "weight": 0.25
+        },
+        {
+          "name": "internal_consistency",
+          "value": 0.2333,
+          "weight": 0.4
+        }
+      ],
+      "penalty_score": 0.2058,
+      "positive_contributors": [
+        {
+          "name": "evidence_quality",
+          "value": 0.59,
+          "weight": 0.3
+        },
+        {
+          "name": "evidence_consensus",
+          "value": 0.0,
+          "weight": 0.3
+        },
+        {
+          "name": "regime_alignment",
+          "value": 1.0,
+          "weight": 0.15
+        },
+        {
+          "name": "source_diversity",
+          "value": 0.3333,
+          "weight": 0.15
+        },
+        {
+          "name": "knowledge_record_quality",
+          "value": 1.0,
+          "weight": 0.1
+        }
+      ],
+      "positive_score": 0.477,
+      "primitive_sources": {
+        "confidence_breakdown": "W9 ConfidenceComputer via W9 ConfidenceEngine",
+        "counter_evidence_and_severity": "W7 CounterEvidenceAssessor",
+        "final_confidence": "W9 ConfidenceEngine",
+        "institutional_support": "W8 ThesisBuilder._compute_institutional_support",
+        "risk_reward_fields": "W12 RiskRewardValidator (consumed by W13 DecisionEngine)",
+        "scenario_fields": "W12 ScenarioGenerator (Correction 052-A labels)",
+        "supporting_set_ids": "W8 ThesisBuilder (W6 evidence sets)"
+      },
+      "regime_alignment": 1.0,
+      "regime_conflict_flag": true,
+      "reliability_category": "low",
+      "remaining_uncertainty": 0.6212,
+      "risk_reward_consumed_by_w13": [
+        {
+          "expected_reward": 0.3565,
+          "expected_risk": 0.1174,
+          "expected_upside": 0.713,
+          "liquidity_risk": 0.2483,
+          "maximum_downside": 0.2348,
+          "metadata_probability": 0.5,
+          "metadata_scenario_label": "Base Case",
+          "regime_risk": 0.3,
+          "risk_reward_ratio": 0.5877,
+          "tail_risk": 0.33,
+          "validation_status": "acceptable",
+          "volatility_impact": 0.355
+        },
+        {
+          "expected_reward": 0.2381,
+          "expected_risk": 0.0784,
+          "expected_upside": 0.713,
+          "liquidity_risk": 0.2483,
+          "maximum_downside": 0.2348,
+          "metadata_probability": 0.334,
+          "metadata_scenario_label": "Bull Case",
+          "regime_risk": 0.75,
+          "risk_reward_ratio": 1.176,
+          "tail_risk": 0.33,
+          "validation_status": "borderline",
+          "volatility_impact": 0.58
+        },
+        {
+          "expected_reward": 0.0473,
+          "expected_risk": 0.0974,
+          "expected_upside": 0.2852,
+          "liquidity_risk": 0.2483,
+          "maximum_downside": 0.587,
+          "metadata_probability": 0.166,
+          "metadata_scenario_label": "Bear Case",
+          "regime_risk": 0.75,
+          "risk_reward_ratio": 6.1205,
+          "tail_risk": 0.33,
+          "validation_status": "reject",
+          "volatility_impact": 0.58
+        }
+      ],
+      "scenarios": [
+        {
+          "expected_direction": "bullish",
+          "regime_path": [
+            "INFLATIONARY"
+          ],
+          "reliability_category": "moderate",
+          "remaining_uncertainty": 0.41,
+          "scenario_confidence": 0.59,
+          "scenario_confidence_source": "institutional_support",
+          "scenario_confidence_type": "conviction_proxy",
+          "scenario_probability": 0.5,
+          "scenario_type": "base",
+          "time_horizon_days": 90
+        },
+        {
+          "expected_direction": "bullish",
+          "regime_path": [
+            "INFLATIONARY",
+            "NORMAL_GROWTH"
+          ],
+          "reliability_category": "moderate",
+          "remaining_uncertainty": 0.41,
+          "scenario_confidence": 0.59,
+          "scenario_confidence_source": "institutional_support",
+          "scenario_confidence_type": "conviction_proxy",
+          "scenario_probability": 0.334,
+          "scenario_type": "bull",
+          "time_horizon_days": 90
+        },
+        {
+          "expected_direction": "bearish",
+          "regime_path": [
+            "INFLATIONARY",
+            "STAGFLATIONARY"
+          ],
+          "reliability_category": "moderate",
+          "remaining_uncertainty": 0.41,
+          "scenario_confidence": 0.59,
+          "scenario_confidence_source": "institutional_support",
+          "scenario_confidence_type": "conviction_proxy",
+          "scenario_probability": 0.166,
+          "scenario_type": "bear",
+          "time_horizon_days": 90
+        }
+      ],
+      "source_diversity": 0.3333,
+      "supporting_set_count": 1,
+      "supporting_set_ids": [
+        "es_inflation"
+      ],
+      "thesis_direction": "bullish",
+      "thesis_id": "th_69d567c87d73"
+    }
+  ],
+  "confidence": {
+    "agreement_score": 1.0,
+    "context_coherence": 0.12236666666666667,
+    "overall": 0.7194003044560205,
+    "spread_score": 0.9423010148534018
+  },
+  "context": {
+    "context_timestamp": "2026-08-28T10:46:09.507323+00:00",
+    "current_regime": "LATE_CYCLE",
+    "data_date_range": [
+      "2015-01-02",
+      "2026-08-28"
+    ],
+    "fomc_confidence": 0.0,
+    "fomc_mood": null,
+    "institutional_regime": "INFLATIONARY",
+    "news_confidence": 0.0,
+    "news_mood": null,
+    "recent_events": [],
+    "regime_confidence": 0.3671,
+    "source_variable": "AutoARIMA"
+  },
+  "decision": {
+    "decision": "NO_TRADE",
+    "decision_drivers": [
+      {
+        "name": "institutional_confidence",
+        "score": 0.2496,
+        "value": 0.4992,
+        "weight": 0.5
+      },
+      {
+        "name": "risk_reward_quality",
+        "score": 0.2017,
+        "value": 0.6052,
+        "weight": 0.3333333333333333
+      },
+      {
+        "name": "scenario_probability",
+        "score": 0.0833,
+        "value": 0.5,
+        "weight": 0.16666666666666666
+      }
+    ],
+    "decision_explanation": "decision=NO_TRADE; selected_thesis=th_08765d8c75a0.v2 (neutral); selected_scenario=sc_ab08eeaea1e7 (base, p=0.5); composite_score=0.5347; institutional_confidence=0.4992; risk_reward_status=borderline; risk_reward_ratio=1.8498; reason=selected thesis th_08765d8c75a0.v2 blocked by conviction gate: institutional_confidence=0.4992 < 0.5 threshold",
+    "decision_id": "dec_f7728781bad4",
+    "institutional_confidence": 0.4992,
+    "invalidation_conditions": [
+      "Current regime conflicts with thesis direction",
+      "Regime-dependent evidence weakening thesis",
+      "Missing evidence channels: CB_GOLD"
+    ],
+    "metadata": {
+      "bias_review": {
+        "findings": [
+          "single_source_bias",
+          "false_precision"
+        ],
+        "human_review_flag": false,
+        "overall_severity": "medium",
+        "review_id": "bias-th_08765d8c75a0.v2",
+        "total_confidence_impact": 0.25
+      },
+      "composite_score": 0.5347,
+      "gate_reason": "confidence_below_threshold",
+      "other_candidate_reviews": [
+        {
+          "human_review_flag": false,
+          "overall_severity": "medium",
+          "thesis_id": "th_08765d8c75a0"
+        },
+        {
+          "human_review_flag": false,
+          "overall_severity": "medium",
+          "thesis_id": "th_3a6a4a6c3b1f"
+        },
+        {
+          "human_review_flag": false,
+          "overall_severity": "medium",
+          "thesis_id": "th_69d567c87d73"
+        }
+      ],
+      "reviewed_thesis_id": "th_08765d8c75a0.v2",
+      "selected_scenario_type": "base",
+      "selected_thesis_direction": "neutral",
+      "total_rejected_alternatives": 2,
+      "total_theses_evaluated": 3
+    },
+    "preconditions": [
+      "Multi-factor cross-asset transmission affecting gold price continues to develop as expected"
+    ],
+    "provenance_chain": [
+      {
+        "created_at": "2026-08-28T10:46:39.966794+00:00",
+        "created_by": "W7 CounterEvidenceAssessor",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      },
+      {
+        "created_at": "2026-08-28T10:46:39.966845+00:00",
+        "created_by": "W8 ThesisBuilder",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      },
+      {
+        "created_at": "2026-08-28T10:46:39.956740+00:00",
+        "created_by": "W10 ThesisUpdater",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      },
+      {
+        "created_at": "2026-08-28T10:46:39.986966+00:00",
+        "created_by": "W12 ScenarioGenerator",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      },
+      {
+        "created_at": "2026-08-28T10:46:39.990265+00:00",
+        "created_by": "W12 RiskRewardValidator",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      },
+      {
+        "created_at": "2026-08-28T10:46:40.007311+00:00",
+        "created_by": "W13 DecisionEngine",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      }
+    ],
+    "rejected_alternatives": [
+      {
+        "composite_score": 0.5185,
+        "rejection_reason": "lower composite score (0.5185) than selected thesis (0.5347)",
+        "thesis_direction": "bullish",
+        "thesis_id": "th_69d567c87d73"
+      },
+      {
+        "composite_score": 0.4068,
+        "rejection_reason": "no acceptable or borderline scenario: all scenarios rejected by W12 risk/reward validation (best status=reject)",
+        "thesis_direction": "bearish",
+        "thesis_id": "th_3a6a4a6c3b1f"
+      }
+    ],
+    "risk_reward_summary": {
+      "expected_reward": 0.1877,
+      "expected_risk": 0.2673,
+      "expected_upside": 0.3754,
+      "liquidity_risk": 0.3733,
+      "maximum_downside": 0.5346,
+      "regime_risk": 0.3,
+      "risk_reward_ratio": 1.8498,
+      "status": "borderline",
+      "tail_risk": 0.5812,
+      "volatility_impact": 0.4812
+    },
+    "selected_scenario_id": "sc_ab08eeaea1e7",
+    "selected_thesis_id": "th_08765d8c75a0.v2"
+  },
+  "forecast_result": {
+    "confidence_level": 0.95,
+    "metadata": {
+      "freq": "ME",
+      "h": 12,
+      "n_obs": 2930,
+      "season_length": 12
+    },
+    "model_name": "AutoARIMA",
+    "points": [
+      {
+        "ds": "2026-08-31 00:00:00",
+        "y": 4654.375089370724,
+        "y_hi": 4713.011122032102,
+        "y_lo": 4595.739056709345
+      },
+      {
+        "ds": "2026-09-30 00:00:00",
+        "y": 4655.656930060648,
+        "y_hi": 4737.238595681842,
+        "y_lo": 4574.075264439454
+      },
+      {
+        "ds": "2026-10-31 00:00:00",
+        "y": 4661.836760744747,
+        "y_hi": 4758.781541059856,
+        "y_lo": 4564.891980429638
+      },
+      {
+        "ds": "2026-11-30 00:00:00",
+        "y": 4659.9576451035155,
+        "y_hi": 4771.172723586939,
+        "y_lo": 4548.742566620092
+      },
+      {
+        "ds": "2026-12-31 00:00:00",
+        "y": 4673.40432023191,
+        "y_hi": 4797.38621596474,
+        "y_lo": 4549.42242449908
+      },
+      {
+        "ds": "2027-01-31 00:00:00",
+        "y": 4677.454904717575,
+        "y_hi": 4812.920408887295,
+        "y_lo": 4541.989400547855
+      },
+      {
+        "ds": "2027-02-28 00:00:00",
+        "y": 4692.771295918717,
+        "y_hi": 4838.871960058912,
+        "y_lo": 4546.670631778523
+      },
+      {
+        "ds": "2027-03-31 00:00:00",
+        "y": 4702.154161048089,
+        "y_hi": 4858.205500304935,
+        "y_lo": 4546.102821791243
+      },
+      {
+        "ds": "2027-04-30 00:00:00",
+        "y": 4702.493521233613,
+        "y_hi": 4867.921004623796,
+        "y_lo": 4537.06603784343
+      },
+      {
+        "ds": "2027-05-31 00:00:00",
+        "y": 4700.661345636592,
+        "y_hi": 4874.987613680587,
+        "y_lo": 4526.335077592597
+      },
+      {
+        "ds": "2027-06-30 00:00:00",
+        "y": 4708.538418022386,
+        "y_hi": 4891.356431765445,
+        "y_lo": 4525.720404279327
+      },
+      {
+        "ds": "2027-07-31 00:00:00",
+        "y": 4713.900927026507,
+        "y_hi": 4904.857312469327,
+        "y_lo": 4522.944541583687
+      }
+    ]
+  },
+  "legacy_decision": {
+    "confidence": 0.540433,
+    "context": {
+      "event_type": "CPI",
+      "institutional_context": {},
+      "metadata": {},
+      "query": ""
+    },
+    "decision_id": "dec_reason_CPI_inflation_pressure_up",
+    "decision_type": "POSITIVE",
+    "evidence_count": 3,
+    "explanation": "Decision POSITIVE based on reasoning chain 'reason_CPI_inflation_pressure_up': aggregated evidence of 3 items shows average return of +0.392255% with overall confidence of 0.540.",
+    "metadata": {
+      "avg_return_pct": 0.392255,
+      "chain_confidence": 0.540433
+    },
+    "provenance": null,
+    "reasoning_chain_id": "reason_CPI_inflation_pressure_up"
+  },
+  "news_intelligence": {
+    "as_of": "2026-08-28T10:44:30.176371+00:00",
+    "duplicate_count": 0,
+    "excluded_after_asof_count": 0,
+    "fact_references": {
+      "desk_provenance": {
+        "as_of": "2026-08-28T10:44:30.176371+00:00",
+        "assessment_id": "news_batch_517501c45b5ff452",
+        "confidence": 0.0,
+        "derived_facts": [],
+        "desk_id": "news_intelligence",
+        "facts_used": [
+          "fct_5498714b5589bd9b",
+          "fct_93fd3b388482484d",
+          "fct_953fb77006d038b3"
+        ],
+        "horizon_scope": "news",
+        "metadata": {},
+        "source_artifacts": [
+          "nws_48677686135049b6",
+          "nws_de0863a2e68c826b",
+          "nws_11e2b3b0aedbc47b",
+          "nws_1c66884babcc3df7",
+          "nws_c5649ca2417da424",
+          "nws_ace36c056aa98d22",
+          "nws_b0bf5b90959d34d7",
+          "nws_818abe2e547a6a5b",
+          "nws_1f9c997dd48ce777",
+          "nws_6b3570b6130ecd6e",
+          "nws_6b7acf859e71303a",
+          "nws_de116160fa2ad821",
+          "nws_eb4f3ecc6e4208b3",
+          "nws_8d2e744cde9e7a42",
+          "nws_c872707f4d28a37a",
+          "nws_d049730ea6cdfb51",
+          "nws_fa4928d8efdee8f5",
+          "nws_d46e8c2700a760e3",
+          "nws_c2a52a0547a8e619",
+          "nws_3882076ddf309939"
+        ]
+      },
+      "facts": [
+        {
+          "as_of": "2026-08-28",
+          "asset": "DXY",
+          "confidence": 0.45,
+          "derived_from": [],
+          "fact_id": "fct_5498714b5589bd9b",
+          "metadata": {
+            "directional_implication": "unknown",
+            "headline_hash_source": "news_intelligence"
+          },
+          "observed_at": "2026-08-28T07:44:40+00:00",
+          "producer": "news_intelligence",
+          "record_hash": "2be915fc24fd471a8bc2035f5b938fdad46ae634aa6b9ebba55b432a7f9b7799",
+          "schema_version": "1.0",
+          "source": "FXStreet",
+          "source_artifact_id": "nws_de0863a2e68c826b",
+          "source_hash": "72c23cd202f8ca87fb4974c54c6bbe8c9b6dca3621442cda6f833c9a409cbe2a",
+          "topic": "usd_state_reference",
+          "unit": "state",
+          "valid_from": "2026-08-28",
+          "valid_until": "",
+          "value": null
+        },
+        {
+          "as_of": "2026-08-28",
+          "asset": "US_CPI",
+          "confidence": 0.45,
+          "derived_from": [],
+          "fact_id": "fct_93fd3b388482484d",
+          "metadata": {
+            "directional_implication": "unknown",
+            "headline_hash_source": "news_intelligence"
+          },
+          "observed_at": "2026-08-28T07:00:38+00:00",
+          "producer": "news_intelligence",
+          "record_hash": "9191ab12fdc70852c77adecc8a7b55dc8dec86b333203766bad2c41e29b6c47e",
+          "schema_version": "1.0",
+          "source": "investingLive",
+          "source_artifact_id": "nws_1c66884babcc3df7",
+          "source_hash": "fc167a9579f2ee6e73fd0917b584108cbe065c6aa4e68de22fbc652d7c9e92e4",
+          "topic": "cpi_release_reference",
+          "unit": "state",
+          "valid_from": "2026-08-28",
+          "valid_until": "",
+          "value": null
+        },
+        {
+          "as_of": "2026-08-28",
+          "asset": "US_CPI",
+          "confidence": 0.45,
+          "derived_from": [],
+          "fact_id": "fct_93fd3b388482484d",
+          "metadata": {
+            "directional_implication": "unknown",
+            "headline_hash_source": "news_intelligence"
+          },
+          "observed_at": "2026-08-28T01:05:00+00:00",
+          "producer": "news_intelligence",
+          "record_hash": "9454114c8aa7de44923ffdca251921720aff5f1a3af9062a22ba3dcef85e93e3",
+          "schema_version": "1.0",
+          "source": "finance.biggo.com",
+          "source_artifact_id": "nws_c872707f4d28a37a",
+          "source_hash": "29df483bd2d2fb7c8b0125183ea92906d78f34f1919be1f1e4091d6b8c4d74b7",
+          "topic": "cpi_release_reference",
+          "unit": "state",
+          "valid_from": "2026-08-28",
+          "valid_until": "",
+          "value": null
+        },
+        {
+          "as_of": "2026-08-28",
+          "asset": "US_CPI",
+          "confidence": 0.45,
+          "derived_from": [],
+          "fact_id": "fct_93fd3b388482484d",
+          "metadata": {
+            "directional_implication": "unknown",
+            "headline_hash_source": "news_intelligence"
+          },
+          "observed_at": "2026-08-28T00:53:39+00:00",
+          "producer": "news_intelligence",
+          "record_hash": "a43c101f2b811518459f4f55288aa9cb666ef5fb629090847517eed683e13a00",
+          "schema_version": "1.0",
+          "source": "FXStreet",
+          "source_artifact_id": "nws_d049730ea6cdfb51",
+          "source_hash": "07d9f165e5a5635f601c8f381858dbc27ebbc271ed144960fa39f5a8f668083b",
+          "topic": "cpi_release_reference",
+          "unit": "state",
+          "valid_from": "2026-08-28",
+          "valid_until": "",
+          "value": null
+        },
+        {
+          "as_of": "2026-08-28",
+          "asset": "US_CPI",
+          "confidence": 0.45,
+          "derived_from": [],
+          "fact_id": "fct_93fd3b388482484d",
+          "metadata": {
+            "directional_implication": "unknown",
+            "headline_hash_source": "news_intelligence"
+          },
+          "observed_at": "2026-08-28T00:05:21+00:00",
+          "producer": "news_intelligence",
+          "record_hash": "121d14ac008762c8277cc2d0164c2b01c46ce82aeb1390ac22856eff538a1b90",
+          "schema_version": "1.0",
+          "source": "investingLive",
+          "source_artifact_id": "nws_fa4928d8efdee8f5",
+          "source_hash": "0478805d3650f65fb7973b81ed9078640053107edbd1fdec660581c3027d4123",
+          "topic": "cpi_release_reference",
+          "unit": "state",
+          "valid_from": "2026-08-28",
+          "valid_until": "",
+          "value": null
+        },
+        {
+          "as_of": "2026-08-27",
+          "asset": "US_CPI",
+          "confidence": 0.45,
+          "derived_from": [],
+          "fact_id": "fct_953fb77006d038b3",
+          "metadata": {
+            "directional_implication": "unknown",
+            "headline_hash_source": "news_intelligence"
+          },
+          "observed_at": "2026-08-27T23:55:00+00:00",
+          "producer": "news_intelligence",
+          "record_hash": "483cf6ece89479dfce76267d85e656eb7bf34f8eb8096e3d1f1f3d770a66cab2",
+          "schema_version": "1.0",
+          "source": "IndexBox",
+          "source_artifact_id": "nws_c2a52a0547a8e619",
+          "source_hash": "3c8470f0d80355f024f82bfb81bf63bc8c9000061cc6fcf282a7fd8c1b51514d",
+          "topic": "cpi_release_reference",
+          "unit": "state",
+          "valid_from": "2026-08-27",
+          "valid_until": "",
+          "value": null
+        },
+        {
+          "as_of": "2026-08-27",
+          "asset": "US_CPI",
+          "confidence": 0.65,
+          "derived_from": [],
+          "fact_id": "fct_953fb77006d038b3",
+          "metadata": {
+            "directional_implication": "unknown",
+            "headline_hash_source": "news_intelligence"
+          },
+          "observed_at": "2026-08-27T23:52:32+00:00",
+          "producer": "news_intelligence",
+          "record_hash": "03596cd710bd327875a509f7985073ba8370883f9ad3fdd19131e8e0054d0ef5",
+          "schema_version": "1.0",
+          "source": "Investing.com",
+          "source_artifact_id": "nws_3882076ddf309939",
+          "source_hash": "99010c3ee0096fcaa9fd6f17741f5b4509c5111e707decb360885129b907eb3f",
+          "topic": "cpi_release_reference",
+          "unit": "state",
+          "valid_from": "2026-08-27",
+          "valid_until": "",
+          "value": null
+        }
+      ],
+      "references": [
+        {
+          "article_id": "nws_de0863a2e68c826b",
+          "event_type": "usd_dollar",
+          "facts": [
+            {
+              "as_of": "2026-08-28",
+              "asset": "DXY",
+              "confidence": 0.45,
+              "derived_from": [],
+              "fact_id": "fct_5498714b5589bd9b",
+              "metadata": {
+                "directional_implication": "unknown",
+                "headline_hash_source": "news_intelligence"
+              },
+              "observed_at": "2026-08-28T07:44:40+00:00",
+              "producer": "news_intelligence",
+              "record_hash": "2be915fc24fd471a8bc2035f5b938fdad46ae634aa6b9ebba55b432a7f9b7799",
+              "schema_version": "1.0",
+              "source": "FXStreet",
+              "source_artifact_id": "nws_de0863a2e68c826b",
+              "source_hash": "72c23cd202f8ca87fb4974c54c6bbe8c9b6dca3621442cda6f833c9a409cbe2a",
+              "topic": "usd_state_reference",
+              "unit": "state",
+              "valid_from": "2026-08-28",
+              "valid_until": "",
+              "value": null
+            }
+          ]
+        },
+        {
+          "article_id": "nws_1c66884babcc3df7",
+          "event_type": "cpi_inflation",
+          "facts": [
+            {
+              "as_of": "2026-08-28",
+              "asset": "US_CPI",
+              "confidence": 0.45,
+              "derived_from": [],
+              "fact_id": "fct_93fd3b388482484d",
+              "metadata": {
+                "directional_implication": "unknown",
+                "headline_hash_source": "news_intelligence"
+              },
+              "observed_at": "2026-08-28T07:00:38+00:00",
+              "producer": "news_intelligence",
+              "record_hash": "9191ab12fdc70852c77adecc8a7b55dc8dec86b333203766bad2c41e29b6c47e",
+              "schema_version": "1.0",
+              "source": "investingLive",
+              "source_artifact_id": "nws_1c66884babcc3df7",
+              "source_hash": "fc167a9579f2ee6e73fd0917b584108cbe065c6aa4e68de22fbc652d7c9e92e4",
+              "topic": "cpi_release_reference",
+              "unit": "state",
+              "valid_from": "2026-08-28",
+              "valid_until": "",
+              "value": null
+            }
+          ]
+        },
+        {
+          "article_id": "nws_c872707f4d28a37a",
+          "event_type": "cpi_inflation",
+          "facts": [
+            {
+              "as_of": "2026-08-28",
+              "asset": "US_CPI",
+              "confidence": 0.45,
+              "derived_from": [],
+              "fact_id": "fct_93fd3b388482484d",
+              "metadata": {
+                "directional_implication": "unknown",
+                "headline_hash_source": "news_intelligence"
+              },
+              "observed_at": "2026-08-28T01:05:00+00:00",
+              "producer": "news_intelligence",
+              "record_hash": "9454114c8aa7de44923ffdca251921720aff5f1a3af9062a22ba3dcef85e93e3",
+              "schema_version": "1.0",
+              "source": "finance.biggo.com",
+              "source_artifact_id": "nws_c872707f4d28a37a",
+              "source_hash": "29df483bd2d2fb7c8b0125183ea92906d78f34f1919be1f1e4091d6b8c4d74b7",
+              "topic": "cpi_release_reference",
+              "unit": "state",
+              "valid_from": "2026-08-28",
+              "valid_until": "",
+              "value": null
+            }
+          ]
+        },
+        {
+          "article_id": "nws_d049730ea6cdfb51",
+          "event_type": "cpi_inflation",
+          "facts": [
+            {
+              "as_of": "2026-08-28",
+              "asset": "US_CPI",
+              "confidence": 0.45,
+              "derived_from": [],
+              "fact_id": "fct_93fd3b388482484d",
+              "metadata": {
+                "directional_implication": "unknown",
+                "headline_hash_source": "news_intelligence"
+              },
+              "observed_at": "2026-08-28T00:53:39+00:00",
+              "producer": "news_intelligence",
+              "record_hash": "a43c101f2b811518459f4f55288aa9cb666ef5fb629090847517eed683e13a00",
+              "schema_version": "1.0",
+              "source": "FXStreet",
+              "source_artifact_id": "nws_d049730ea6cdfb51",
+              "source_hash": "07d9f165e5a5635f601c8f381858dbc27ebbc271ed144960fa39f5a8f668083b",
+              "topic": "cpi_release_reference",
+              "unit": "state",
+              "valid_from": "2026-08-28",
+              "valid_until": "",
+              "value": null
+            }
+          ]
+        },
+        {
+          "article_id": "nws_fa4928d8efdee8f5",
+          "event_type": "cpi_inflation",
+          "facts": [
+            {
+              "as_of": "2026-08-28",
+              "asset": "US_CPI",
+              "confidence": 0.45,
+              "derived_from": [],
+              "fact_id": "fct_93fd3b388482484d",
+              "metadata": {
+                "directional_implication": "unknown",
+                "headline_hash_source": "news_intelligence"
+              },
+              "observed_at": "2026-08-28T00:05:21+00:00",
+              "producer": "news_intelligence",
+              "record_hash": "121d14ac008762c8277cc2d0164c2b01c46ce82aeb1390ac22856eff538a1b90",
+              "schema_version": "1.0",
+              "source": "investingLive",
+              "source_artifact_id": "nws_fa4928d8efdee8f5",
+              "source_hash": "0478805d3650f65fb7973b81ed9078640053107edbd1fdec660581c3027d4123",
+              "topic": "cpi_release_reference",
+              "unit": "state",
+              "valid_from": "2026-08-28",
+              "valid_until": "",
+              "value": null
+            }
+          ]
+        },
+        {
+          "article_id": "nws_c2a52a0547a8e619",
+          "event_type": "cpi_inflation",
+          "facts": [
+            {
+              "as_of": "2026-08-27",
+              "asset": "US_CPI",
+              "confidence": 0.45,
+              "derived_from": [],
+              "fact_id": "fct_953fb77006d038b3",
+              "metadata": {
+                "directional_implication": "unknown",
+                "headline_hash_source": "news_intelligence"
+              },
+              "observed_at": "2026-08-27T23:55:00+00:00",
+              "producer": "news_intelligence",
+              "record_hash": "483cf6ece89479dfce76267d85e656eb7bf34f8eb8096e3d1f1f3d770a66cab2",
+              "schema_version": "1.0",
+              "source": "IndexBox",
+              "source_artifact_id": "nws_c2a52a0547a8e619",
+              "source_hash": "3c8470f0d80355f024f82bfb81bf63bc8c9000061cc6fcf282a7fd8c1b51514d",
+              "topic": "cpi_release_reference",
+              "unit": "state",
+              "valid_from": "2026-08-27",
+              "valid_until": "",
+              "value": null
+            }
+          ]
+        },
+        {
+          "article_id": "nws_3882076ddf309939",
+          "event_type": "cpi_inflation",
+          "facts": [
+            {
+              "as_of": "2026-08-27",
+              "asset": "US_CPI",
+              "confidence": 0.65,
+              "derived_from": [],
+              "fact_id": "fct_953fb77006d038b3",
+              "metadata": {
+                "directional_implication": "unknown",
+                "headline_hash_source": "news_intelligence"
+              },
+              "observed_at": "2026-08-27T23:52:32+00:00",
+              "producer": "news_intelligence",
+              "record_hash": "03596cd710bd327875a509f7985073ba8370883f9ad3fdd19131e8e0054d0ef5",
+              "schema_version": "1.0",
+              "source": "Investing.com",
+              "source_artifact_id": "nws_3882076ddf309939",
+              "source_hash": "99010c3ee0096fcaa9fd6f17741f5b4509c5111e707decb360885129b907eb3f",
+              "topic": "cpi_release_reference",
+              "unit": "state",
+              "valid_from": "2026-08-27",
+              "valid_until": "",
+              "value": null
+            }
+          ]
+        }
+      ],
+      "status": "ok",
+      "unmapped_article_ids": [
+        "nws_48677686135049b6",
+        "nws_11e2b3b0aedbc47b",
+        "nws_c5649ca2417da424",
+        "nws_ace36c056aa98d22",
+        "nws_b0bf5b90959d34d7",
+        "nws_818abe2e547a6a5b",
+        "nws_1f9c997dd48ce777",
+        "nws_6b3570b6130ecd6e",
+        "nws_6b7acf859e71303a",
+        "nws_de116160fa2ad821",
+        "nws_eb4f3ecc6e4208b3",
+        "nws_8d2e744cde9e7a42",
+        "nws_d46e8c2700a760e3"
+      ]
+    },
+    "fetch_errors": [],
+    "fomc_events": [
+      {
+        "end_date": "2026-09-16",
+        "event_type": "FOMC",
+        "has_press_conference": true,
+        "is_two_day": false,
+        "minutes_release_date": "2026-10-07",
+        "start_date": "2026-09-16",
+        "statement_time": "2:00 p.m."
+      },
+      {
+        "end_date": "2026-10-28",
+        "event_type": "FOMC",
+        "has_press_conference": true,
+        "is_two_day": false,
+        "minutes_release_date": "2026-11-18",
+        "start_date": "2026-10-28",
+        "statement_time": "2:00 p.m."
+      }
+    ],
+    "fomc_reason": "",
+    "fomc_status": "ok",
+    "ingested_at": "2026-08-28T10:44:30.176380+00:00",
+    "items": [
+      {
+        "article_id": "nws_48677686135049b6",
+        "confidence": 0.5,
+        "content_hash": "78cefbb60a6ce902ff10d1f50d412f4acc9591505d8bfb20014787fd722e7f5f",
+        "direction_basis": "no_unambiguous_event_semantics",
+        "directional_implication": "unknown",
+        "duplicate_of": "",
+        "event_type": "gold_market",
+        "gold_relevance": "high",
+        "gold_relevance_score": 1.0,
+        "headline": "Gold Rate Today in Delhi 28th August 2026 : 22 & 24 Carat, Todays Gold Price in Delhi - Business Today",
+        "ingested_at": "2026-08-28T10:44:33.914281+00:00",
+        "novelty": 1.0,
+        "published_at": "2026-08-28T09:08:37+00:00",
+        "sentiment_available": false,
+        "sentiment_confidence": 0.0,
+        "sentiment_label": "unknown",
+        "source": "Business Today",
+        "topics": [
+          "gold"
+        ],
+        "url": "https://news.google.com/rss/articles/CBMicEFVX3lxTE5uN0hKSXRHZGo3S1pxTWZIdVAzWmhUVG5OU1lCdDV1cG0wN1ZsNXpXWkJnTEt4WUlDTGpZZHItV2I2bnNPX2V0UDk2Zzd3T18zcWc4RHRIYWxoc20yRXYxa2ZNMVVCTkRqZDQ3LW5QdFc?oc=5"
+      },
+      {
+        "article_id": "nws_de0863a2e68c826b",
+        "confidence": 0.45,
+        "content_hash": "72c23cd202f8ca87fb4974c54c6bbe8c9b6dca3621442cda6f833c9a409cbe2a",
+        "direction_basis": "no_unambiguous_event_semantics",
+        "directional_implication": "unknown",
+        "duplicate_of": "",
+        "event_type": "usd_dollar",
+        "gold_relevance": "medium",
+        "gold_relevance_score": 0.6,
+        "headline": "Gold Price Forecast: XAU/USD holds gains above $4,600 as bullish bias prevails - FXStreet",
+        "ingested_at": "2026-08-28T10:44:33.914281+00:00",
+        "novelty": 1.0,
+        "published_at": "2026-08-28T07:44:40+00:00",
+        "sentiment_available": false,
+        "sentiment_confidence": 0.0,
+        "sentiment_label": "unknown",
+        "source": "FXStreet",
+        "topics": [
+          "gold"
+        ],
+        "url": "https://news.google.com/rss/articles/CBMiuwFBVV95cUxPc3VOaHhmY2g4OFBnQnVYSU83MXNZM1FyWHg2QWFJUGdaTmhjY2NYbk9RdkVuVjh6WVVUUEI1T3FaRUlYa2pWVF9mN3hmOVEyVEZ6V2FvaFlMQzl1NGIxYnJwWXlRaktIMkZVMktET3UyNFJUMDMxa1Jid1RBWXBzekpWX0ZRMGpKTm53dkpRZ3pabUZxaEtfWC0zYkwzVlpZZDM2RU9zUjk5ak1CYXIyU2NmczVPVHBReHBj?oc=5"
+      },
+      {
+        "article_id": "nws_11e2b3b0aedbc47b",
+        "confidence": 0.45,
+        "content_hash": "2e6726e14c6cf5acc97539c5c9ab3a116bf4f251cfe356984078d0d177ea1e3c",
+        "direction_basis": "safe_haven_escalation",
+        "directional_implication": "bullish",
+        "duplicate_of": "",
+        "event_type": "geopolitical",
+        "gold_relevance": "medium",
+        "gold_relevance_score": 0.6,
+        "headline": "Gold Price Forecast: Ahead of Warsh's Jackson Hole Speech, Is Gold's Next Target $4,500 or $4,700? - TradingKey",
+        "ingested_at": "2026-08-28T10:44:33.914281+00:00",
+        "novelty": 1.0,
+        "published_at": "2026-08-28T07:10:13+00:00",
+        "sentiment_available": false,
+        "sentiment_confidence": 0.0,
+        "sentiment_label": "unknown",
+        "source": "TradingKey",
+        "topics": [
+          "gold"
+        ],
+        "url": "https://news.google.com/rss/articles/CBMi6gFBVV95cUxQRURiVXVyNjRQSTR3c2FfWFd4MVhDWTBhcXdwNFM1VWVjeWVib25tX0RueTY1X0t3Sy1RR3JQMjh6bTM3UW1NeUY5YWNiVGZxUUM4aHdWWTd6aGR2WUFBaXFoaExRbHZlTThnTDlaY2lrQmJXcV9OSUJQRXExcVl4Y3lYQVo4MGYtY3R5QnhuX3FuUC1ySVBLNkFkMlZLeS03M0lqSE5GSDlEMVFXdm93blBKZFdZQnlHT252Wk1nbEVJcTUteEx5VkJ5WTdvTmFfNlFZM1lOeDltenU3aEprdmZVZWd3RjhaR0E?oc=5"
+      },
+      {
+        "article_id": "nws_1c66884babcc3df7",
+        "confidence": 0.45,
+        "content_hash": "fc167a9579f2ee6e73fd0917b584108cbe065c6aa4e68de22fbc652d7c9e92e4",
+        "direction_basis": "no_unambiguous_event_semantics",
+        "directional_implication": "unknown",
+        "duplicate_of": "",
+        "event_type": "cpi_inflation",
+        "gold_relevance": "medium",
+        "gold_relevance_score": 0.6,
+        "headline": "Spain August preliminary CPI +4.3% vs +4.2% y/y expected - investingLive",
+        "ingested_at": "2026-08-28T10:44:33.914281+00:00",
+        "novelty": 1.0,
+        "published_at": "2026-08-28T07:00:38+00:00",
+        "sentiment_available": false,
+        "sentiment_confidence": 0.0,
+        "sentiment_label": "unknown",
+        "source": "investingLive",
+        "topics": [
+          "inflation"
+        ],
+        "url": "https://news.google.com/rss/articles/CBMiiwFBVV95cUxPazFyX2hkaXB3WEVscVZ5ZTVVUkxRUV9TOUsxNUNhYUQ1VGMzaVZIaDZEaDdVV1BCc3pUVmJmamdaMUlvZ1lvcU5JcDNoSjBnZXk1SEVCNS1lVkQ2eUJOemFUa04wQXpUVjYxS081NEFlWUg1cDMtd1l5cTgzLWdqeDVCMGd5akRTcjA4?oc=5"
+      },
+      {
+        "article_id": "nws_c5649ca2417da424",
+        "confidence": 0.5,
+        "content_hash": "817fefcdfd1714230a5e218cc597a0c51ce55c9948f0b1edce54503ce6fa9974",
+        "direction_basis": "no_unambiguous_event_semantics",
+        "directional_implication": "unknown",
+        "duplicate_of": "",
+        "event_type": "gold_market",
+        "gold_relevance": "high",
+        "gold_relevance_score": 1.0,
+        "headline": "Gold prices fall for fourth straight session, down 3.25 pc in four days - Telangana Today",
+        "ingested_at": "2026-08-28T10:44:33.914281+00:00",
+        "novelty": 1.0,
+        "published_at": "2026-08-28T06:49:41+00:00",
+        "sentiment_available": false,
+        "sentiment_confidence": 0.0,
+        "sentiment_label": "unknown",
+        "source": "Telangana Today",
+        "topics": [
+          "gold"
+        ],
+        "url": "https://news.google.com/rss/articles/CBMingFBVV95cUxPX3cwZ2pKcWZzTjU0OVE0VVlqMUU1WFV6RTJfTVdqOFZzcEJPXzUzWnNjVnpzYVEtd2o4UERHelZ0dEp0NEVOUXp5RXB6YzNlRmJRU0lXZTdCRldXbzVPTEs1UnB6YmJjRkxxU09LRDh5OGRZWVVQeGRfVkdsdmo1UlEtMm9yVFlxb2phRWhsanYtb04zUXlMdUtQZEQ1QQ?oc=5"
+      },
+      {
+        "article_id": "nws_ace36c056aa98d22",
+        "confidence": 0.3,
+        "content_hash": "0be359e60b3b7723920c5e7de7cc108ab8cc7fe3ab6f889ff53bdaddbf08b463",
+        "direction_basis": "no_unambiguous_event_semantics",
+        "directional_implication": "unknown",
+        "duplicate_of": "",
+        "event_type": "generic_macro",
+        "gold_relevance": "low",
+        "gold_relevance_score": 0.3,
+        "headline": "France's inflation up from 2.1% to 2.4% in August - Breakingthenews.net",
+        "ingested_at": "2026-08-28T10:44:33.914281+00:00",
+        "novelty": 1.0,
+        "published_at": "2026-08-28T06:47:00+00:00",
+        "sentiment_available": false,
+        "sentiment_confidence": 0.0,
+        "sentiment_label": "unknown",
+        "source": "Breakingthenews.net",
+        "topics": [
+          "inflation"
+        ],
+        "url": "https://news.google.com/rss/articles/CBMilwFBVV95cUxPOTVReW1sQzcyRHBZU1VybDdlMDBYTklwbE1vaU13Y21VTWFzU2lSakw2aDlLNE1nOVdsLTkzRTFTTXZfVmFpM2FQQzdKVkY3Y2N2ZXV2UWRNZi1CdFZpVi1rM1dzMjkyN1A4RWI3akM1XzBnZ3dFUmVkTVZMYnhyUk5xTkhlUjdzLWo3dnYxUkI5N05ZSmlZ?oc=5"
+      },
+      {
+        "article_id": "nws_b0bf5b90959d34d7",
+        "confidence": 0.3,
+        "content_hash": "94109cd8a06bb2de8b0ad1fc26afdd5f5a5e1e796bfde68e7f9813cf770aa9a1",
+        "direction_basis": "no_unambiguous_event_semantics",
+        "directional_implication": "unknown",
+        "duplicate_of": "",
+        "event_type": "generic_macro",
+        "gold_relevance": "low",
+        "gold_relevance_score": 0.3,
+        "headline": "Tokyo Inflation Nudged Closer To The BOJ\u2019s 2% Target - Finimize",
+        "ingested_at": "2026-08-28T10:44:33.914281+00:00",
+        "novelty": 1.0,
+        "published_at": "2026-08-28T05:39:37+00:00",
+        "sentiment_available": false,
+        "sentiment_confidence": 0.0,
+        "sentiment_label": "unknown",
+        "source": "Finimize",
+        "topics": [
+          "inflation"
+        ],
+        "url": "https://news.google.com/rss/articles/CBMihgFBVV95cUxNclFJbG5qY2NqU214QUN0RUlWUzBhbTltbDJfOHUzbUN3dGd2UnJKSG5lSkVBVV9VYjZWX0xsalFrVXNBb21XWFBoYmxEelA0RnJ2dm1NY3F2MEdkamRQbW5oakpLU0hDRlFQRXgyTllVSHZtZ1d2Sm03RUR3NjFPUGE5VFZ3Zw?oc=5"
+      },
+      {
+        "article_id": "nws_818abe2e547a6a5b",
+        "confidence": 0.5,
+        "content_hash": "1683c844b111eedad384acec39804d378a8fac71da4690db20a6d2abc36bd5e2",
+        "direction_basis": "no_unambiguous_event_semantics",
+        "directional_implication": "unknown",
+        "duplicate_of": "",
+        "event_type": "gold_market",
+        "gold_relevance": "high",
+        "gold_relevance_score": 1.0,
+        "headline": "Gold prices dip in Dubai as investors wait on Fed\u2019s next move - Khaleej Times",
+        "ingested_at": "2026-08-28T10:44:33.914281+00:00",
+        "novelty": 1.0,
+        "published_at": "2026-08-28T05:29:45+00:00",
+        "sentiment_available": false,
+        "sentiment_confidence": 0.0,
+        "sentiment_label": "unknown",
+        "source": "Khaleej Times",
+        "topics": [
+          "gold"
+        ],
+        "url": "https://news.google.com/rss/articles/CBMinwFBVV95cUxQajBLYUd3OXlqVkNJVGNnZHhNdHd1SUszaE01cXpYQ2NCVXZJVlRYeEVyUU9DS0o2UFV1UGZrQjEtbnVacmFUanBxUXRNX1BOektDS0pPNlJDb2VjNkEycFpsaGFoZU9lelE1X1RVNDVnX01XazZVWVZJbTZCdkZKNDV5WG9NaEJpWmFsckVkS0FZY0w4cHgzdWpiZ3BVYVnSAacBQVVfeXFMTTNBNHZCbk1iaGNvMGw0QTBhVzNEWXYzSV9US1lweXRfQXpWaGJsRmVfa0F4T0laLWgxTTZoVjktMEUtckpDb2NMNEJzZkxKR19pS0hOY0YxT0xnUHFFbmVqNlZrZ0hSeHBCWmJJY0R1WWt3czlrWFVvU3RuMGFkMnlWOHJ2dGstX2JYZ2d1U0xVRklrZVBnQ2QyMVNIWXVFMGFxSnJTR1U?oc=5"
+      },
+      {
+        "article_id": "nws_1f9c997dd48ce777",
+        "confidence": 0.5,
+        "content_hash": "55cb2e41c41ffc1a1bb8601f6734a454385eafc659432cb63c08d75b95f33db4",
+        "direction_basis": "no_unambiguous_event_semantics",
+        "directional_implication": "unknown",
+        "duplicate_of": "",
+        "event_type": "gold_market",
+        "gold_relevance": "high",
+        "gold_relevance_score": 1.0,
+        "headline": "Gold prices today, August 28th: \u200b\u200bSJC gold price decreases, DOJI rings lose nearly 2 million VND/ounce. - Vietnam.vn",
+        "ingested_at": "2026-08-28T10:44:33.914281+00:00",
+        "novelty": 1.0,
+        "published_at": "2026-08-28T05:11:46+00:00",
+        "sentiment_available": false,
+        "sentiment_confidence": 0.0,
+        "sentiment_label": "unknown",
+        "source": "Vietnam.vn",
+        "topics": [
+          "gold"
+        ],
+        "url": "https://news.google.com/rss/articles/CBMimAFBVV95cUxPZ1JXX3g2akpXY2NzVjByQ2dpRVhRd0RlZ1E4T19GbFZWaXE2cUw3M0VqZHUtZ2RNX1pGSVZraFVaTElkWkpqV1o2T3hVZVFFWFlQekZJak9idFRLSHBDTTlseThVWjhINW1FckJhamszWHJ3dHc2S1ZoRGUtZmZ4cF9velYzOHZRUlY4dlFpZUJCend5UXMzSA?oc=5"
+      },
+      {
+        "article_id": "nws_6b3570b6130ecd6e",
+        "confidence": 0.5,
+        "content_hash": "8cae9354ef7a8f63ef1e45189836353c12582d47ca8325c6787a9400a727a91f",
+        "direction_basis": "no_unambiguous_event_semantics",
+        "directional_implication": "unknown",
+        "duplicate_of": "",
+        "event_type": "gold_market",
+        "gold_relevance": "high",
+        "gold_relevance_score": 1.0,
+        "headline": "Gold price in Saudi Arabia: Rates on August 28 - FXStreet",
+        "ingested_at": "2026-08-28T10:44:33.914281+00:00",
+        "novelty": 1.0,
+        "published_at": "2026-08-28T05:05:06+00:00",
+        "sentiment_available": false,
+        "sentiment_confidence": 0.0,
+        "sentiment_label": "unknown",
+        "source": "FXStreet",
+        "topics": [
+          "gold"
+        ],
+        "url": "https://news.google.com/rss/articles/CBMirwFBVV95cUxQdFZrYVFkUDR1U0hLT01xSTktcVoxNjUySU1FXzNodGZxdEQ3ZmFWOVJFcUVxQUFhWjVpRngxVXFzRi04UDVuQWRiS3kwTnhaSFE3aVRJMU8zNEI1YlBHSV94dEJQY2xZTzc0RUZqVTVCcmZhcmxZMjJQejBhOU91d1c2bXBZd2VrUjZiZTF0S2xnLUlOeVRxOU1QcmlyVGJORVowTE1JZDhBZlkxUzNN?oc=5"
+      },
+      {
+        "article_id": "nws_6b7acf859e71303a",
+        "confidence": 0.5,
+        "content_hash": "8f77c39f1f6c1e9f4ddedc466184d52af92522b9441ad60819069afd9ea4b70b",
+        "direction_basis": "no_unambiguous_event_semantics",
+        "directional_implication": "unknown",
+        "duplicate_of": "",
+        "event_type": "gold_market",
+        "gold_relevance": "high",
+        "gold_relevance_score": 1.0,
+        "headline": "Gold price in Philippines: Rates on August 28 - FXStreet",
+        "ingested_at": "2026-08-28T10:44:33.914281+00:00",
+        "novelty": 1.0,
+        "published_at": "2026-08-28T05:01:09+00:00",
+        "sentiment_available": false,
+        "sentiment_confidence": 0.0,
+        "sentiment_label": "unknown",
+        "source": "FXStreet",
+        "topics": [
+          "gold"
+        ],
+        "url": "https://news.google.com/rss/articles/CBMirgFBVV95cUxPY1pEeldzaVUzOEJhSG5FX2F0QVhIbGJ0c1BWcDFwRms2WGFPM2piVWVDWUwtVW9MRjA0ZnBTS3ZOQUVjYkpaV0RIR0UyazIxbmdmdnhZOXVTcncyYXJ5WF9JbEJiNzcxZHZuMmxibk9rV25sYThVclhQalctaTByVnlFdGV2TE9wdFE2UGYwYWVjZC1kU1ZBS3dfYnlIWURGU0hIaDB0d0Nock5WNnc?oc=5"
+      },
+      {
+        "article_id": "nws_de116160fa2ad821",
+        "confidence": 0.45,
+        "content_hash": "510ab0b4ca937cd096e750a9b9c1d0399ca188f6859654d956aacbf06d49d7b7",
+        "direction_basis": "safe_haven_escalation",
+        "directional_implication": "bullish",
+        "duplicate_of": "",
+        "event_type": "geopolitical",
+        "gold_relevance": "medium",
+        "gold_relevance_score": 0.6,
+        "headline": "Gold prices slip Rs 5,000/10g in 4 days; silver falls Rs 1,200/kg today ahead of Kevin Warsh\u2019s Jackson Hol - The Economic Times",
+        "ingested_at": "2026-08-28T10:44:33.914281+00:00",
+        "novelty": 1.0,
+        "published_at": "2026-08-28T04:47:58+00:00",
+        "sentiment_available": false,
+        "sentiment_confidence": 0.0,
+        "sentiment_label": "unknown",
+        "source": "The Economic Times",
+        "topics": [
+          "gold"
+        ],
+        "url": "https://news.google.com/rss/articles/CBMirwJBVV95cUxNa1pmNy00blZka1VldFFuaE05Q2dxWXN4aGNSZDFzVFByYXpIZ3dLN3pxbDFiV25XcE1HNDNhN0I2aFpYaDFtbFJZc1I2Vy0xeGFxcFpFdzJxT2tKQ3E0aklzaTExV29LUHBiVGd5ajNFaldnNlZuc092ekp2S0VmQkZFQnlHNDJ5d3l0ZTJocXNjeU4xMHZmNHQ1OGY0a0NvcDV1QlE5MEhvM1M2ek0ydUxZOFA4RkNjS2FUMGp6azF4Y3N3SU5Pb1RjeXgybzBrWjIyRWRReWc5V1pLS1NZTzBUemVPV25lbC02al83MFdTMlBXSlV5T3pudjFCLTQ2N3l2RFRHTFRaWXo3VU1GOWFjUGxhMXlUZFZlYm5McnQ2TXZiRmprUEt1QWNYLUHSAbQCQVVfeXFMT19zTmNKMzBnQ2hDOTVmOWxWU2Yyd3E1ZFEybC1FWEs5NUg5QklpeWQ2dXNEbGdaNGphZ3NRb3FIZ1RpOW4xZGI1M2ZValVYeWdzeTBhTGtzRTJMV0NHZVEyMDc4cWJtZkR4N2cwSTVKcEpyUG9fUDZjMWpFcFlxVnlTQlViV1l3cEMyQ0d1TjZ1M09BdGlRUGNmcUxsd1VNUGxNX0I3eFhwX3FnaEhfZXc1dC1pNHVScTFjODFGM1F0NE9jSWZqb1JKbldOZWV2TDlEaFc1ZmwtWlkwc0hwTW8wSWJRV2paRG83SkQ3SVRURVBtZFU3d1dWU1dWT2VoVXN2djlaOEVKbHE4TWc4cEFGQTdzN1RYOHhYSjFYLU04ZmFyRWRncXFSbnd6bEp5UU1uWlY?oc=5"
+      },
+      {
+        "article_id": "nws_eb4f3ecc6e4208b3",
+        "confidence": 0.5,
+        "content_hash": "5b299949e41d7152be3f7a9a8918eb0206ed6d00750a249ca2947882d6d318bb",
+        "direction_basis": "no_unambiguous_event_semantics",
+        "directional_implication": "unknown",
+        "duplicate_of": "",
+        "event_type": "gold_market",
+        "gold_relevance": "high",
+        "gold_relevance_score": 1.0,
+        "headline": "Gold prices reversed course and fell today, August 28, 2026, signaling a potential market reversal, but the $5,000 scenario is still being considered. - Vietnam.vn",
+        "ingested_at": "2026-08-28T10:44:33.914281+00:00",
+        "novelty": 1.0,
+        "published_at": "2026-08-28T03:36:38+00:00",
+        "sentiment_available": false,
+        "sentiment_confidence": 0.0,
+        "sentiment_label": "unknown",
+        "source": "Vietnam.vn",
+        "topics": [
+          "gold"
+        ],
+        "url": "https://news.google.com/rss/articles/CBMi4wFBVV95cUxORklTRjlsX0VTWkd3TS1WU0RqSGxlSExvek5CdEdGMDZsWDBaQTFFSnNKQXRpV2hhN25DMHI4a0FOU1ozMnNHdk01dnJjN3hZSWR3OGhkV1NIM1pmQTdHZVNaSHAtcy1sM2JxNUFzLWp3YUtXME5sdTVHeFU2WnZTSG5SWjdYem1WSEtZZ24wdHNyOHFRT0FOMjlKSi1QUURHcG11SlpveTNLa1FZa1QzMEZJQm44Yk9TRkVqaGxtdmVZR0w5R1NCNlhvdWpyXzBWcGNBeFdIWmZTcVVtZzVoX21Qaw?oc=5"
+      },
+      {
+        "article_id": "nws_8d2e744cde9e7a42",
+        "confidence": 0.3,
+        "content_hash": "98e437d700ebdf02cf4107200a7a4b7f1a08f5a0ecbb2ee77ce872128bcdd32f",
+        "direction_basis": "no_unambiguous_event_semantics",
+        "directional_implication": "unknown",
+        "duplicate_of": "",
+        "event_type": "generic_macro",
+        "gold_relevance": "low",
+        "gold_relevance_score": 0.3,
+        "headline": "Faster Tokyo inflation supports near-term BOJ rate hike case - The Japan Times",
+        "ingested_at": "2026-08-28T10:44:33.914281+00:00",
+        "novelty": 1.0,
+        "published_at": "2026-08-28T02:04:00+00:00",
+        "sentiment_available": false,
+        "sentiment_confidence": 0.0,
+        "sentiment_label": "unknown",
+        "source": "The Japan Times",
+        "topics": [
+          "inflation"
+        ],
+        "url": "https://news.google.com/rss/articles/CBMif0FVX3lxTE16QUJ3TGI0eWFtbFU5enVUVXF4V2NBN0tCN1RpeURMUllNV3VoRGdvazQ4dXFWc0lXa1FRUEMwQ05oQUxCdFF5Y3V3QWFOSDV5azRXUXljd2xTYUhXLUdHYmFxcE9QV3B0Q2MtQkRrMUNtRmNNQWtEMU1NTUFJVzA?oc=5"
+      },
+      {
+        "article_id": "nws_c872707f4d28a37a",
+        "confidence": 0.45,
+        "content_hash": "29df483bd2d2fb7c8b0125183ea92906d78f34f1919be1f1e4091d6b8c4d74b7",
+        "direction_basis": "no_unambiguous_event_semantics",
+        "directional_implication": "unknown",
+        "duplicate_of": "",
+        "event_type": "cpi_inflation",
+        "gold_relevance": "medium",
+        "gold_relevance_score": 0.6,
+        "headline": "Tokyo Core Inflation Rises to 1.8%, Bets on September BOJ Rate Hike Intensify - finance.biggo.com",
+        "ingested_at": "2026-08-28T10:44:33.914281+00:00",
+        "novelty": 1.0,
+        "published_at": "2026-08-28T01:05:00+00:00",
+        "sentiment_available": false,
+        "sentiment_confidence": 0.0,
+        "sentiment_label": "unknown",
+        "source": "finance.biggo.com",
+        "topics": [
+          "inflation"
+        ],
+        "url": "https://news.google.com/rss/articles/CBMidkFVX3lxTE5hUDVwbWpQdG8xMUdJUloyQl8wX1NkaFE0enVUeUF5bkZ6Q0JNcW9BMzBLX0NVa2JTX0k2VHZCb0ZWWU1rUGpFVllPaHljZXBtZlEyNkxxZXVOLWo5MHBWYXlFU0MzTUFnWDBfbm44RUkyTWNpSGc?oc=5"
+      },
+      {
+        "article_id": "nws_d049730ea6cdfb51",
+        "confidence": 0.45,
+        "content_hash": "07d9f165e5a5635f601c8f381858dbc27ebbc271ed144960fa39f5a8f668083b",
+        "direction_basis": "no_unambiguous_event_semantics",
+        "directional_implication": "unknown",
+        "duplicate_of": "",
+        "event_type": "cpi_inflation",
+        "gold_relevance": "medium",
+        "gold_relevance_score": 0.6,
+        "headline": "Japanese Yen strengthens as Tokyo core CPI inflation bolsters BoJ rate hike chance - FXStreet",
+        "ingested_at": "2026-08-28T10:44:33.914281+00:00",
+        "novelty": 1.0,
+        "published_at": "2026-08-28T00:53:39+00:00",
+        "sentiment_available": false,
+        "sentiment_confidence": 0.0,
+        "sentiment_label": "unknown",
+        "source": "FXStreet",
+        "topics": [
+          "inflation"
+        ],
+        "url": "https://news.google.com/rss/articles/CBMiwgFBVV95cUxPd2J2RERrdjRqLXdaS2c5WXllY09WSEVKckVsc2NfeXdneXJxeDZ5RzN0R0Q0MWVMN0ZodHpBV0pWU3lPcmh0UEVod3RxcTdXeTU2V1ZxNUVrZFp2RGh0UVhmaGhWTDVhQ1VNSkpuRXBCZDRZRE5jeWhKV0VsSjFERTNjc3FDbGpfMi1RLTVOR2NlMVJucEpNTlc0QnQ5VHdjR2dKMGhYRTFiRnRrNUtoQXhwbmVJM0VDSlZjUEdwal9Edw?oc=5"
+      },
+      {
+        "article_id": "nws_fa4928d8efdee8f5",
+        "confidence": 0.45,
+        "content_hash": "0478805d3650f65fb7973b81ed9078640053107edbd1fdec660581c3027d4123",
+        "direction_basis": "no_unambiguous_event_semantics",
+        "directional_implication": "unknown",
+        "duplicate_of": "",
+        "event_type": "cpi_inflation",
+        "gold_relevance": "medium",
+        "gold_relevance_score": 0.6,
+        "headline": "Tokyo inflation data strengthens case for September BOJ hike - investingLive",
+        "ingested_at": "2026-08-28T10:44:33.914281+00:00",
+        "novelty": 1.0,
+        "published_at": "2026-08-28T00:05:21+00:00",
+        "sentiment_available": false,
+        "sentiment_confidence": 0.0,
+        "sentiment_label": "unknown",
+        "source": "investingLive",
+        "topics": [
+          "inflation"
+        ],
+        "url": "https://news.google.com/rss/articles/CBMilwFBVV95cUxOZGVXblMyUDJPNWZ0QnBubVdkNkhaWWdUZTkwQ0ttLVpBZml0eTVQSEw5U1NBYzJEcllzLS1aZG1nUUNxTk9LMUJUcnZxb0hPckx2d3ZsNEdRZkR6UDBTWXV0X3RpTVdLank4eHZqWEtHRVItUEMwTlJkZ2JxckozaFpUN2xELWJkRTZ6SmpuQXdpU0Y1RlY0?oc=5"
+      },
+      {
+        "article_id": "nws_d46e8c2700a760e3",
+        "confidence": 0.5,
+        "content_hash": "55cb806ab35effc2f0bdccbe39d32aef688e662c8bda6a8fd6502abf54d1c489",
+        "direction_basis": "no_unambiguous_event_semantics",
+        "directional_implication": "unknown",
+        "duplicate_of": "",
+        "event_type": "gold_market",
+        "gold_relevance": "high",
+        "gold_relevance_score": 1.0,
+        "headline": "Gold Price Canada Today | Live Gold Price in CAD - KITCO",
+        "ingested_at": "2026-08-28T10:44:33.914281+00:00",
+        "novelty": 1.0,
+        "published_at": "2026-08-28T00:00:00+00:00",
+        "sentiment_available": false,
+        "sentiment_confidence": 0.0,
+        "sentiment_label": "unknown",
+        "source": "KITCO",
+        "topics": [
+          "gold"
+        ],
+        "url": "https://news.google.com/rss/articles/CBMiVEFVX3lxTFBVMHM0YXN3UkRUdlVZXzdrUjJmSHh5eFZ6Q0pSOVhYV1pLU0VzSXNhWGRVREpJbm9uX3pvSkZsMDNVRmg4a3JPYXlTY2N3OEF5Wm00MA?oc=5"
+      },
+      {
+        "article_id": "nws_c2a52a0547a8e619",
+        "confidence": 0.45,
+        "content_hash": "3c8470f0d80355f024f82bfb81bf63bc8c9000061cc6fcf282a7fd8c1b51514d",
+        "direction_basis": "no_unambiguous_event_semantics",
+        "directional_implication": "unknown",
+        "duplicate_of": "",
+        "event_type": "cpi_inflation",
+        "gold_relevance": "medium",
+        "gold_relevance_score": 0.6,
+        "headline": "Tokyo Core CPI Up 1.8% in August, BOJ May Hike Rates in September - News and Statistics - IndexBox",
+        "ingested_at": "2026-08-28T10:44:33.914281+00:00",
+        "novelty": 1.0,
+        "published_at": "2026-08-27T23:55:00+00:00",
+        "sentiment_available": false,
+        "sentiment_confidence": 0.0,
+        "sentiment_label": "unknown",
+        "source": "IndexBox",
+        "topics": [
+          "inflation"
+        ],
+        "url": "https://news.google.com/rss/articles/CBMimgFBVV95cUxOeEFaMTJxMTRRLVllM0NKX29WZGw3NDkxcUdqLS1OQ2xWM195c3lXd25odGkyWnZnUDVqU1RCUDRfSndYcWVLbnhqZ0RQTlR1NkdTMXo4ek1NTXNod2wwN01uZWd6TEtSTkR0eVgxNnRTWVFrcml3b0FucDl5RDI4MTMzN3l3TEZYMlc0OEF2ZDlYZ3V4S29CdlZn?oc=5"
+      },
+      {
+        "article_id": "nws_3882076ddf309939",
+        "confidence": 0.65,
+        "content_hash": "99010c3ee0096fcaa9fd6f17741f5b4509c5111e707decb360885129b907eb3f",
+        "direction_basis": "no_unambiguous_event_semantics",
+        "directional_implication": "unknown",
+        "duplicate_of": "",
+        "event_type": "cpi_inflation",
+        "gold_relevance": "medium",
+        "gold_relevance_score": 0.6,
+        "headline": "Tokyo CPI cools slightly in August, core inflation remains close to BOJ target - Investing.com",
+        "ingested_at": "2026-08-28T10:44:33.914281+00:00",
+        "novelty": 1.0,
+        "published_at": "2026-08-27T23:52:32+00:00",
+        "sentiment_available": false,
+        "sentiment_confidence": 0.0,
+        "sentiment_label": "unknown",
+        "source": "Investing.com",
+        "topics": [
+          "inflation"
+        ],
+        "url": "https://news.google.com/rss/articles/CBMi0gFBVV95cUxNMktoN2pWNFdGZ1NwcllSQ2otWWdaNmRFM010SmZKal8xR1lzMW53MVBmd3c4cXhuOTgteFhBYTNFeHBvdUJlMGR0YV9BNmNxUHVSd2d2X1ZNRUV2RlBMZFk0MW5NcGpIemEzT3IxejRPNmxna3JCUEtOXzg4dURpaEdlQ2luaHplMEVsSTFJZXN5MFkyam1hWjRtOTM4RVAwc2N6ZUhvSW1zd3NoVGREVTRhZUlxMU5LRHVtZ3ZMV1VfSTV1aXVhTi1xX0h0amtUdkE?oc=5"
+      }
+    ],
+    "lookback_days": 7,
+    "malformed_count": 0,
+    "reason": "",
+    "sentiment_status": "skipped_none",
+    "status": "ok",
+    "topics": [
+      "gold",
+      "inflation",
+      "fed"
+    ]
+  },
+  "position_sizing": {
+    "current_vol": 0.004291,
+    "drawdown_state": "normal",
+    "kelly_cap": null,
+    "scaling_factor": 1.0,
+    "target_vol": 0.15
+  },
+  "position_sizing_status": "ok",
+  "risk_budget": {
+    "method": "risk_parity",
+    "risk_contributions": [
+      1.0
+    ],
+    "weights": [
+      1.0
+    ]
+  },
+  "risk_decision": {
+    "action": "proceed",
+    "components": {
+      "has_room_to_act": true,
+      "not_caution": true,
+      "not_halted": true,
+      "regime_acceptable": true,
+      "uncertainty_acceptable": true
+    },
+    "reason": "All risk gates pass. Full allocation advised.",
+    "score": 0.1101
+  },
+  "risk_metrics": {
+    "cvar_95": 117.272065,
+    "method": "historical",
+    "tail_index": null,
+    "var_95": 142.512262,
+    "var_99": 122.320105
+  },
+  "thesis_historical_assessments": [
+    {
+      "historical_assessment": {
+        "direction_support_summary": "historical outcomes remain mixed/context-dependent; mixed history supports a neutral/uncertain interpretation",
+        "evidence_ids": [
+          "CPI_GOLD_2017-04-01",
+          "CPI_GOLD_2017-06-01",
+          "CPI_GOLD_2017-12-01"
+        ],
+        "horizon_results": {
+          "1d": {
+            "count": 3,
+            "direction_summary": "mixed",
+            "status": "mixed",
+            "verdict": "supports neutral/uncertain interpretation"
+          },
+          "20d": {
+            "count": 3,
+            "direction_summary": "mixed",
+            "status": "mixed",
+            "verdict": "supports neutral/uncertain interpretation"
+          },
+          "5d": {
+            "count": 3,
+            "direction_summary": "positive",
+            "status": "positive",
+            "verdict": "no directional confirmation"
+          }
+        },
+        "provenance": {
+          "query": {
+            "condition": {
+              "cpi_pressure": "inflation_pressure_up",
+              "dxy_trend": "dxy_falling",
+              "us10y_trend": "yields_flat"
+            },
+            "event_type": "CPI",
+            "institutional_context": {
+              "regime": "INFLATIONARY"
+            }
+          },
+          "similarity": {
+            "CPI_GOLD_2017-04-01": {
+              "overall_similarity": 0.8122523963562356,
+              "retrieval_method": "exact"
+            },
+            "CPI_GOLD_2017-06-01": {
+              "overall_similarity": 0.8122523963562356,
+              "retrieval_method": "exact"
+            },
+            "CPI_GOLD_2017-12-01": {
+              "overall_similarity": 0.8122523963562356,
+              "retrieval_method": "exact"
+            }
+          },
+          "sources": [
+            {
+              "event_date": "2017-04-01",
+              "horizon": "1d",
+              "lesson_id": "CPI_GOLD_2017-04-01",
+              "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\CPIAUCSL.csv",
+              "source_artifact_sha256": "a2a36d518762dc7f1a8606551fc62c013b742e62355fb485dbcb516df9bcd78d"
+            },
+            {
+              "event_date": "2017-06-01",
+              "horizon": "1d",
+              "lesson_id": "CPI_GOLD_2017-06-01",
+              "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\CPIAUCSL.csv",
+              "source_artifact_sha256": "a2a36d518762dc7f1a8606551fc62c013b742e62355fb485dbcb516df9bcd78d"
+            },
+            {
+              "event_date": "2017-12-01",
+              "horizon": "1d",
+              "lesson_id": "CPI_GOLD_2017-12-01",
+              "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\CPIAUCSL.csv",
+              "source_artifact_sha256": "a2a36d518762dc7f1a8606551fc62c013b742e62355fb485dbcb516df9bcd78d"
+            }
+          ]
+        },
+        "thesis_direction": "neutral"
+      },
+      "thesis_direction": "neutral",
+      "thesis_id": "th_08765d8c75a0.v2"
+    },
+    {
+      "historical_assessment": {
+        "direction_support_summary": "history contradicts bearish direction at 5d and does not provide uniform bearish confirmation",
+        "evidence_ids": [
+          "CPI_GOLD_2017-04-01",
+          "CPI_GOLD_2017-06-01",
+          "CPI_GOLD_2017-12-01"
+        ],
+        "horizon_results": {
+          "1d": {
+            "count": 3,
+            "direction_summary": "mixed",
+            "status": "mixed",
+            "verdict": "no directional confirmation"
+          },
+          "20d": {
+            "count": 3,
+            "direction_summary": "mixed",
+            "status": "mixed",
+            "verdict": "no directional confirmation"
+          },
+          "5d": {
+            "count": 3,
+            "direction_summary": "positive",
+            "status": "positive",
+            "verdict": "contradicts"
+          }
+        },
+        "provenance": {
+          "query": {
+            "condition": {
+              "cpi_pressure": "inflation_pressure_up",
+              "dxy_trend": "dxy_falling",
+              "us10y_trend": "yields_flat"
+            },
+            "event_type": "CPI",
+            "institutional_context": {
+              "regime": "INFLATIONARY"
+            }
+          },
+          "similarity": {
+            "CPI_GOLD_2017-04-01": {
+              "overall_similarity": 0.8122523963562356,
+              "retrieval_method": "exact"
+            },
+            "CPI_GOLD_2017-06-01": {
+              "overall_similarity": 0.8122523963562356,
+              "retrieval_method": "exact"
+            },
+            "CPI_GOLD_2017-12-01": {
+              "overall_similarity": 0.8122523963562356,
+              "retrieval_method": "exact"
+            }
+          },
+          "sources": [
+            {
+              "event_date": "2017-04-01",
+              "horizon": "1d",
+              "lesson_id": "CPI_GOLD_2017-04-01",
+              "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\CPIAUCSL.csv",
+              "source_artifact_sha256": "a2a36d518762dc7f1a8606551fc62c013b742e62355fb485dbcb516df9bcd78d"
+            },
+            {
+              "event_date": "2017-06-01",
+              "horizon": "1d",
+              "lesson_id": "CPI_GOLD_2017-06-01",
+              "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\CPIAUCSL.csv",
+              "source_artifact_sha256": "a2a36d518762dc7f1a8606551fc62c013b742e62355fb485dbcb516df9bcd78d"
+            },
+            {
+              "event_date": "2017-12-01",
+              "horizon": "1d",
+              "lesson_id": "CPI_GOLD_2017-12-01",
+              "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\CPIAUCSL.csv",
+              "source_artifact_sha256": "a2a36d518762dc7f1a8606551fc62c013b742e62355fb485dbcb516df9bcd78d"
+            }
+          ]
+        },
+        "thesis_direction": "bearish"
+      },
+      "thesis_direction": "bearish",
+      "thesis_id": "th_3a6a4a6c3b1f"
+    },
+    {
+      "historical_assessment": {
+        "direction_support_summary": "history does not provide uniform bullish confirmation (supports at 5d; no directional confirmation elsewhere)",
+        "evidence_ids": [
+          "CPI_GOLD_2017-04-01",
+          "CPI_GOLD_2017-06-01",
+          "CPI_GOLD_2017-12-01"
+        ],
+        "horizon_results": {
+          "1d": {
+            "count": 3,
+            "direction_summary": "mixed",
+            "status": "mixed",
+            "verdict": "no directional confirmation"
+          },
+          "20d": {
+            "count": 3,
+            "direction_summary": "mixed",
+            "status": "mixed",
+            "verdict": "no directional confirmation"
+          },
+          "5d": {
+            "count": 3,
+            "direction_summary": "positive",
+            "status": "positive",
+            "verdict": "supports"
+          }
+        },
+        "provenance": {
+          "query": {
+            "condition": {
+              "cpi_pressure": "inflation_pressure_up",
+              "dxy_trend": "dxy_falling",
+              "us10y_trend": "yields_flat"
+            },
+            "event_type": "CPI",
+            "institutional_context": {
+              "regime": "INFLATIONARY"
+            }
+          },
+          "similarity": {
+            "CPI_GOLD_2017-04-01": {
+              "overall_similarity": 0.8122523963562356,
+              "retrieval_method": "exact"
+            },
+            "CPI_GOLD_2017-06-01": {
+              "overall_similarity": 0.8122523963562356,
+              "retrieval_method": "exact"
+            },
+            "CPI_GOLD_2017-12-01": {
+              "overall_similarity": 0.8122523963562356,
+              "retrieval_method": "exact"
+            }
+          },
+          "sources": [
+            {
+              "event_date": "2017-04-01",
+              "horizon": "1d",
+              "lesson_id": "CPI_GOLD_2017-04-01",
+              "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\CPIAUCSL.csv",
+              "source_artifact_sha256": "a2a36d518762dc7f1a8606551fc62c013b742e62355fb485dbcb516df9bcd78d"
+            },
+            {
+              "event_date": "2017-06-01",
+              "horizon": "1d",
+              "lesson_id": "CPI_GOLD_2017-06-01",
+              "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\CPIAUCSL.csv",
+              "source_artifact_sha256": "a2a36d518762dc7f1a8606551fc62c013b742e62355fb485dbcb516df9bcd78d"
+            },
+            {
+              "event_date": "2017-12-01",
+              "horizon": "1d",
+              "lesson_id": "CPI_GOLD_2017-12-01",
+              "source_artifact_path": "C:\\AurumAI\\AurumAI\\data\\economic\\CPIAUCSL.csv",
+              "source_artifact_sha256": "a2a36d518762dc7f1a8606551fc62c013b742e62355fb485dbcb516df9bcd78d"
+            }
+          ]
+        },
+        "thesis_direction": "bullish"
+      },
+      "thesis_direction": "bullish",
+      "thesis_id": "th_69d567c87d73"
+    }
+  ],
+  "trade_recommendation": {
+    "confidence": 0.4992,
+    "decision_id": "dec_f7728781bad4",
+    "decision_summary": "decision=NO_TRADE; confidence=0.4992; risk_reward_status=borderline; risk_reward_ratio=1.8498; selected_thesis=th_08765d8c75a0.v2",
+    "entry_zone": [],
+    "expected_holding_days": 0,
+    "institutional_thesis_summary": "decision=NO_TRADE; selected_thesis=th_08765d8c75a0.v2 (neutral); selected_scenario=sc_ab08eeaea1e7 (base, p=0.5); composite_score=0.5347; institutional_confidence=0.4992; risk_reward_status=borderline; risk_reward_ratio=1.8498; reason=selected thesis th_08765d8c75a0.v2 blocked by conviction gate: institutional_confidence=0.4992 < 0.5 threshold",
+    "instrument": "XAU/USD",
+    "invalidation_conditions": [
+      "Current regime conflicts with thesis direction",
+      "Regime-dependent evidence weakening thesis",
+      "Missing evidence channels: CB_GOLD"
+    ],
+    "major_counter_evidence": [
+      "rejected thesis th_69d567c87d73 (bullish, score 0.5185): lower composite score (0.5185) than selected thesis (0.5347)",
+      "rejected thesis th_3a6a4a6c3b1f (bearish, score 0.4068): no acceptable or borderline scenario: all scenarios rejected by W12 risk/reward validation (best status=reject)"
+    ],
+    "major_supporting_evidence": [
+      "risk_reward_quality=0.6052 (weight 0.3333333333333333)",
+      "scenario_probability=0.5 (weight 0.16666666666666666)"
+    ],
+    "metadata": {
+      "atr_provenance": {
+        "as_of": "2026-08-28",
+        "atr_14": 80.189956,
+        "bar_date": "2026-08-28",
+        "bars_used": 2930,
+        "engine": "pandas_ta_classic:atr_14",
+        "status": "ok"
+      },
+      "levels_basis": "not_applicable_no_levels",
+      "reference_price": 4660.60009765625,
+      "reference_price_provenance": {
+        "bar_date": "2026-08-28T00:00:00",
+        "method": "last_valid_close",
+        "source_data_hash": "9861bfcb2ab131d3cf31e8c77158b0b8cc7f3290cdfba4a491e6d6880f2a06a9",
+        "source_path": "C:\\AurumAI\\AurumAI\\data\\history\\gold\\gold.csv",
+        "status": "resolved_from_gold_data",
+        "value": 4660.60009765625
+      },
+      "selected_scenario_id": "sc_ab08eeaea1e7",
+      "selected_thesis_id": "th_08765d8c75a0.v2"
+    },
+    "monitoring_conditions": [
+      "re-evaluate when new evidence arrives or institutional confidence changes by more than 0.1",
+      "review on regime transition or when invalidation triggers come into proximity",
+      "monitor: Current regime conflicts with thesis direction",
+      "monitor: Regime-dependent evidence weakening thesis",
+      "monitor: Missing evidence channels: CB_GOLD"
+    ],
+    "position_size_recommendation": "",
+    "preconditions": [
+      "Multi-factor cross-asset transmission affecting gold price continues to develop as expected"
+    ],
+    "provenance_chain": [
+      {
+        "created_at": "2026-08-28T10:46:39.966794+00:00",
+        "created_by": "W7 CounterEvidenceAssessor",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      },
+      {
+        "created_at": "2026-08-28T10:46:39.966845+00:00",
+        "created_by": "W8 ThesisBuilder",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      },
+      {
+        "created_at": "2026-08-28T10:46:39.956740+00:00",
+        "created_by": "W10 ThesisUpdater",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      },
+      {
+        "created_at": "2026-08-28T10:46:39.986966+00:00",
+        "created_by": "W12 ScenarioGenerator",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      },
+      {
+        "created_at": "2026-08-28T10:46:39.990265+00:00",
+        "created_by": "W12 RiskRewardValidator",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      },
+      {
+        "created_at": "2026-08-28T10:46:40.007311+00:00",
+        "created_by": "W13 DecisionEngine",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      },
+      {
+        "created_at": "2026-08-28T10:46:40.081364+00:00",
+        "created_by": "W14 RecommendationEngine",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      }
+    ],
+    "recommendation_action": "NO_TRADE",
+    "recommendation_id": "rec_f43c74e32db4",
+    "risk_pct": 0.0,
+    "stop_loss": "",
+    "take_profit_1": "",
+    "take_profit_2": ""
+  },
+  "validation": {
+    "horizon": 1,
+    "metrics": {
+      "coverage": 0.0,
+      "directional_accuracy": 0.0,
+      "mae": 0.0,
+      "mape": 0.0,
+      "rmse": 0.0
+    },
+    "notes": "No aligned forecast- actual pairs available for validation",
+    "passed": false,
+    "sample_size": 0,
+    "validation_strategy": "walk_forward"
+  }
+}

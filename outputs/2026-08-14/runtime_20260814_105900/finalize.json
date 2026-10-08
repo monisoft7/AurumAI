@@ -1,0 +1,305 @@
+{
+  "confidence": {
+    "agreement_score": 1.0,
+    "context_coherence": 0.118,
+    "overall": 0.7172486230237326,
+    "spread_score": 0.9394954100791085
+  },
+  "context": {
+    "context_timestamp": "2026-08-14T09:01:11.027910+00:00",
+    "current_regime": "LATE_CYCLE",
+    "data_date_range": [
+      "2015-01-02",
+      "2026-08-14"
+    ],
+    "fomc_confidence": 0.0,
+    "fomc_mood": null,
+    "news_confidence": 0.0,
+    "news_mood": null,
+    "recent_events": [],
+    "regime_confidence": 0.354,
+    "source_variable": "AutoARIMA"
+  },
+  "decision": {
+    "decision": "NO_TRADE",
+    "decision_drivers": [
+      {
+        "name": "institutional_confidence",
+        "score": 0.0677,
+        "value": 0.2255,
+        "weight": 0.3
+      },
+      {
+        "name": "risk_reward_quality",
+        "score": 0.1321,
+        "value": 0.6604,
+        "weight": 0.2
+      },
+      {
+        "name": "evidence_quality",
+        "score": 0.0885,
+        "value": 0.59,
+        "weight": 0.15
+      },
+      {
+        "name": "counter_evidence_quality",
+        "score": 0.108,
+        "value": 0.72,
+        "weight": 0.15
+      },
+      {
+        "name": "scenario_probability",
+        "score": 0.05,
+        "value": 0.5,
+        "weight": 0.1
+      },
+      {
+        "name": "regime_alignment",
+        "score": 0.05,
+        "value": 0.5,
+        "weight": 0.1
+      }
+    ],
+    "decision_explanation": "decision=NO_TRADE; selected_thesis=th_ccf552a8c8dd.v2 (neutral); selected_scenario=sc_368496bd6ac8 (base, p=0.5); composite_score=0.4962; institutional_confidence=0.2255; risk_reward_status=borderline; risk_reward_ratio=1.5677; reason=no thesis clears institutional confidence and risk/reward thresholds | BIAS REVIEW: human review required (overall_severity=critical, findings=['regime_blindness', 'false_precision'])",
+    "decision_id": "dec_123ee599ca66",
+    "institutional_confidence": 0.2255,
+    "invalidation_conditions": [
+      "Counter-evidence from sets es_general, es_inflation strengthens",
+      "Current regime conflicts with thesis direction",
+      "Regime-dependent evidence weakening thesis",
+      "Missing evidence channels: CB_GOLD"
+    ],
+    "metadata": {
+      "bias_review": {
+        "findings": [
+          "regime_blindness",
+          "false_precision"
+        ],
+        "human_review_flag": true,
+        "overall_severity": "critical",
+        "review_id": "bias-th_ccf552a8c8dd.v2",
+        "total_confidence_impact": 0.5
+      },
+      "composite_score": 0.4962,
+      "selected_scenario_type": "base",
+      "selected_thesis_direction": "neutral",
+      "total_rejected_alternatives": 0,
+      "total_theses_evaluated": 1
+    },
+    "preconditions": [
+      "Inflation premium channel as gold serves as inflation hedge continues to develop as expected"
+    ],
+    "provenance_chain": [
+      {
+        "created_at": "2026-08-14T09:02:06.729279+00:00",
+        "created_by": "W7 CounterEvidenceAssessor",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      },
+      {
+        "created_at": "2026-08-14T09:02:06.729327+00:00",
+        "created_by": "W8 ThesisBuilder",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      },
+      {
+        "created_at": "2026-08-14T09:02:06.717771+00:00",
+        "created_by": "W10 ThesisUpdater",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      },
+      {
+        "created_at": "2026-08-14T09:02:06.844246+00:00",
+        "created_by": "W12 ScenarioGenerator",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      },
+      {
+        "created_at": "2026-08-14T09:02:06.860753+00:00",
+        "created_by": "W12 RiskRewardValidator",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      },
+      {
+        "created_at": "2026-08-14T09:02:06.914411+00:00",
+        "created_by": "W13 DecisionEngine",
+        "entity_version": "1.0.0",
+        "metadata": {},
+        "previous_version_id": null
+      }
+    ],
+    "rejected_alternatives": [],
+    "risk_reward_summary": {
+      "expected_reward": 0.2091,
+      "expected_risk": 0.2459,
+      "expected_upside": 0.4182,
+      "liquidity_risk": 0.3733,
+      "maximum_downside": 0.4918,
+      "regime_risk": 0.3,
+      "risk_reward_ratio": 1.5677,
+      "status": "borderline",
+      "tail_risk": 0.5376,
+      "volatility_impact": 0.4376
+    },
+    "selected_scenario_id": "sc_368496bd6ac8",
+    "selected_thesis_id": "th_ccf552a8c8dd.v2"
+  },
+  "forecast_result": {
+    "confidence_level": 0.95,
+    "metadata": {
+      "freq": "ME",
+      "h": 12,
+      "n_obs": 2920,
+      "season_length": 12
+    },
+    "model_name": "AutoARIMA",
+    "points": [
+      {
+        "ds": "2026-08-31 00:00:00",
+        "y": 4411.518888577046,
+        "y_hi": 4469.660309967169,
+        "y_lo": 4353.377467186922
+      },
+      {
+        "ds": "2026-09-30 00:00:00",
+        "y": 4412.14135528951,
+        "y_hi": 4493.217927256473,
+        "y_lo": 4331.064783322548
+      },
+      {
+        "ds": "2026-10-31 00:00:00",
+        "y": 4408.910747489694,
+        "y_hi": 4505.193972011825,
+        "y_lo": 4312.627522967562
+      },
+      {
+        "ds": "2026-11-30 00:00:00",
+        "y": 4419.168731419561,
+        "y_hi": 4529.618673311748,
+        "y_lo": 4308.718789527373
+      },
+      {
+        "ds": "2026-12-31 00:00:00",
+        "y": 4427.899691685185,
+        "y_hi": 4551.042952798988,
+        "y_lo": 4304.756430571381
+      },
+      {
+        "ds": "2027-01-31 00:00:00",
+        "y": 4438.814888591634,
+        "y_hi": 4573.359167512566,
+        "y_lo": 4304.2706096707025
+      },
+      {
+        "ds": "2027-02-28 00:00:00",
+        "y": 4449.205884373918,
+        "y_hi": 4594.306541927227,
+        "y_lo": 4304.105226820609
+      },
+      {
+        "ds": "2027-03-31 00:00:00",
+        "y": 4444.987225945222,
+        "y_hi": 4599.964565370479,
+        "y_lo": 4290.009886519965
+      },
+      {
+        "ds": "2027-04-30 00:00:00",
+        "y": 4449.284765137709,
+        "y_hi": 4613.565664569402,
+        "y_lo": 4285.003865706016
+      },
+      {
+        "ds": "2027-05-31 00:00:00",
+        "y": 4458.19418968508,
+        "y_hi": 4631.302789288532,
+        "y_lo": 4285.085590081629
+      },
+      {
+        "ds": "2027-06-30 00:00:00",
+        "y": 4456.795865420003,
+        "y_hi": 4638.326606370937,
+        "y_lo": 4275.265124469069
+      },
+      {
+        "ds": "2027-07-31 00:00:00",
+        "y": 4455.204066492954,
+        "y_hi": 4644.804651627595,
+        "y_lo": 4265.603481358312
+      }
+    ]
+  },
+  "legacy_decision": {
+    "confidence": 0.540433,
+    "context": {
+      "event_type": "CPI",
+      "institutional_context": {},
+      "metadata": {},
+      "query": ""
+    },
+    "decision_id": "dec_reason_CPI_inflation_pressure_up",
+    "decision_type": "POSITIVE",
+    "evidence_count": 3,
+    "explanation": "Decision POSITIVE based on reasoning chain 'reason_CPI_inflation_pressure_up': aggregated evidence of 3 items shows average return of +0.392255% with overall confidence of 0.540.",
+    "metadata": {
+      "avg_return_pct": 0.392255,
+      "chain_confidence": 0.540433
+    },
+    "provenance": null,
+    "reasoning_chain_id": "reason_CPI_inflation_pressure_up"
+  },
+  "position_sizing": {
+    "current_vol": 0.00473,
+    "drawdown_state": "normal",
+    "kelly_cap": null,
+    "scaling_factor": 1.0,
+    "target_vol": 0.15
+  },
+  "position_sizing_status": "ok",
+  "risk_budget": {
+    "method": "risk_parity",
+    "risk_contributions": [
+      1.0
+    ],
+    "weights": [
+      1.0
+    ]
+  },
+  "risk_decision": {
+    "action": "proceed",
+    "components": {
+      "has_room_to_act": true,
+      "not_caution": true,
+      "not_halted": true,
+      "regime_acceptable": true,
+      "uncertainty_acceptable": true
+    },
+    "reason": "All risk gates pass. Full allocation advised.",
+    "score": 0.1062
+  },
+  "risk_metrics": {
+    "cvar_95": 116.282843,
+    "method": "historical",
+    "tail_index": null,
+    "var_95": 141.511508,
+    "var_99": 121.328576
+  },
+  "validation": {
+    "horizon": 1,
+    "metrics": {
+      "coverage": 0.0,
+      "directional_accuracy": 0.0,
+      "mae": 0.0,
+      "mape": 0.0,
+      "rmse": 0.0
+    },
+    "notes": "No aligned forecast- actual pairs available for validation",
+    "passed": false,
+    "sample_size": 0,
+    "validation_strategy": "walk_forward"
+  }
+}

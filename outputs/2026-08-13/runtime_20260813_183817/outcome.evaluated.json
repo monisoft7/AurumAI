@@ -1,0 +1,26 @@
+{
+  "abstention_basis": [],
+  "abstention_evaluable": true,
+  "abstention_return": 4.3184,
+  "abstention_verdict": "unscored",
+  "artifact": "decision_outcome",
+  "asset": "XAU/USD",
+  "decision": "NO_TRADE",
+  "decision_correct": null,
+  "decision_id": "dec_9b99f9fa6e92",
+  "decision_snapshot": {},
+  "entry_date": "2026-08-13",
+  "evaluation_timestamp": "2026-08-28T00:08:58.185230+00:00",
+  "event_type": "CPI",
+  "gold_path": "data/history/gold/gold.csv",
+  "gold_source_sha256": "d020533fb566038602ae6cd98bb8ace4458730cd4ca9f451d176512f01a5ce3b",
+  "horizon_days": 12,
+  "institutional_confidence": 0.2635,
+  "notes": [
+    "abstention: decision intentionally not scored by decision_correct (binary abstention scoring policy DEFERRED); quality is assessed by abstention_verdict per Correction 055-A"
+  ],
+  "realized_gold_return": 4.3184,
+  "run_id": "runtime_20260813_183817",
+  "schema_version": "1.1",
+  "status": "evaluated"
+}

@@ -17,7 +17,6 @@ import gc
 import json
 import time
 import tracemalloc
-from pathlib import Path
 from types import SimpleNamespace
 
 import pandas as pd
@@ -607,7 +606,7 @@ class TestHistoricalAndRisk:
 # ===========================================================================
 
 
-def _typed_briefing(news_payload, tmp_path):
+def _typed_briefing(news_payload):
     """Typed briefing mirroring the Sprint-058 fixture pattern."""
     from pre_market.contracts import OvernightPriceChange, PreMarketBriefing
     from pre_market.positioning import PositioningDataFetcher
@@ -615,7 +614,6 @@ def _typed_briefing(news_payload, tmp_path):
     from news.intelligence import to_pre_market_news_items
 
     items = to_pre_market_news_items(news_payload)
-    positioning_fetcher = PositioningDataFetcher(oi_state_file=tmp_path / "gold_oi_state.json")
     return PreMarketBriefing(
         briefing_id="premarket_inv061",
         timestamp=NOW,
@@ -632,7 +630,7 @@ def _typed_briefing(news_payload, tmp_path):
         ),
         news_items=tuple(items),
         risk_snapshot=RiskReportGenerator().generate(),
-        positioning_snapshot=positioning_fetcher.fetch(),
+        positioning_snapshot=PositioningDataFetcher().fetch(),
         anomaly_flags=(),
         watchlist=(),
         metadata={"news_source_path": "ingest_news_stage"},
@@ -710,7 +708,7 @@ class TestDeterminismAndInvariance:
         assert technical_payload == tech_before
         assert diagnosis == diag_before
 
-    def test_20_decision_numeric_invariance(self, news_payload, tmp_path) -> None:
+    def test_20_decision_numeric_invariance(self, news_payload) -> None:
         """Evidence/reasoning outputs are semantically identical with fact
         activity interleaved (volatile wall-clock/uuid fields excluded)."""
         from evidence_collection.collector import EvidenceCollector
@@ -718,7 +716,7 @@ class TestDeterminismAndInvariance:
         from signal_assessment.assembler import SignalAssessmentAssembler
 
         def build_pipeline_output() -> dict:
-            briefing = _typed_briefing(news_payload, tmp_path)
+            briefing = _typed_briefing(news_payload)
             assessment = SignalAssessmentAssembler(regime="EXPANSION").assemble(
                 briefing
             )
@@ -815,11 +813,11 @@ class TestPriorSprintRegressions:
             if item["event_type"] == "usd_dollar":
                 assert item["directional_implication"] == "unknown"
 
-    def test_23_neutral_evidence_060_regression(self, news_payload, tmp_path) -> None:
+    def test_23_neutral_evidence_060_regression(self, news_payload) -> None:
         from evidence_collection.collector import EvidenceCollector
         from signal_assessment.assembler import SignalAssessmentAssembler
 
-        briefing = _typed_briefing(news_payload, tmp_path)
+        briefing = _typed_briefing(news_payload)
         assessment = SignalAssessmentAssembler(regime="EXPANSION").assemble(briefing)
         collection = EvidenceCollector().collect(assessment, regime_weight=0.8)
         for evidence in collection.items:

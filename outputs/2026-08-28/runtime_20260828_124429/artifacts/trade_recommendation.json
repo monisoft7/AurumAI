@@ -1,0 +1,112 @@
+{
+  "confidence": 0.4992,
+  "decision_id": "dec_f7728781bad4",
+  "decision_summary": "decision=NO_TRADE; confidence=0.4992; risk_reward_status=borderline; risk_reward_ratio=1.8498; selected_thesis=th_08765d8c75a0.v2",
+  "entry_zone": [],
+  "expected_holding_days": 0,
+  "institutional_thesis_summary": "decision=NO_TRADE; selected_thesis=th_08765d8c75a0.v2 (neutral); selected_scenario=sc_ab08eeaea1e7 (base, p=0.5); composite_score=0.5347; institutional_confidence=0.4992; risk_reward_status=borderline; risk_reward_ratio=1.8498; reason=selected thesis th_08765d8c75a0.v2 blocked by conviction gate: institutional_confidence=0.4992 < 0.5 threshold",
+  "instrument": "XAU/USD",
+  "invalidation_conditions": [
+    "Current regime conflicts with thesis direction",
+    "Regime-dependent evidence weakening thesis",
+    "Missing evidence channels: CB_GOLD"
+  ],
+  "major_counter_evidence": [
+    "rejected thesis th_69d567c87d73 (bullish, score 0.5185): lower composite score (0.5185) than selected thesis (0.5347)",
+    "rejected thesis th_3a6a4a6c3b1f (bearish, score 0.4068): no acceptable or borderline scenario: all scenarios rejected by W12 risk/reward validation (best status=reject)"
+  ],
+  "major_supporting_evidence": [
+    "risk_reward_quality=0.6052 (weight 0.3333333333333333)",
+    "scenario_probability=0.5 (weight 0.16666666666666666)"
+  ],
+  "metadata": {
+    "atr_provenance": {
+      "as_of": "2026-08-28",
+      "atr_14": 80.189956,
+      "bar_date": "2026-08-28",
+      "bars_used": 2930,
+      "engine": "pandas_ta_classic:atr_14",
+      "status": "ok"
+    },
+    "levels_basis": "not_applicable_no_levels",
+    "reference_price": 4660.60009765625,
+    "reference_price_provenance": {
+      "bar_date": "2026-08-28T00:00:00",
+      "method": "last_valid_close",
+      "source_data_hash": "9861bfcb2ab131d3cf31e8c77158b0b8cc7f3290cdfba4a491e6d6880f2a06a9",
+      "source_path": "C:\\AurumAI\\AurumAI\\data\\history\\gold\\gold.csv",
+      "status": "resolved_from_gold_data",
+      "value": 4660.60009765625
+    },
+    "selected_scenario_id": "sc_ab08eeaea1e7",
+    "selected_thesis_id": "th_08765d8c75a0.v2"
+  },
+  "monitoring_conditions": [
+    "re-evaluate when new evidence arrives or institutional confidence changes by more than 0.1",
+    "review on regime transition or when invalidation triggers come into proximity",
+    "monitor: Current regime conflicts with thesis direction",
+    "monitor: Regime-dependent evidence weakening thesis",
+    "monitor: Missing evidence channels: CB_GOLD"
+  ],
+  "position_size_recommendation": "",
+  "preconditions": [
+    "Multi-factor cross-asset transmission affecting gold price continues to develop as expected"
+  ],
+  "provenance_chain": [
+    {
+      "created_at": "2026-08-28T10:46:39.966794+00:00",
+      "created_by": "W7 CounterEvidenceAssessor",
+      "entity_version": "1.0.0",
+      "metadata": {},
+      "previous_version_id": null
+    },
+    {
+      "created_at": "2026-08-28T10:46:39.966845+00:00",
+      "created_by": "W8 ThesisBuilder",
+      "entity_version": "1.0.0",
+      "metadata": {},
+      "previous_version_id": null
+    },
+    {
+      "created_at": "2026-08-28T10:46:39.956740+00:00",
+      "created_by": "W10 ThesisUpdater",
+      "entity_version": "1.0.0",
+      "metadata": {},
+      "previous_version_id": null
+    },
+    {
+      "created_at": "2026-08-28T10:46:39.986966+00:00",
+      "created_by": "W12 ScenarioGenerator",
+      "entity_version": "1.0.0",
+      "metadata": {},
+      "previous_version_id": null
+    },
+    {
+      "created_at": "2026-08-28T10:46:39.990265+00:00",
+      "created_by": "W12 RiskRewardValidator",
+      "entity_version": "1.0.0",
+      "metadata": {},
+      "previous_version_id": null
+    },
+    {
+      "created_at": "2026-08-28T10:46:40.007311+00:00",
+      "created_by": "W13 DecisionEngine",
+      "entity_version": "1.0.0",
+      "metadata": {},
+      "previous_version_id": null
+    },
+    {
+      "created_at": "2026-08-28T10:46:40.081364+00:00",
+      "created_by": "W14 RecommendationEngine",
+      "entity_version": "1.0.0",
+      "metadata": {},
+      "previous_version_id": null
+    }
+  ],
+  "recommendation_action": "NO_TRADE",
+  "recommendation_id": "rec_f43c74e32db4",
+  "risk_pct": 0.0,
+  "stop_loss": "",
+  "take_profit_1": "",
+  "take_profit_2": ""
+}

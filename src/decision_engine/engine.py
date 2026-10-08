@@ -46,8 +46,11 @@ SCENARIO_PROBABILITY_WEIGHT = 1.0 / 6.0
 # compatibility and MUST NOT be reintroduced into _score_thesis.
 REGIME_ALIGNMENT_WEIGHT = 0.10
 
-NO_TRADE_CONFIDENCE = 0.5
-NO_TRADE_RR_RATIO = 2.0
+# Phase 8 calibration: lowered from 0.5 to 0.38 to allow moderate-conviction
+# trades through; aligned RR ceiling with W12 REJECT_RATIO_THRESHOLD (3.0)
+# to eliminate the W12/W13 threshold mismatch that killed borderline trades.
+NO_TRADE_CONFIDENCE = 0.38
+NO_TRADE_RR_RATIO = 3.0
 
 STATUS_RANK = {"acceptable": 0, "borderline": 1, "reject": 2}
 TYPE_RANK = {"base": 0, "bull": 1, "bear": 2}
@@ -217,10 +220,16 @@ class DecisionEngine:
                 best_status = v.validation_status
         rr_score = round(sum(rr_components) / len(rr_components), 4) if rr_components else 0.0
 
+        # Phase 8 calibration: directional theses get a small bonus to prevent
+        # the neutral thesis from winning just because it accumulates fewer 
+        # counter-evidence penalties.
+        directional_bonus = 0.05 if thesis.direction in ("bullish", "bearish") and evidence_quality > 0.0 else 0.0
+
         score = round(
             CONFIDENCE_WEIGHT * confidence
             + RR_WEIGHT * rr_score
-            + SCENARIO_PROBABILITY_WEIGHT * max_probability,
+            + SCENARIO_PROBABILITY_WEIGHT * max_probability
+            + directional_bonus,
             4,
         )
         return {

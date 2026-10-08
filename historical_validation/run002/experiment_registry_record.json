@@ -1,0 +1,26 @@
+{
+  "experiment_id": "RUN-002-HISTORICAL-EVALUATION",
+  "registered_before_execution": "manifest status=PENDING (frozen pre-run, input hashes verified by driver)",
+  "code_baseline": "funding-preparation f97e786488e36759664d410f91a1375e1d8dc6fe (user-approved deviation from main, documented in manifest)",
+  "cohort": "133 lessons, event_date >= 2015-06-01, chronological, no manual selection",
+  "replays": "266 (133 FULL_ENRICHED + 133 NO_HISTORY), existing run_enriched_replay_variant machinery, read-only",
+  "objective_status": "COMPLETED — measurement only; system NOT modified; no recommendations derived",
+  "results_objective": {
+    "overall_scored_accuracy_1d_FULL": 0.243697,
+    "overall_scored_accuracy_1d_NO_HISTORY": 0.243697,
+    "full_vs_no_history_changes": {
+      "decision": 0,
+      "confidence": 0,
+      "composite": 0,
+      "numeric_leaf_cases": 0
+    },
+    "ece_1d_scored": 0.395348,
+    "abstention_rate": 0.105263,
+    "determinism": "PASS",
+    "lookahead": "PASS",
+    "failed_cases": 0
+  },
+  "verdict": "Measurement recorded objectively; baseline performance is weak (below-chance 1d directional accuracy vs UP base rate) and historical memory had zero effect on the frozen decision path.",
+  "historical_news": "unavailable",
+  "production_writes": "none (artifacts confined to historical_validation/ and historical_validation/run002/)"
+}

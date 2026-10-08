@@ -1,0 +1,116 @@
+{
+  "confidence": 0.5156,
+  "decision_id": "dec_9593312c443f",
+  "decision_summary": "decision=NO_TRADE; confidence=0.5156; risk_reward_status=borderline; risk_reward_ratio=2.9631; selected_thesis=th_61eca403b71a.v2",
+  "entry_zone": [],
+  "expected_holding_days": 0,
+  "institutional_thesis_summary": "decision=NO_TRADE; selected_thesis=th_61eca403b71a.v2 (bearish); selected_scenario=sc_fc0f778d87bf (bull, p=0.1832); composite_score=0.5454; institutional_confidence=0.5156; risk_reward_status=borderline; risk_reward_ratio=2.9631; reason=selected thesis th_61eca403b71a.v2 blocked by risk/reward gate: ratio=2.9631 > 2.0 threshold | BIAS REVIEW: human review required (overall_severity=critical, findings=['regime_blindness', 'false_precision'])",
+  "instrument": "XAU/USD",
+  "invalidation_conditions": [
+    "Counter-evidence from sets es_inflation strengthens",
+    "Current regime conflicts with thesis direction",
+    "Regime-dependent evidence weakening thesis",
+    "Missing evidence channels: CB_GOLD"
+  ],
+  "major_counter_evidence": [
+    "rejected thesis th_857957230262 (neutral, score 0.5285): lower composite score (0.5285) than selected thesis (0.5454)",
+    "rejected thesis th_005391d6f262 (bullish, score 0.5134): lower composite score (0.5134) than selected thesis (0.5454)"
+  ],
+  "major_supporting_evidence": [
+    "institutional_confidence=0.5156 (weight 0.5)",
+    "risk_reward_quality=0.6127 (weight 0.3333333333333333)",
+    "scenario_probability=0.5 (weight 0.16666666666666666)"
+  ],
+  "metadata": {
+    "atr_provenance": {
+      "as_of": "2026-08-28",
+      "atr_14": 80.189956,
+      "bar_date": "2026-08-28",
+      "bars_used": 2930,
+      "engine": "pandas_ta_classic:atr_14",
+      "status": "ok"
+    },
+    "levels_basis": "not_applicable_no_levels",
+    "reference_price": 4660.60009765625,
+    "reference_price_provenance": {
+      "bar_date": "2026-08-28T00:00:00",
+      "method": "last_valid_close",
+      "source_data_hash": "9861bfcb2ab131d3cf31e8c77158b0b8cc7f3290cdfba4a491e6d6880f2a06a9",
+      "source_path": "C:\\AurumAI\\AurumAI\\data\\history\\gold\\gold.csv",
+      "status": "resolved_from_gold_data",
+      "value": 4660.60009765625
+    },
+    "selected_scenario_id": "sc_fc0f778d87bf",
+    "selected_thesis_id": "th_61eca403b71a.v2"
+  },
+  "monitoring_conditions": [
+    "re-evaluate when new evidence arrives or institutional confidence changes by more than 0.1",
+    "review on regime transition or when invalidation triggers come into proximity",
+    "monitor: Counter-evidence from sets es_inflation strengthens",
+    "monitor: Current regime conflicts with thesis direction",
+    "monitor: Regime-dependent evidence weakening thesis",
+    "monitor: Missing evidence channels: CB_GOLD"
+  ],
+  "position_size_recommendation": "",
+  "preconditions": [
+    "Gold ETF flow momentum reflecting investor sentiment; US dollar valuation channel through gold's dollar denomination accelerates",
+    "bullish confirmation signals fire"
+  ],
+  "provenance_chain": [
+    {
+      "created_at": "2026-08-28T14:18:32.173134+00:00",
+      "created_by": "W7 CounterEvidenceAssessor",
+      "entity_version": "1.0.0",
+      "metadata": {},
+      "previous_version_id": null
+    },
+    {
+      "created_at": "2026-08-28T14:18:32.173210+00:00",
+      "created_by": "W8 ThesisBuilder",
+      "entity_version": "1.0.0",
+      "metadata": {},
+      "previous_version_id": null
+    },
+    {
+      "created_at": "2026-08-28T14:18:32.158353+00:00",
+      "created_by": "W10 ThesisUpdater",
+      "entity_version": "1.0.0",
+      "metadata": {},
+      "previous_version_id": null
+    },
+    {
+      "created_at": "2026-08-28T14:18:32.205072+00:00",
+      "created_by": "W12 ScenarioGenerator",
+      "entity_version": "1.0.0",
+      "metadata": {},
+      "previous_version_id": null
+    },
+    {
+      "created_at": "2026-08-28T14:18:32.212590+00:00",
+      "created_by": "W12 RiskRewardValidator",
+      "entity_version": "1.0.0",
+      "metadata": {},
+      "previous_version_id": null
+    },
+    {
+      "created_at": "2026-08-28T14:18:32.239628+00:00",
+      "created_by": "W13 DecisionEngine",
+      "entity_version": "1.0.0",
+      "metadata": {},
+      "previous_version_id": null
+    },
+    {
+      "created_at": "2026-08-28T14:18:32.382005+00:00",
+      "created_by": "W14 RecommendationEngine",
+      "entity_version": "1.0.0",
+      "metadata": {},
+      "previous_version_id": null
+    }
+  ],
+  "recommendation_action": "NO_TRADE",
+  "recommendation_id": "rec_c2e64a1bc423",
+  "risk_pct": 0.0,
+  "stop_loss": "",
+  "take_profit_1": "",
+  "take_profit_2": ""
+}

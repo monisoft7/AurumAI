@@ -1,0 +1,175 @@
+{
+  "as_of": "2026-08-28",
+  "assessment_id": "tech_d13db4832bb8",
+  "asset": "XAU/USD",
+  "conflicting_indicators": [],
+  "desk_provenance": {
+    "as_of": "2026-08-28",
+    "assessment_id": "tech_d13db4832bb8",
+    "confidence": 0.8696,
+    "derived_facts": [
+      "fct_6f5b3716a7e0f056"
+    ],
+    "desk_id": "technical_research",
+    "facts_used": [
+      "fct_682b8d15b1e981d0",
+      "fct_c6303cf381617a55",
+      "fct_ab960507996ff024"
+    ],
+    "horizon_scope": "technical",
+    "metadata": {},
+    "source_artifacts": [
+      "gold_ohlcv#c1826115a6240a4d"
+    ]
+  },
+  "fact_references": {
+    "facts": [
+      {
+        "as_of": "2026-08-28",
+        "asset": "XAU/USD",
+        "confidence": 1.0,
+        "derived_from": [],
+        "fact_id": "fct_682b8d15b1e981d0",
+        "metadata": {
+          "timeframe": "D1"
+        },
+        "observed_at": "2026-08-28",
+        "producer": "technical_research",
+        "record_hash": "80aebd29df907608b689662c2c14d9ad6788eed703c63f501ea6578640ababfa",
+        "schema_version": "1.0",
+        "source": "gold_ohlcv",
+        "source_artifact_id": "tech_d13db4832bb8",
+        "source_hash": "c1826115a6240a4dcd4d07afaca2f6b1bfbf0b6abfeeee35affbf61aded8b210",
+        "topic": "close",
+        "unit": "usd",
+        "valid_from": "2026-08-28",
+        "valid_until": "",
+        "value": "4660.600098"
+      },
+      {
+        "as_of": "2026-08-28",
+        "asset": "XAU/USD",
+        "confidence": 1.0,
+        "derived_from": [
+          "fct_682b8d15b1e981d0"
+        ],
+        "fact_id": "fct_c6303cf381617a55",
+        "metadata": {
+          "timeframe": "D1"
+        },
+        "observed_at": "2026-08-28",
+        "producer": "technical_research",
+        "record_hash": "2844fa005a073fa38918d4301e97d0abd32a3d6db8dc851a7101e70bcb1b61e1",
+        "schema_version": "1.0",
+        "source": "gold_ohlcv",
+        "source_artifact_id": "tech_d13db4832bb8",
+        "source_hash": "c1826115a6240a4dcd4d07afaca2f6b1bfbf0b6abfeeee35affbf61aded8b210",
+        "topic": "ema200_trend_state",
+        "unit": "state",
+        "valid_from": "2026-08-28",
+        "valid_until": "",
+        "value": "bullish"
+      },
+      {
+        "as_of": "2026-08-28",
+        "asset": "XAU/USD",
+        "confidence": 1.0,
+        "derived_from": [
+          "fct_682b8d15b1e981d0"
+        ],
+        "fact_id": "fct_ab960507996ff024",
+        "metadata": {
+          "rsi_14": "67.089075",
+          "timeframe": "D1"
+        },
+        "observed_at": "2026-08-28",
+        "producer": "technical_research",
+        "record_hash": "50b2eba7707779974717c1d74bdac8a8e7e149410385b21639e6a9a73604bb5a",
+        "schema_version": "1.0",
+        "source": "gold_ohlcv",
+        "source_artifact_id": "tech_d13db4832bb8",
+        "source_hash": "c1826115a6240a4dcd4d07afaca2f6b1bfbf0b6abfeeee35affbf61aded8b210",
+        "topic": "rsi14_state",
+        "unit": "state",
+        "valid_from": "2026-08-28",
+        "valid_until": "",
+        "value": "neutral"
+      },
+      {
+        "as_of": "2026-08-28",
+        "asset": "XAU/USD",
+        "confidence": 0.8696,
+        "derived_from": [
+          "fct_c6303cf381617a55",
+          "fct_ab960507996ff024"
+        ],
+        "fact_id": "fct_6f5b3716a7e0f056",
+        "metadata": {
+          "momentum_direction": "bullish",
+          "structure_state": "uptrend",
+          "timeframe": "D1"
+        },
+        "observed_at": "2026-08-28",
+        "producer": "technical_research",
+        "record_hash": "f86467bcd35c310d0a6625b71f2fb653c792426e641d0d5f807f9f02bbe50d3e",
+        "schema_version": "1.0",
+        "source": "gold_ohlcv",
+        "source_artifact_id": "tech_d13db4832bb8",
+        "source_hash": "c1826115a6240a4dcd4d07afaca2f6b1bfbf0b6abfeeee35affbf61aded8b210",
+        "topic": "net_technical_stance",
+        "unit": "state",
+        "valid_from": "2026-08-28",
+        "valid_until": "",
+        "value": "bullish"
+      }
+    ],
+    "status": "ok"
+  },
+  "metadata": {
+    "bars_used": 2930,
+    "indicator_snapshot": {
+      "adx_14": 43.47853775605183,
+      "atr_14": 80.18995563289243,
+      "close": 4660.60009765625,
+      "ema_20": 4470.558101736123,
+      "ema_200": 4313.699595189815,
+      "ema_50": 4357.587782098446,
+      "macd_hist": 18.098127597751358,
+      "roc_9": 5.495955084047202,
+      "rsi_14": 67.08907524584318
+    },
+    "notes": [],
+    "structure": {
+      "bos_flag": null,
+      "last_swing_high": 4699.5,
+      "last_swing_low": 4387.2998046875,
+      "pivot_high_count": 279,
+      "pivot_low_count": 271
+    }
+  },
+  "momentum_direction": "bullish",
+  "overbought_oversold_state": "neutral",
+  "provenance_chain": [
+    {
+      "created_at": "2026-08-28T14:17:41.029249+00:00",
+      "created_by": "TechnicalResearchDesk",
+      "entity_version": "1.0.0",
+      "metadata": {
+        "engine": "pandas_ta_classic",
+        "library_version": "0.6.52",
+        "pivot_window": 3
+      }
+    }
+  ],
+  "source_data_hash": "c1826115a6240a4dcd4d07afaca2f6b1bfbf0b6abfeeee35affbf61aded8b210",
+  "structure_state": "uptrend",
+  "supporting_indicators": [
+    "trend_ema_stack_adx",
+    "momentum_macd_roc",
+    "market_structure_uptrend"
+  ],
+  "technical_confidence": 0.8696,
+  "timeframe": "D1",
+  "trend_direction": "bullish",
+  "volatility_state": "expanding"
+}

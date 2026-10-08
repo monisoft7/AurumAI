@@ -1,0 +1,21 @@
+{
+  "artifacts_directory": "C:\\AurumAI\\AurumAI\\outputs\\2026-08-14\\runtime_20260814_105900\\artifacts",
+  "cache_hits": 0,
+  "data_path": "data/economic/CPIAUCSL.csv",
+  "decision": "NO_TRADE",
+  "decision_confidence": 0.2255,
+  "errors": [],
+  "event_type": "CPI",
+  "failed_stages": [],
+  "gold_path": "data/history/gold/gold.csv",
+  "output_directory": "C:\\AurumAI\\AurumAI\\outputs\\2026-08-14\\runtime_20260814_105900",
+  "pipeline_id": "runtime_20260814_105900",
+  "stage_counts": {
+    "ok": 26
+  },
+  "success": true,
+  "timestamp": "2026-08-14T09:02:06.952337+00:00",
+  "trigger": "runtime",
+  "wall_time_ms": 172358.05330000585,
+  "wall_time_seconds": 172.4
+}

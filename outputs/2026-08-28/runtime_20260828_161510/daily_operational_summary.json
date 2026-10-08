@@ -1,0 +1,61 @@
+{
+  "calibration": {
+    "calibration_status": "dormant",
+    "oos_ece": null,
+    "sample_count": 0
+  },
+  "decision": {
+    "action": "NO_TRADE",
+    "confidence": 0.5156,
+    "gate_reason": "risk_reward_ratio_above_threshold",
+    "selected_thesis_id": "th_61eca403b71a.v2"
+  },
+  "entry_date": "2026-08-28",
+  "event_type": "CPI",
+  "governance": {
+    "bias_review_flag": true,
+    "bias_severity": "critical",
+    "provenance_status": "ok"
+  },
+  "news": {
+    "article_count": 20,
+    "directional_count": 2,
+    "relevant_count": 14,
+    "sentiment_status": "skipped_none",
+    "status": "ok",
+    "unknown_count": 18
+  },
+  "outcome": {
+    "abstention_verdict": "unevaluable",
+    "decision_correct": null,
+    "realized_return": null,
+    "status": "pending"
+  },
+  "provenance": {
+    "git_commit": "c5aa5f7",
+    "source_hashes": {
+      "gold_history": "9861bfcb2ab131d3cf31e8c77158b0b8cc7f3290cdfba4a491e6d6880f2a06a9",
+      "technical_assessment": "c1826115a6240a4dcd4d07afaca2f6b1bfbf0b6abfeeee35affbf61aded8b210"
+    }
+  },
+  "regime": "LATE_CYCLE",
+  "risk": {
+    "atr": 80.189956,
+    "market_risk_reward": null,
+    "reference_price": 4660.60009765625,
+    "risk_status": "proceed",
+    "status": "ok",
+    "stop": null,
+    "tp1": null,
+    "tp2": null
+  },
+  "run_id": "runtime_20260828_161510",
+  "schema_version": "1.0",
+  "technical": {
+    "momentum_direction": "bullish",
+    "status": "ok",
+    "structure_state": "uptrend",
+    "technical_confidence": 0.8696,
+    "trend_direction": "bullish"
+  }
+}

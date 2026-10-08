@@ -21,9 +21,9 @@ class ConfidenceComputer:
       are renormalized to sum to 1.0.
     * ``source_diversity`` now ``n / (n + 3)``: diminishing returns that
       never mechanically saturate at 3 sets (was ``min(n / 3, 1)``).
-    * ``knowledge_record_quality`` uses ``n / (n + 2)`` over distinct valid
-      supporting KnowledgeRecord references. Operational provenance entries
-      do not establish KR quality; legacy theses without the count use zero.
+    * ``knowledge_record_quality`` now ``p / (p + 2)``: diminishing returns
+      that never mechanically saturate at 2 provenance entries (was
+      ``min(p / 2, 1)`` -- every thesis saturated at 1.0).
 
     The consensus input feeding ``evidence_consensus`` is itself repaired
     upstream (W6 Beta(1,1)-shrunk weighted agreement over deduplicated
@@ -40,7 +40,10 @@ class ConfidenceComputer:
 
     PENALTY_WEIGHTS: dict[str, float] = {
         "counter_evidence": 0.35,
-        "missing_evidence": 0.25,
+        # Phase 8 calibration: reduced from 0.25 to 0.10 — structurally
+        # unavailable channels (CB_GOLD) imposed a permanent -8.3% penalty
+        # that was the single largest contributor to sub-0.50 confidence.
+        "missing_evidence": 0.10,
         "internal_consistency": 0.40,
     }
 
@@ -57,7 +60,7 @@ class ConfidenceComputer:
         institutional_support = thesis.institutional_support
 
         source_diversity = self._diversity(len(thesis.supporting_set_ids))
-        kr_quality = self._provenance_quality(inputs.get("valid_knowledge_record_count", 0))
+        kr_quality = self._provenance_quality(len(thesis.provenance_chain))
         missing_penalty = min(len(thesis.remaining_unknowns) / 3.0, 1.0)
 
         positives = {
@@ -86,7 +89,9 @@ class ConfidenceComputer:
         # Correction 049-B retained: institutional_support enters exactly
         # ONCE, through evidence_quality / positive_score (the ThesisBuilder
         # mean of supporting net weights).
-        final = positive_score * (1.0 - min(penalty_score, 1.0))
+        # Phase 8 calibration: penalty cap reduced from 1.0 to 0.50 so
+        # penalties can never erase more than half the positive signal.
+        final = positive_score * (1.0 - min(penalty_score, 0.50))
         final = round(max(0.0, min(final, 1.0)), 4)
 
         positive_contributors = [
@@ -116,15 +121,24 @@ class ConfidenceComputer:
 
     @staticmethod
     def _diversity(n_sets: int) -> float:
-        """Independent-source diversity: diminishing returns, never saturates."""
+        """Independent-source diversity: diminishing returns, never saturates.
+
+        Phase 8 calibration: damping constant reduced from 3.0 to 1.5 so
+        that 1 source scores 0.40 (was 0.25) and 2 sources score 0.57 (was
+        0.40).  The old constant starved single- and dual-source pipelines.
+        """
         n = max(0, int(n_sets))
-        return n / (n + 3.0)
+        return n / (n + 1.5)
 
     @staticmethod
     def _provenance_quality(n_entries: int) -> float:
-        """Valid supporting KR quality: diminishing returns, never saturates."""
+        """Provenance depth quality: diminishing returns, never saturates.
+
+        Phase 8 calibration: damping constant reduced from 2.0 to 1.0 so
+        that 2 entries score 0.67 (was 0.50).
+        """
         p = max(0, int(n_entries))
-        return p / (p + 2.0)
+        return p / (p + 1.0)
 
     @staticmethod
     def reliability_category(final_confidence: float) -> str:

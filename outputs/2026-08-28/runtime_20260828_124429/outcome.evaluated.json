@@ -1,0 +1,47 @@
+{
+  "abstention_basis": [
+    "low_conviction"
+  ],
+  "abstention_evaluable": true,
+  "abstention_return": null,
+  "abstention_verdict": "unevaluable",
+  "artifact": "decision_outcome",
+  "asset": "XAU/USD",
+  "decision": "NO_TRADE",
+  "decision_correct": null,
+  "decision_id": "dec_f7728781bad4",
+  "decision_snapshot": {
+    "best_rejected": {
+      "composite_score": 0.5347,
+      "direction": "neutral",
+      "thesis_id": "th_08765d8c75a0.v2"
+    },
+    "evidence_snapshot": {
+      "counter_evidence_quality": null,
+      "evidence_quality": null,
+      "scenario_probability_max": 0.5,
+      "total_theses_evaluated": 3
+    },
+    "gate_reasons": {
+      "bias_review_blocked": false,
+      "conviction_gate_pass": false,
+      "risk_reward_ratio": 1.8498,
+      "rr_gate_pass": true
+    }
+  },
+  "entry_date": "2026-08-28",
+  "evaluation_timestamp": null,
+  "event_type": "CPI",
+  "gold_path": "data/history/gold/gold.csv",
+  "gold_source_sha256": "9861bfcb2ab131d3cf31e8c77158b0b8cc7f3290cdfba4a491e6d6880f2a06a9",
+  "horizon_days": 12,
+  "institutional_confidence": 0.4992,
+  "notes": [
+    "abstention: decision intentionally not scored by decision_correct (binary abstention scoring policy DEFERRED); quality is assessed by abstention_verdict per Correction 055-A",
+    "evaluation horizon not yet elapsed in gold data"
+  ],
+  "realized_gold_return": null,
+  "run_id": "runtime_20260828_124429",
+  "schema_version": "1.1",
+  "status": "pending"
+}

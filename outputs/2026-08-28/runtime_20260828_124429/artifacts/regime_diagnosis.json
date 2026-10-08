@@ -1,0 +1,196 @@
+{
+  "composite_provenance": {
+    "excluded_indicators": [
+      {
+        "detail": {
+          "excluded_from_live": true,
+          "generated_by": "src/simulation/historical_replay.py::_write_synthetic_csv",
+          "generator": "numpy.random.default_rng(42).normal(52.0, 4.0, 36)",
+          "reason": "ISM PMI history was never downloaded; this file was auto-generated as a replay filler and must not feed the macro regime composite.",
+          "start": "2022-01-31"
+        },
+        "file": "PMI.csv",
+        "indicator": "PMI",
+        "reason": "synthetic_placeholder"
+      }
+    ],
+    "source": "csv"
+  },
+  "confidence": 0.6,
+  "cross_asset_consistency": {},
+  "fact_references": {
+    "desk_provenance": {
+      "as_of": "2026-08-28",
+      "assessment_id": "regime_diagnosis#2026-08-28",
+      "confidence": 0.6,
+      "derived_facts": [],
+      "desk_id": "macro_regime",
+      "facts_used": [
+        "fct_ebd6c79444d3703d"
+      ],
+      "horizon_scope": "macro_regime",
+      "metadata": {},
+      "source_artifacts": [
+        "composite_score"
+      ]
+    },
+    "facts": [
+      {
+        "as_of": "2026-08-28",
+        "asset": "GOLD",
+        "confidence": 0.6,
+        "derived_from": [],
+        "fact_id": "fct_ebd6c79444d3703d",
+        "metadata": {},
+        "observed_at": "2026-08-28",
+        "producer": "macro_regime",
+        "record_hash": "72343f2ac5453ef7472087f7b122d7534dbc47b03ac801fb0f6ee9f2ce727dc0",
+        "schema_version": "1.0",
+        "source": "institutional_regime_detector",
+        "source_artifact_id": "regime_diagnosis#2026-08-28",
+        "source_hash": "",
+        "topic": "macro_regime_state",
+        "unit": "state",
+        "valid_from": "2026-08-28",
+        "valid_until": "",
+        "value": "INFLATIONARY"
+      }
+    ],
+    "status": "ok"
+  },
+  "gram_residual": 0.0,
+  "gram_trend": "stable",
+  "in_transition": false,
+  "indicator_hierarchy": [
+    {
+      "associated_kr_ids": [],
+      "data_source": "",
+      "description": "BEI (breakeven inflation rate)",
+      "frequency": "",
+      "indicator": "breakeven_inflation_rate",
+      "methodology_citation": "",
+      "tier": "dominant",
+      "unit": "",
+      "weight": 0.25
+    },
+    {
+      "associated_kr_ids": [],
+      "data_source": "",
+      "description": "US fiscal deficit / GDP",
+      "frequency": "",
+      "indicator": "us_fiscal_deficit",
+      "methodology_citation": "",
+      "tier": "dominant",
+      "unit": "",
+      "weight": 0.2
+    },
+    {
+      "associated_kr_ids": [],
+      "data_source": "",
+      "description": "Fed credibility proxy (SPF dispersion)",
+      "frequency": "",
+      "indicator": "fed_credibility_proxy",
+      "methodology_citation": "",
+      "tier": "dominant",
+      "unit": "",
+      "weight": 0.15
+    },
+    {
+      "associated_kr_ids": [],
+      "data_source": "",
+      "description": "Central bank net purchases",
+      "frequency": "",
+      "indicator": "central_bank_buying",
+      "methodology_citation": "",
+      "tier": "dominant",
+      "unit": "",
+      "weight": 0.12
+    },
+    {
+      "associated_kr_ids": [],
+      "data_source": "",
+      "description": "Gold ETF flow momentum",
+      "frequency": "",
+      "indicator": "gold_etf_flows",
+      "methodology_citation": "",
+      "tier": "secondary",
+      "unit": "",
+      "weight": 0.08
+    },
+    {
+      "associated_kr_ids": [],
+      "data_source": "",
+      "description": "US 10Y term premium (ACM)",
+      "frequency": "",
+      "indicator": "term_premium",
+      "methodology_citation": "",
+      "tier": "secondary",
+      "unit": "",
+      "weight": 0.08
+    },
+    {
+      "associated_kr_ids": [],
+      "data_source": "",
+      "description": "US Dollar Index",
+      "frequency": "",
+      "indicator": "dxy",
+      "methodology_citation": "",
+      "tier": "secondary",
+      "unit": "",
+      "weight": 0.05
+    },
+    {
+      "associated_kr_ids": [],
+      "data_source": "",
+      "description": "Real yields (unstable beta)",
+      "frequency": "",
+      "indicator": "real_yields_10y_tips",
+      "methodology_citation": "",
+      "tier": "weaker",
+      "unit": "",
+      "weight": 0.03
+    },
+    {
+      "associated_kr_ids": [],
+      "data_source": "",
+      "description": "COMEX positioning (momentum chase)",
+      "frequency": "",
+      "indicator": "comex_managed_money_zscore",
+      "methodology_citation": "",
+      "tier": "weaker",
+      "unit": "",
+      "weight": 0.02
+    }
+  ],
+  "label": "Inflationary",
+  "previous_regime": "INFLATIONARY",
+  "probabilities": {
+    "DEFLATIONARY_CRISIS": 0.05,
+    "GEOPOLITICAL_STRESS": 0.0,
+    "INFLATIONARY": 0.6,
+    "NORMAL_GROWTH": 0.3,
+    "STAGFLATIONARY": 0.05,
+    "STRUCTURAL_REGIME_CHANGE": 0.0
+  },
+  "regime": "INFLATIONARY",
+  "regime_duration_days": 0,
+  "timestamp": "2026-08-28T10:46:33.173676+00:00",
+  "transition_confidence": 0.4,
+  "transition_type": "none",
+  "trigger_levels": [
+    {
+      "condition": "GDP < 0% + CPI > 4%",
+      "direction": "",
+      "indicator": "INFLATIONARY",
+      "target": "STAGFLATIONARY",
+      "threshold_value": 0.0
+    },
+    {
+      "condition": "CPI < 2% for 3 months",
+      "direction": "",
+      "indicator": "INFLATIONARY",
+      "target": "NORMAL_GROWTH",
+      "threshold_value": 0.0
+    }
+  ]
+}

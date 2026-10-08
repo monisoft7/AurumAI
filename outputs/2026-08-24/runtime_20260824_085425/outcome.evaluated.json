@@ -1,0 +1,26 @@
+{
+  "abstention_basis": [],
+  "abstention_evaluable": false,
+  "abstention_return": null,
+  "abstention_verdict": null,
+  "artifact": "decision_outcome",
+  "asset": "XAU/USD",
+  "decision": "BUY",
+  "decision_correct": null,
+  "decision_id": "dec_ea25f508127f",
+  "decision_snapshot": {},
+  "entry_date": "2026-08-24",
+  "evaluation_timestamp": null,
+  "event_type": "CPI",
+  "gold_path": "data/history/gold/gold.csv",
+  "gold_source_sha256": "9861bfcb2ab131d3cf31e8c77158b0b8cc7f3290cdfba4a491e6d6880f2a06a9",
+  "horizon_days": 12,
+  "institutional_confidence": 0.5922,
+  "notes": [
+    "evaluation horizon not yet elapsed in gold data"
+  ],
+  "realized_gold_return": null,
+  "run_id": "runtime_20260824_085425",
+  "schema_version": "1.1",
+  "status": "pending"
+}

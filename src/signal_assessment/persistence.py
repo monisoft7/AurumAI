@@ -10,7 +10,10 @@ from signal_assessment.contracts import CriterionScore
 # DXY: 0.5% alone = noise, 0.5% + 5bp real yield = signal
 
 NOISE_FILTERS: dict[str, dict[str, float]] = {
-    "COMEX": {"noise_days": 7, "signal_days": 21},
+    # Phase 8 calibration: COMEX noise_days reduced from 7 to 3 and
+    # signal_days from 21 to 10 to match the daily assessment cadence.
+    # A 3-day persistent gold move is directionally meaningful.
+    "COMEX": {"noise_days": 3, "signal_days": 10},
     "ETF": {"noise_days": 1, "signal_days": 14},
     "CB": {"noise_days": 90, "signal_days": 560},
     "gold_real_yield": {"noise_days": 1, "signal_days": 30},
