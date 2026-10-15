@@ -21,14 +21,9 @@ class ConfidenceComputer:
       are renormalized to sum to 1.0.
     * ``source_diversity`` now ``n / (n + 3)``: diminishing returns that
       never mechanically saturate at 3 sets (was ``min(n / 3, 1)``).
-    * ``knowledge_record_quality`` now ``p / (p + 2)``: diminishing returns
-      that never mechanically saturate at 2 provenance entries (was
-      ``min(p / 2, 1)`` -- every thesis saturated at 1.0).
-
-    The consensus input feeding ``evidence_consensus`` is itself repaired
-    upstream (W6 Beta(1,1)-shrunk weighted agreement over deduplicated
-    items), so single-item and homogeneous-neutral sets no longer inject
-    perfect consensus here.
+    * ``knowledge_record_quality`` now ``k / (k + 2)`` over verified
+      supporting KnowledgeRecords (fallback observations without a valid
+      KnowledgeRecord earn 0.0).
     """
 
     POSITIVE_WEIGHTS: dict[str, float] = {
@@ -40,10 +35,7 @@ class ConfidenceComputer:
 
     PENALTY_WEIGHTS: dict[str, float] = {
         "counter_evidence": 0.35,
-        # Phase 8 calibration: reduced from 0.25 to 0.10 — structurally
-        # unavailable channels (CB_GOLD) imposed a permanent -8.3% penalty
-        # that was the single largest contributor to sub-0.50 confidence.
-        "missing_evidence": 0.10,
+        "missing_evidence": 0.25,
         "internal_consistency": 0.40,
     }
 
@@ -59,8 +51,18 @@ class ConfidenceComputer:
         internal_penalty = float(inputs.get("confidence_penalty", 0.0))
         institutional_support = thesis.institutional_support
 
+        if "valid_knowledge_record_count" in inputs:
+            valid_kr_count = int(inputs.get("valid_knowledge_record_count") or 0)
+        elif any(
+            str(getattr(p, "created_by", "")).startswith("W")
+            for p in thesis.provenance_chain
+        ):
+            valid_kr_count = 0
+        else:
+            valid_kr_count = len(thesis.provenance_chain)
+
         source_diversity = self._diversity(len(thesis.supporting_set_ids))
-        kr_quality = self._provenance_quality(len(thesis.provenance_chain))
+        kr_quality = self._provenance_quality(valid_kr_count)
         missing_penalty = min(len(thesis.remaining_unknowns) / 3.0, 1.0)
 
         positives = {
@@ -89,9 +91,7 @@ class ConfidenceComputer:
         # Correction 049-B retained: institutional_support enters exactly
         # ONCE, through evidence_quality / positive_score (the ThesisBuilder
         # mean of supporting net weights).
-        # Phase 8 calibration: penalty cap reduced from 1.0 to 0.50 so
-        # penalties can never erase more than half the positive signal.
-        final = positive_score * (1.0 - min(penalty_score, 0.50))
+        final = positive_score * (1.0 - min(penalty_score, 1.0))
         final = round(max(0.0, min(final, 1.0)), 4)
 
         positive_contributors = [
@@ -109,7 +109,11 @@ class ConfidenceComputer:
             "positive_contributors": positive_contributors,
             "negative_contributors": negative_contributors,
             "confidence_penalties": [
-                {"name": name, "value": value, "penalty": round(value * self.PENALTY_WEIGHTS[name], 4)}
+                {
+                    "name": name,
+                    "value": value,
+                    "penalty": round(value * self.PENALTY_WEIGHTS[name], 4),
+                }
                 for name, value in penalties.items()
             ],
             "remaining_uncertainty": round(1.0 - final, 4),
@@ -121,24 +125,17 @@ class ConfidenceComputer:
 
     @staticmethod
     def _diversity(n_sets: int) -> float:
-        """Independent-source diversity: diminishing returns, never saturates.
-
-        Phase 8 calibration: damping constant reduced from 3.0 to 1.5 so
-        that 1 source scores 0.40 (was 0.25) and 2 sources score 0.57 (was
-        0.40).  The old constant starved single- and dual-source pipelines.
-        """
+        """Independent-source diversity: diminishing returns, never saturates."""
         n = max(0, int(n_sets))
-        return n / (n + 1.5)
+        return n / (n + 3.0)
 
     @staticmethod
     def _provenance_quality(n_entries: int) -> float:
-        """Provenance depth quality: diminishing returns, never saturates.
-
-        Phase 8 calibration: damping constant reduced from 2.0 to 1.0 so
-        that 2 entries score 0.67 (was 0.50).
-        """
+        """Provenance depth quality over verified KnowledgeRecords."""
         p = max(0, int(n_entries))
-        return p / (p + 1.0)
+        if p == 0:
+            return 0.0
+        return p / (p + 2.0)
 
     @staticmethod
     def reliability_category(final_confidence: float) -> str:

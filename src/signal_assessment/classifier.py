@@ -30,9 +30,6 @@ class NoiseSignalClassifier:
         self,
         criteria_scores: dict[str, CriterionScore],
     ) -> tuple[str, float, str]:
-        # Final Hardening (Group G): the legacy positional-arguments branch
-        # (persistence/breadth/magnitude_z/narrative/volume) was removed --
-        # every production and test caller passes ``criteria_scores``.
         scores = list(criteria_scores.values())
         magnitude_z = 0.0
         if criteria_scores and "magnitude" in criteria_scores:
@@ -48,22 +45,15 @@ class NoiseSignalClassifier:
         persistence_passed = next(
             (s.passed for s in scores if s.criterion == "persistence"), False
         )
-        # Phase 8 calibration: magnitude threshold lowered to 1.2σ
-        magnitude_passed = abs(magnitude_z) >= 1.2
-        narrative_passed = next(
-            (s.passed for s in scores if s.criterion == "narrative_fit"), False
-        )
 
-        # Signal now requires 3 criteria, OR (2 criteria AND (persistence OR narrative))
-        if positive_count >= 3 or (positive_count >= 2 and (persistence_passed or narrative_passed)):
+        if positive_count >= 3 or (positive_count >= 2 and persistence_passed):
             label = ClassificationLabel.SIGNAL
             confidence = min(0.5 + 0.1 * positive_count, 0.95)
             reason = self._build_reason("Signal", positive_count, scores)
-        # Weak Signal now requires 2 criteria, OR (1 criterion AND magnitude >= 1.2σ)
-        elif positive_count >= 2 or (positive_count >= 1 and magnitude_passed):
+        elif positive_count >= 2:
             label = ClassificationLabel.WEAK_SIGNAL
-            confidence = min(0.3 + 0.1 * max(positive_count, 2), 0.6)
-            reason = self._build_reason("Weak Signal", max(positive_count, 2), scores)
+            confidence = min(0.3 + 0.1 * positive_count, 0.6)
+            reason = self._build_reason("Weak Signal", positive_count, scores)
         elif positive_count == 1:
             label = ClassificationLabel.WATCH
             confidence = min(0.2 + 0.1 * positive_count, 0.4)

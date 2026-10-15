@@ -3,21 +3,22 @@ from __future__ import annotations
 import hashlib
 import math
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 from evidence_collection.contracts import Evidence, EvidenceCollection
 from evidence_collection.strength import EvidenceStrengthComputer
 from knowledge.evidence.query import EvidenceQuery
-from knowledge.graph.graph import KnowledgeGraph, GraphNode
+from knowledge.graph.graph import GraphNode, KnowledgeGraph
 from knowledge.integrity.provenance import Provenance
-from signal_assessment.volume import ETF_FLOW_THRESHOLD_PCT
 from signal_assessment.contracts import (
     ClassificationLabel,
     ClassifiedObservation,
     CriterionScore,
     SignalAssessment,
 )
+from signal_assessment.volume import ETF_FLOW_THRESHOLD_PCT
 
 SIGNAL_LABELS = {
     ClassificationLabel.SIGNAL.value,
@@ -61,12 +62,6 @@ EVENT_TYPE_TO_EVIDENCE_CLASS: dict[str, str] = {
     "ETF": "ETF_FLOW",
 }
 
-# Correction 051 (Trace 051 F-01): overnight evidence polarity follows the
-# OBSERVED move, not merely the instrument name.  sign(change_pct) resolves
-# the direction; each entry gives the gold implication for up / down moves.
-# Instruments absent from this mapping keep their static
-# INSTRUMENT_TO_REGIME_BIAS value ("US10Y Nominal Yield" has no production
-# rule defining a directional gold implication and stays neutral).
 DIRECTIONAL_INSTRUMENT_GOLD_BIAS: dict[str, dict[str, str]] = {
     "XAU/USD": {"up": "bullish", "down": "bearish"},
     "DXY": {"up": "bearish", "down": "bullish"},
@@ -104,6 +99,38 @@ class EvidenceCollector:
     ) -> None:
         self._kg = knowledge_graph
         self._strength = strength_computer or EvidenceStrengthComputer()
+        self._kb_ingested = False
+
+    def _ensure_institutional_kb_loaded(self) -> None:
+        """Enrich runtime pipeline graphs with Institutional_Gold_Knowledge_Base.md.
+
+        Only triggers when self._kg is a full runtime pipeline graph (containing
+        lesson-derived KnowledgeRecords with a source_artifact_sha256) so unit
+        tests with synthetic/empty graphs remain completely hermetic.
+        """
+        if self._kb_ingested or self._kg is None:
+            return
+        self._kb_ingested = True
+        try:
+            has_pipeline_krs = any(
+                self._is_valid_kr_node(self._kg.get_node(nid))
+                and bool((self._kg.get_node(nid).properties or {}).get("source_artifact_sha256"))
+                for nid in list(self._kg._graph.nodes)
+            )
+            if not has_pipeline_krs:
+                return
+            kb_path = Path(__file__).resolve().parent.parent.parent / "Institutional_Gold_Knowledge_Base.md"
+            if not kb_path.is_file():
+                return
+            from knowledge.ingestion.ingestion_pipeline import KrIngestionPipeline
+
+            kb_graph, _ = KrIngestionPipeline(str(kb_path)).run()
+            for nid in list(kb_graph._graph.nodes):
+                node = kb_graph.get_node(nid)
+                if node is not None and self._kg.get_node(nid) is None:
+                    self._kg.add_node(node)
+        except Exception:
+            pass
 
     def collect(
         self,
@@ -114,12 +141,6 @@ class EvidenceCollector:
     ) -> EvidenceCollection:
         """Collect observation evidence and, when supplied, the independent
         TechnicalResearchDesk reading (Run-003 repair, Phase 9).
-
-        The technical assessment is projected through the shared
-        ``build_technical_evidence`` adapter onto one Evidence item in the
-        dedicated ``TECHNICAL`` channel.  A missing or non-directional desk
-        reading contributes no item -- the desk's unavailability stays
-        explicit rather than being replaced by an invented vote.
         """
         evidence_items: list[Evidence] = []
         filtered_noise = 0
@@ -173,9 +194,6 @@ class EvidenceCollector:
                 ),
             }
         if technical_assessment is not None:
-            # Run-003 repair (Phase 9): record the desk-reading availability
-            # explicitly -- a None item means no directional desk reading,
-            # never a silent drop.
             def _ta_field(name: str, default: Any = None) -> Any:
                 if isinstance(technical_assessment, dict):
                     return technical_assessment.get(name, default)
@@ -255,10 +273,6 @@ class EvidenceCollector:
             "provenance_type": provenance_type,
             "knowledge_record_id": knowledge_record_id,
         }
-        # Run-003 repair (Phase 3): stamp the deterministic canonical fact
-        # identity (existing primitive_fact_id machinery) so W6 can recognize
-        # same-fact repetition across producers and prevent it from
-        # manufacturing consensus.
         from evidence_collection.desk_evidence import (
             _assessment_date,
             canonical_fact_identity,
@@ -267,10 +281,6 @@ class EvidenceCollector:
         metadata["canonical_fact_id"] = canonical_fact_identity(
             obs.instrument, event_type, _assessment_date(assessment.timestamp)
         )
-        # Sprint 058 (W-5): news-derived observations carry their full
-        # article provenance (source, content id, timestamps, event
-        # classification, gold relevance, directional implication and its
-        # basis) so every news evidence item is traceable to a source.
         news_prov = self._news_provenance_payload(obs, assessment)
         if news_prov is not None:
             metadata["news"] = news_prov
@@ -297,7 +307,11 @@ class EvidenceCollector:
             contradicting_observation_ids=tuple(contradicting),
             mechanism=self._resolve_mechanism(obs.instrument),
             provenance=provenance,
-            temporal_recency=(min(max(1.0 / (1.0 + abs(obs.change_sigma)), 0.1), 1.0) if obs.change_sigma is not None and math.isfinite(obs.change_sigma) else float('nan')),
+            temporal_recency=(
+                min(max(1.0 / (1.0 + abs(obs.change_sigma)), 0.1), 1.0)
+                if obs.change_sigma is not None and math.isfinite(obs.change_sigma)
+                else float("nan")
+            ),
             metadata=metadata,
         )
 
@@ -314,12 +328,6 @@ class EvidenceCollector:
         obs: ClassifiedObservation,
         assessment: SignalAssessment,
     ) -> dict[str, Any] | None:
-        """Copy the article provenance registered at W5 into Evidence.metadata.
-
-        Read-only: the payload is carried for downstream auditability and
-        feeds no scoring field.  Returns None for non-news observations or
-        when the assessment carries no news provenance registry.
-        """
         if obs.source != "news":
             return None
         registry = assessment.metadata.get("news_provenance")
@@ -336,27 +344,27 @@ class EvidenceCollector:
         "institutional_context",
     )
 
+    @staticmethod
+    def _is_valid_kr_node(node: GraphNode | None) -> bool:
+        """Contract 4 rule 5: only genuine knowledge_record nodes whose
+        knowledge_id matches their node_id may be claimed as KnowledgeRecords."""
+        if node is None or node.node_type != "knowledge_record":
+            return False
+        props = node.properties or {}
+        kr_id = props.get("knowledge_id")
+        if not isinstance(kr_id, str) or not kr_id.strip():
+            return False
+        return kr_id.strip() == node.node_id
+
     def _knowledge_semantics_payload(
         self, source_kr_node_id: str
     ) -> dict[str, Any] | None:
-        """Copy the minimum KnowledgeRecord semantics into Evidence.metadata.
-
-        Read-only preservation (Correction 008-A): the payload is carried for
-        downstream reasoning but never used for scoring here.  It is returned
-        only when the resolved node is a real KnowledgeRecord node; otherwise
-        None so no historical values are fabricated for observation-anchored
-        evidence.  The KnowledgeRecord condition is kept distinct from the
-        Evidence.condition contract field (which remains the observation
-        instrument condition).
-        """
         if self._kg is None or not source_kr_node_id:
             return None
         node = self._kg.get_node(source_kr_node_id)
-        if node is None or node.node_type != "knowledge_record":
+        if not self._is_valid_kr_node(node):
             return None
         props = node.properties or {}
-        if "knowledge_id" not in props:
-            return None
         semantics: dict[str, Any] = {}
         condition = props.get("condition")
         if isinstance(condition, dict) and condition:
@@ -375,17 +383,14 @@ class EvidenceCollector:
         event_type: str,
         cpi_condition: dict[str, str] | None = None,
     ) -> tuple[list[str], list[str]]:
-        """Resolve KnowledgeRecord IDs linked to an observation.
-
-        When a valid current CPI condition is supplied and the lookup falls
-        back onto the CPI event class, the Legacy EvidenceQuery (exact
-        condition matching) is used instead of any condition-blind
-        ``nodes[:3]`` / insertion-order selection.  When no condition is
-        supplied the historical fallback behaviour is preserved unchanged.
-        """
+        """Resolve KnowledgeRecord IDs linked to an observation."""
         if self._kg is None:
             return [], []
-        nodes = self._kg.filter_nodes(event_type=event_type)
+        self._ensure_institutional_kb_loaded()
+        nodes = [
+            n for n in self._kg.filter_nodes(event_type=event_type)
+            if self._is_valid_kr_node(n)
+        ]
         if not nodes:
             mapped_types = [
                 t for t, cls in EVENT_TYPE_TO_EVIDENCE_CLASS.items()
@@ -399,16 +404,23 @@ class EvidenceCollector:
                     if nodes:
                         break
                     continue
-                nodes = self._kg.filter_nodes(event_type=mapped_type)
+                nodes = [
+                    n for n in self._kg.filter_nodes(event_type=mapped_type)
+                    if self._is_valid_kr_node(n)
+                ]
                 if nodes:
                     break
         if not nodes:
-            nodes = self._kg.filter_nodes(event_type="GENERAL")
+            nodes = [
+                n for n in self._kg.filter_nodes(event_type="GENERAL")
+                if self._is_valid_kr_node(n)
+            ]
         kr_ids = [n.node_id for n in nodes[:3]] if nodes else []
         return kr_ids, kr_ids
 
-    @staticmethod
+    @classmethod
     def _filter_nodes_by_condition(
+        cls,
         event_type: str,
         condition: dict[str, str],
         graph: KnowledgeGraph,
@@ -420,7 +432,7 @@ class EvidenceCollector:
         nodes: list[GraphNode] = []
         for item in matched:
             node = graph.get_node(item.source_node_id)
-            if node is not None:
+            if cls._is_valid_kr_node(node):
                 nodes.append(node)
         return nodes
 
@@ -432,17 +444,12 @@ class EvidenceCollector:
             and obs.change_pct is not None
             and math.isfinite(obs.change_pct)
         ):
-            # ETF proxy direction semantics: same +/-1.0% boundary as the
-            # accumulating/distributing momentum label in pre_market.positioning.
             if abs(obs.change_pct) > ETF_FLOW_THRESHOLD_PCT:
                 return "bullish" if obs.change_pct > 0 else "bearish"
             return "neutral"
         directional = DIRECTIONAL_INSTRUMENT_GOLD_BIAS.get(obs.instrument)
         if directional is not None:
             change = obs.change_pct
-            # Correction 051: the observed move controls polarity.  Zero or
-            # missing change invents no direction and keeps the static
-            # mapping (news / anomaly observations carry no overnight move).
             if change is not None and math.isfinite(change) and change != 0.0:
                 return directional["up"] if change > 0 else directional["down"]
         return base

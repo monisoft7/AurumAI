@@ -146,7 +146,11 @@ def parse_kr_section(lines: list[str]) -> dict[str, Any]:
     }
 
     cat = kr.get("category", "").lower()
-    if "central bank" in cat:
+    title_lower = kr.get("title", "").lower()
+    if "cross-asset" in cat or "equity" in title_lower or "oil" in title_lower or "liquidity" in title_lower:
+        kr["event_type"] = "GENERAL"
+        kr["condition"] = {"driver": "general"}
+    elif "central bank" in cat:
         kr["event_type"] = "CB_GOLD"
         kr["condition"] = {"driver": "central_bank_demand"}
     elif "etf" in cat:

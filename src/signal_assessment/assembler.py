@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import hashlib
-import re
 import math
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -13,7 +13,6 @@ from signal_assessment.contracts import ClassifiedObservation, CriterionScore, S
 from signal_assessment.narrative import NarrativeFitScorer
 from signal_assessment.persistence import PersistenceTracker
 from signal_assessment.volume import ETF_FLOW_THRESHOLD_PCT, VolumeFlowConfirmator
-
 
 PERSISTENCE_TYPE_BY_INSTRUMENT = {
     "XAU/USD": "COMEX",
@@ -34,11 +33,7 @@ GOLD_CLASS_INSTRUMENTS = frozenset(
 
 
 def _deterministic_news_key(news: NewsItem) -> str:
-    """Stable content-derived key for a news observation.
-
-    Prefers the pipeline article_id (full provenance chain), falling back
-    to a sha256 over headline+source+published.  Never process-randomized.
-    """
+    """Stable content-derived key for a news observation."""
     prov = news.provenance if isinstance(news.provenance, dict) else None
     if prov and prov.get("article_id"):
         return str(prov["article_id"]).replace("nws_", "")
@@ -76,9 +71,6 @@ class SignalAssessmentAssembler:
         positional = briefing.positioning_snapshot
 
         def _pos_available(feed: str) -> bool:
-            # Final Hardening (D-11): unavailable positioning feeds must not
-            # be consumed as real measurements.  Missing availability map
-            # (legacy snapshots) keeps the legacy behaviour.
             if positional is None:
                 return False
             return positional.availability.get(feed, "available") == "available"
@@ -99,14 +91,11 @@ class SignalAssessmentAssembler:
                 changes=changes_dict,
                 regime=self._regime,
             )
-            # Phase 8 calibration: magnitude threshold lowered from 2.0σ to
-            # 1.2σ.  A 1.2σ daily move is in the top 23% and is directionally
-            # notable; the old 2.0σ gate discarded virtually every overnight move.
             magnitude_criteria = CriterionScore(
                 criterion="magnitude",
                 score=min(abs(change.change_sigma) / 3.0, 1.0) if math.isfinite(change.change_sigma) else 0.0,
-                threshold=1.2,
-                passed=math.isfinite(change.change_sigma) and abs(change.change_sigma) >= 1.2,
+                threshold=2.0,
+                passed=math.isfinite(change.change_sigma) and abs(change.change_sigma) >= 2.0,
                 detail=f"z-score={change.change_sigma:.2f}",
             )
             narrative = self._narrative.evaluate(
@@ -121,8 +110,6 @@ class SignalAssessmentAssembler:
                         positional.etf_flow_change_pct if etf_available else 0.0
                     ),
                     "etf_flow_momentum": positional.etf_flow_momentum,
-                    # unavailable OI is passed as None so the volume/flow
-                    # criterion never treats a masked 0.0 as a flat day
                     "open_interest_change_pct": (
                         positional.open_interest_change_pct if oi_available else None
                     ),
@@ -252,8 +239,6 @@ class SignalAssessmentAssembler:
             ))
 
         for news in briefing.news_items:
-            # Phase 8 calibration: news breadth is now derived from
-            # multi-source corroboration.  3+ news items = breadth confirmed.
             news_breadth_score = min(len(briefing.news_items) / 5.0, 1.0)
             news_breadth_passed = len(briefing.news_items) >= 3
             news_criteria = [
@@ -272,8 +257,6 @@ class SignalAssessmentAssembler:
                     "volume_flow": news_criteria[4],
                 },
             )
-            # Sprint 058: deterministic content id (Python hash() is
-            # process-randomized for str and must never identify evidence).
             observation_id = f"obs_news_{_deterministic_news_key(news)}"
             observations.append(ClassifiedObservation(
                 observation_id=observation_id,
@@ -300,18 +283,13 @@ class SignalAssessmentAssembler:
         ):
             impact = str(cpi_release.get("expected_impact", "medium")).lower()
             impact_score = {"high": 0.9, "medium": 0.5, "low": 0.2}.get(impact, 0.5)
-            # Phase 8 calibration: CPI releases now contribute persistence
-            # (macro events persist beyond a single day) and magnitude based
-            # on expected impact.  Previously all 4 criteria except
-            # narrative_fit were hardcoded to 0/False, making every CPI
-            # release a "Watch" regardless of its significance.
             cpi_persistence_passed = impact in ("high", "medium")
             cpi_magnitude_score = {"high": 0.8, "medium": 0.4, "low": 0.1}.get(impact, 0.3)
             cpi_magnitude_passed = impact == "high"
             cpi_criteria = [
                 CriterionScore("persistence", 0.7 if cpi_persistence_passed else 0.0, 0.5, cpi_persistence_passed, f"macro release impact={impact}"),
                 CriterionScore("breadth", 0.0, 0.5, False, "macro release, no breadth series"),
-                CriterionScore("magnitude", cpi_magnitude_score, 1.2, cpi_magnitude_passed, f"CPI impact={impact}"),
+                CriterionScore("magnitude", cpi_magnitude_score, 2.0, cpi_magnitude_passed, f"CPI impact={impact}"),
                 CriterionScore("narrative_fit", impact_score, 0.3, impact_score >= 0.3, detail=f"expected_impact={impact}"),
                 CriterionScore("volume_flow", 0.0, 0.5, False, "macro release, no volume flow"),
             ]
