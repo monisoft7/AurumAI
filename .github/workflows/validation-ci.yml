@@ -38,7 +38,9 @@ jobs:
           python -m pip install ".[dev,technical]"
 
       - name: Collection Gate
-        run: python -m pytest --collect-only -q --basetemp=.pytest-tmp/collect
+        run: |
+          mkdir -p .pytest-tmp
+          python -m pytest --collect-only -q --basetemp=.pytest-tmp/collect
 
       # Temporary stabilization gate. It currently covers the stabilization
       # regressions plus the hermetic pre-market regression files. The Full
