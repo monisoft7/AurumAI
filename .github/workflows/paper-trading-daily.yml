@@ -71,7 +71,7 @@ jobs:
           PY
 
       - name: Checkout frozen strategy baseline
-        if: ${{ env.PAPER_LEDGER_REPOSITORY != '' && env.PAPER_LEDGER_TOKEN != '' }}
+        if: ${{ false }}
         uses: actions/checkout@v4
         with:
           ref: ${{ steps.paper-baseline.outputs.baseline_commit }}
@@ -80,7 +80,7 @@ jobs:
           persist-credentials: false
 
       - name: Checkout private paper ledger
-        if: ${{ env.PAPER_LEDGER_REPOSITORY != '' && env.PAPER_LEDGER_TOKEN != '' }}
+        if: ${{ false }}
         uses: actions/checkout@v4
         with:
           repository: ${{ vars.PAPER_LEDGER_REPOSITORY }}
@@ -94,19 +94,18 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install "./harness[technical]"
 
+      - name: Install dependencies (dry-run fallback)
+        if: env.AUTOMATION_MODE != 'live-paper'
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "./harness[technical]"
+
       - name: Run daily gold summary and send concise Arabic Telegram card
-        if: env.AUTOMATION_MODE == 'live-paper'
         working-directory: harness
         run: |
+          mkdir -p ../automation-artifacts
           python scripts/run_daily.py
-
-      - name: Prepare artifacts directory
-        if: always()
-        run: |
-          mkdir -p automation-artifacts
-          if [ -d "harness/outputs" ]; then
-            cp -r harness/outputs automation-artifacts/ || true
-          fi
+          cp -r outputs ../automation-artifacts/ || true
 
       - name: Upload sanitized paper artifacts
         if: always()
