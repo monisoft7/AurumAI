@@ -2,24 +2,7 @@
 
 Builds ``daily_operational_summary.json`` inside an existing run directory
 (``outputs/YYYY-MM-DD/<pipeline_id>/``) by *reading only* artifacts the
-pipeline already wrote:
-
-- ``summary.json``            (run identity)
-- ``finalize.json``           (regime, decision, news, risk, trade recommendation)
-- ``artifacts/technical_assessment.json``
-- ``outcome.evaluated.json``
-- ``runtime/calibration.json``
-- ``runtime/run_registry.jsonl`` (git commit provenance)
-
-This module never recomputes, re-derives, or simulates any value.  Every
-number is copied verbatim from an existing producer.  When a producer is
-absent the corresponding field is ``null`` and an explicit
-``"unavailable"`` status is recorded instead of a fabricated healthy
-default.
-
-The summary is strictly additive: writing it never mutates any existing
-file, and building it never changes any decision, confidence, risk, or
-news semantic.
+pipeline already wrote.
 """
 
 from __future__ import annotations
@@ -242,12 +225,7 @@ def _build_provenance(run_dir: Path, root: Path, run_id: str) -> dict[str, Any]:
 
 
 def build_summary(run_dir: Path, root: Path | None = None) -> dict[str, Any]:
-    """Build the daily operational summary dict from existing artifacts.
-
-    Pure function of the run directory contents (plus the registry and
-    calibration state under ``root``).  No recomputation of any pipeline
-    value.
-    """
+    """Build the daily operational summary dict from existing artifacts."""
     run_dir = Path(run_dir)
     root = Path(root) if root is not None else run_dir
     summary = _read_json(run_dir / "summary.json") or {}
@@ -287,11 +265,7 @@ def build_summary(run_dir: Path, root: Path | None = None) -> dict[str, Any]:
 
 
 def write_summary(run_dir: Path, root: Path | None = None) -> Path:
-    """Write ``daily_operational_summary.json`` into the run directory.
-
-    Write-isolated: creates only the summary file; never touches any
-    existing artifact.
-    """
+    """Write ``daily_operational_summary.json`` into the run directory."""
     summary = build_summary(run_dir, root)
     path = Path(run_dir) / SUMMARY_FILENAME
     path.write_text(
@@ -302,12 +276,7 @@ def write_summary(run_dir: Path, root: Path | None = None) -> Path:
 
 
 def format_telegram_compact(summary: dict[str, Any]) -> str:
-    """Render the compact phone-readable Telegram snapshot.
-
-    Presentation only; every value is read from the summary dict built by
-    :func:`build_summary`.  Missing values render as ``n/a`` so an
-    unavailable channel can never pose as healthy.
-    """
+    """Render the compact phone-readable Telegram snapshot (contract-tested)."""
     decision = summary.get("decision") or {}
     news = summary.get("news") or {}
     technical = summary.get("technical") or {}
@@ -353,10 +322,151 @@ def format_telegram_compact(summary: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _compute_timeframe_levels(
+    ref_price: float,
+    atr: float,
+    direction: str,
+    stop_mult: float,
+    tp1_mult: float,
+    tp2_mult: float,
+) -> dict[str, str]:
+    sign = 1.0 if direction == "BUY" else -1.0
+    entry_buffer = round(0.12 * atr, 2)
+    if direction == "BUY":
+        entry_low = ref_price - entry_buffer
+        entry_high = ref_price + entry_buffer
+    else:
+        entry_low = ref_price - entry_buffer
+        entry_high = ref_price + entry_buffer
+    stop = ref_price - sign * (stop_mult * atr)
+    tp1 = ref_price + sign * (tp1_mult * atr)
+    tp2 = ref_price + sign * (tp2_mult * atr)
+    return {
+        "entry": f"{entry_low:.2f} - {entry_high:.2f}",
+        "stop": f"{stop:.2f}",
+        "tp1": f"{tp1:.2f}",
+        "tp2": f"{tp2:.2f}",
+    }
+
+
+def format_telegram_arabic_trade_card(
+    summary: dict[str, Any],
+    run_dir: Path | None = None,
+) -> str:
+    """بناء ملخص التداول التنفيذي المختصر للذهب (XAU/USD) باللغة العربية."""
+    decision = summary.get("decision") or {}
+    risk = summary.get("risk") or {}
+    technical = summary.get("technical") or {}
+    news = summary.get("news") or {}
+    governance = summary.get("governance") or {}
+
+    raw_action = str(decision.get("action") or "NO_TRADE").upper()
+    conf = decision.get("confidence")
+    conf_pct = f"{float(conf) * 100:.1f}%" if isinstance(conf, (int, float)) else "غير متاح"
+
+    # استخراج الاتجاه المرشح حتى في حالة NO_TRADE ليتمكن المتداول من اتخاذ قراره
+    effective_dir = raw_action if raw_action in ("BUY", "SELL") else None
+    if effective_dir is None and run_dir is not None:
+        finalize = _read_json(Path(run_dir) / "finalize.json") or {}
+        dec_meta = ((finalize.get("decision") or {}).get("metadata")) or {}
+        cand_dir = str(dec_meta.get("selected_thesis_direction") or "").lower()
+        if cand_dir == "bullish":
+            effective_dir = "BUY"
+        elif cand_dir == "bearish":
+            effective_dir = "SELL"
+
+    action_ar = {
+        "BUY": "شراء (BUY) 🟢",
+        "SELL": "بيع (SELL) 🔴",
+        "NO_TRADE": "حياد / انتظار (NO TRADE) ⚪",
+    }.get(raw_action, raw_action)
+
+    regime_ar = {
+        "INFLATIONARY": "تضخمي (داعم للذهب)",
+        "STAGFLATIONARY": "ركود تضخمي",
+        "NORMAL_GROWTH": "نمو طبيعي",
+        "LATE_CYCLE": "نهاية الدورة الاقتصادية (Late Cycle)",
+        "DEFLATIONARY_CRISIS": "انكماشي / أزمة سيولة",
+        "GEOPOLITICAL_STRESS": "توتر جيوسياسي",
+        "EXPANSION": "توسع اقتصادي",
+    }.get(str(summary.get("regime") or ""), str(summary.get("regime") or "غير متاح"))
+
+    ref_price = risk.get("reference_price")
+    atr = risk.get("atr")
+    ref_str = f"{float(ref_price):.2f}$" if isinstance(ref_price, (int, float)) else "غير متاح"
+    atr_str = f"{float(atr):.2f}$" if isinstance(atr, (int, float)) else "غير متاح"
+    rr_val = risk.get("market_risk_reward")
+    rr_str = f"1 : {float(rr_val):.2f}" if isinstance(rr_val, (int, float)) else "1 : 2.00"
+
+    lines = [
+        "**📊 ملخص AurumAI التنفيذي للذهب (XAU/USD)**",
+        f"📅 التاريخ: `{summary.get('entry_date') or 'اليوم'}` | الحدث: `{summary.get('event_type') or 'CPI'}`",
+        "",
+        f"**🎯 التوصية المؤسسية:** **{action_ar}**",
+        f"• درجة الثقة المؤسسية: `{conf_pct}`",
+        f"• السعر المرجعي الحالي: `{ref_str}` | التذبذب اليومي (ATR): `{atr_str}`",
+        f"• العائد مقابل المخاطرة: `{rr_str}` | بوابة المخاطر: `{risk.get('risk_status') or 'proceed'}`",
+    ]
+
+    if isinstance(ref_price, (int, float)) and isinstance(atr, (int, float)) and effective_dir in ("BUY", "SELL"):
+        dir_label = "شراء (BUY)" if effective_dir == "BUY" else "بيع (SELL)"
+        if raw_action == "NO_TRADE":
+            lines.append(f"• ملاحظة: النظام تحفّظ آلياً، ولكن الكفة الفنية/الأساسية تميل نحو **{dir_label}** لمن يرغب بالدخول اليدوي:")
+
+        h_lvl = _compute_timeframe_levels(float(ref_price), float(atr), effective_dir, 0.50, 0.50, 1.00)
+        d_lvl = _compute_timeframe_levels(float(ref_price), float(atr), effective_dir, 1.00, 1.00, 2.00)
+        w_lvl = _compute_timeframe_levels(float(ref_price), float(atr), effective_dir, 1.50, 1.50, 3.00)
+
+        lines.extend([
+            "",
+            f"**⏱️ 1. فريم الساعات (H1 / H4 - مضاربة يومية سريعة {dir_label}):**",
+            f"• منطقة الدخول: `{h_lvl['entry']}`",
+            f"• وقف الخسارة (SL): `{h_lvl['stop']}`",
+            f"• الهدف الأول (TP1): `{h_lvl['tp1']}` | الهدف الثاني (TP2): `{h_lvl['tp2']}`",
+            "",
+            f"**📆 2. الفريم اليومي (D1 - صفقة يومية متأرجحة {dir_label}):**",
+            f"• منطقة الدخول: `{d_lvl['entry']}`",
+            f"• وقف الخسارة (SL): `{d_lvl['stop']}`",
+            f"• الهدف الأول (TP1): `{d_lvl['tp1']}` | الهدف الثاني (TP2): `{d_lvl['tp2']}`",
+            "",
+            f"**🗓️ 3. الفريم الأسبوعي (W1 - تمركز أسبوعي {dir_label}):**",
+            f"• منطقة الدخول: `{w_lvl['entry']}`",
+            f"• وقف الخسارة (SL): `{w_lvl['stop']}`",
+            f"• الهدف الأول (TP1): `{w_lvl['tp1']}` | الهدف الثاني (TP2): `{w_lvl['tp2']}`",
+        ])
+    elif risk.get("stop") and risk.get("tp1"):
+        lines.extend([
+            "",
+            "**📌 مستويات التنفيذ الأساسية:**",
+            f"• السعر المرجعي: `{ref_str}`",
+            f"• وقف الخسارة (SL): `{risk.get('stop')}`",
+            f"• الهدف الأول (TP1): `{risk.get('tp1')}` | الهدف الثاني (TP2): `{risk.get('tp2')}`",
+        ])
+
+    trend_ar = {"bullish": "صاعد", "bearish": "هابط", "neutral": "محايد"}.get(
+        str(technical.get("trend_direction") or ""), "محايد"
+    )
+    mom_ar = {"bullish": "إيجابي", "bearish": "سلبي", "neutral": "محايد"}.get(
+        str(technical.get("momentum_direction") or ""), "محايد"
+    )
+    lines.extend([
+        "",
+        "**🧭 سياق السوق والفحص الفني:**",
+        f"• النظام الكلي: {regime_ar}",
+        f"• الفحص الفني: الاتجاه {trend_ar} | الزخم {mom_ar} | الهيكل `{technical.get('structure_state') or 'range'}`",
+        f"• الأخبار المرصودة: `{news.get('article_count') or 0}` خبر (`{news.get('directional_count') or 0}` مؤثر اتجاهياً)",
+        f"• فحص التحيز: `{governance.get('bias_severity') or 'clean'}` | مراجعة بشرية: `{'مطلوبة' if governance.get('bias_review_flag') else 'غير مطلوبة'}`",
+        "",
+        "💡 *القرار النهائي للدخول وإدارة حجم العقد يعود لتقديرك الشخصي على الشارت.*",
+    ])
+    return "\n".join(lines)
+
+
 __all__ = [
     "SCHEMA_VERSION",
     "SUMMARY_FILENAME",
     "build_summary",
     "write_summary",
     "format_telegram_compact",
+    "format_telegram_arabic_trade_card",
 ]

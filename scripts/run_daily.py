@@ -1,39 +1,14 @@
 """AurumAI daily scheduler.
 
-Runs the complete daily institutional workflow:
-
-1. Execute ``run.py`` (the runtime entry point) and wait for completion.
-2. Generate the Institutional Daily Report from the fresh run outputs.
-2b. Build the daily operational summary artifact
-    (``daily_operational_summary.json``) from the existing run artifacts
-    (additive measurement layer; failure never affects the pipeline).
-3. Verify the run: exit code 0, ``institutional_report.md`` exists, and a
-   new immutable record was appended to the run registry.
-4. Send the report to Telegram (output channel only; failures never affect
-   the pipeline).
-5. Evaluate elapsed outcome horizons across all runs via
-   ``scripts/evaluate_outcome.py --all-pending`` (additive evaluation layer
-   only; failures never affect the pipeline result or exit code).
-6. Print a concise execution summary and exit with a proper exit code.
-
-This file is the scheduling/runtime layer only. It executes the existing
-``run.py``, ``scripts/generate_institutional_report.py`` and
-``scripts/evaluate_outcome.py`` as subprocesses; it does not modify any
-workflow, algorithm, contract, report, or registry behavior.
-
-Usage:
-    python scripts/run_daily.py
-
-Exit codes:
-    0  daily run completed and verified
-    1  pipeline failed or verification failed
-    2  scheduler precondition error (missing scripts)
+Runs the complete daily institutional workflow and sends a single concise
+Arabic executive trade summary to Telegram.
 """
 
 from __future__ import annotations
 
 import datetime
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -49,6 +24,7 @@ from runtime_registry.outputs import latest_run_dir  # noqa: E402
 from operational_summary import (  # noqa: E402
     SUMMARY_FILENAME,
     build_summary,
+    format_telegram_arabic_trade_card,
     format_telegram_compact,
     write_summary,
 )
@@ -118,11 +94,7 @@ def _refresh_gold() -> None:
 
 
 def _refresh_yields() -> None:
-    """Warm FRED yield caches before the pipeline (fail-safe, idempotent).
-
-    Mirrors ``run.py``'s pre-run step because ``run.py`` is invoked with
-    ``--no-refresh`` from this scheduler.
-    """
+    """Warm FRED yield caches before the pipeline (fail-safe, idempotent)."""
     try:
         from connectors.fred_client import (
             FRED_DAILY_SERIES_MAX_AGE_DAYS,
@@ -183,11 +155,7 @@ def _load_summary(run_dir: Path) -> dict[str, Any]:
 
 
 def _build_summary_artifact(run_dir: Path) -> tuple[bool, str]:
-    """Build and write the daily operational summary (additive, fail-safe).
-
-    Reads only existing run artifacts; never mutates them.  A failure here
-    never affects the pipeline result or the daily exit code.
-    """
+    """Build and write the daily operational summary (additive, fail-safe)."""
     try:
         path = write_summary(run_dir, ROOT)
         return True, str(path)
@@ -196,7 +164,13 @@ def _build_summary_artifact(run_dir: Path) -> tuple[bool, str]:
 
 
 def _send_telegram(run_dir: Path) -> tuple[bool, str]:
-    """Send the report to Telegram. Never raises; never affects the pipeline."""
+    """Full 17-section report is suppressed by default to prevent message spam.
+
+    Set AURUMAI_SEND_FULL_REPORT=1 in environment if you ever want the raw
+    multi-message markdown report in addition to the concise Arabic card.
+    """
+    if os.environ.get("AURUMAI_SEND_FULL_REPORT", "0").strip() != "1":
+        return True, "full report suppressed (concise Arabic trade card enabled)"
     sys.path.insert(0, str(ROOT / "src"))
     try:
         from notifications.telegram_notifier import TelegramConfigurationError, send_report
@@ -211,11 +185,7 @@ def _send_telegram(run_dir: Path) -> tuple[bool, str]:
 
 
 def _send_telegram_compact(run_dir: Path) -> tuple[bool, str]:
-    """Send the compact daily snapshot to Telegram (fail-safe, additive).
-
-    Reuses the existing notifier's ``send_message`` primitive; no sender
-    rebuild.  Sends no raw JSON -- only the compact phone-readable text.
-    """
+    """Send the concise Arabic executive trade summary card to Telegram."""
     summary_path = run_dir / SUMMARY_FILENAME
     if not summary_path.exists():
         return False, "compact snapshot skipped (summary artifact missing)"
@@ -231,9 +201,10 @@ def _send_telegram_compact(run_dir: Path) -> tuple[bool, str]:
         )
 
         token, chat_id = load_credentials(ROOT)
-        text = escape_markdown_v2(format_telegram_compact(summary))
+        arabic_card = format_telegram_arabic_trade_card(summary, run_dir=run_dir)
+        text = escape_markdown_v2(arabic_card)
         send_message(token, chat_id, text)
-        return True, "compact snapshot sent"
+        return True, "Arabic executive trade summary sent"
     except TelegramConfigurationError:
         return False, "compact snapshot skipped (Telegram not configured)"
     except Exception as exc:  # pragma: no cover - defensive
@@ -249,12 +220,7 @@ def _load_json(path: Path) -> dict[str, Any] | None:
 
 
 def _evaluate_outcomes() -> tuple[bool, str]:
-    """Evaluate elapsed outcome horizons across all runs (fail-safe).
-
-    Invokes the existing evaluator's ``--all-pending`` sweep as a
-    subprocess. Never raises and never affects the pipeline result or
-    the daily exit code.
-    """
+    """Evaluate elapsed outcome horizons across all runs (fail-safe)."""
     if not EVALUATE_SCRIPT.exists():
         return False, "evaluator script missing (pipeline unaffected)"
     try:
@@ -349,9 +315,6 @@ def main(argv: list[str] | None = None) -> int:
     evaluation_ok, evaluation_note = _evaluate_outcomes()
     print(f"Outcome evaluation : {evaluation_note}")
 
-    # Refresh the operational summary after the outcome sweep so the
-    # stored daily artifact reflects the post-evaluation outcome and
-    # calibration state (rewrites only the summary file itself).
     if success:
         _, summary_refresh_note = _build_summary_artifact(run_dir)
         print(f"Summary refresh    : {summary_refresh_note}")
