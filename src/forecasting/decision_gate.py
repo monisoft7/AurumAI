@@ -71,6 +71,86 @@ class UncertaintyBudget:
         }
 
 
+def apply_institutional_risk_gate(
+    decision: str,
+    confidence: float,
+    structure: str | None = None,
+    current_risk_status: str = "proceed",
+    human_review: bool = False,
+) -> dict[str, Any]:
+    """Enforces strict institutional gating rules:
+    - Rule A (Confidence Threshold): If confidence < 60.0%, force NEUTRAL / WAIT, set risk_gate = 'hold', mark trade levels as watchlist.
+    - Rule B (Gray Zone 60% - 65%): If 60.0% <= confidence < 65.0%, allow directional bias ONLY if structure aligns, force human_review = True.
+    - Rule C (Structure vs. Direction Conflict): If BUY in downtrend or SELL in uptrend, penalize confidence by -10% OR require confidence >= 70% with human_review = True.
+    """
+    conf = float(confidence) / 100.0 if float(confidence) > 1.0 else float(confidence)
+    struct = str(structure or "").lower().strip()
+    dir_norm = str(decision or "HOLD").upper().strip()
+    action_out = dir_norm
+    risk_gate_out = str(current_risk_status or "proceed").lower()
+    review_out = bool(human_review)
+    review_reason = ""
+    gate_reason = ""
+    watchlist_only = False
+
+    # Check Rule C: Structure vs. Direction Conflict
+    is_conflict = (dir_norm == "BUY" and struct == "downtrend") or (dir_norm == "SELL" and struct == "uptrend")
+    if is_conflict:
+        conf_penalized = max(0.0, conf - 0.10)
+        if conf >= 0.70:
+            # Macro override allowed, but requires human review
+            review_out = True
+            review_reason = "مطلوبة - تعارض هيكلي"
+            gate_reason = "macro_override_with_structural_conflict"
+            if conf_penalized < 0.60:
+                action_out = "WAIT"
+                risk_gate_out = "hold"
+                watchlist_only = True
+                gate_reason = "structural_conflict_penalized_below_threshold"
+        else:
+            conf = conf_penalized
+            action_out = "WAIT"
+            risk_gate_out = "hold"
+            review_out = True
+            watchlist_only = True
+            review_reason = "مطلوبة - تعارض هيكلي"
+            gate_reason = "structural_conflict_rejected"
+
+    # Check Rule A: Confidence Threshold < 60.0%
+    if conf < 0.60:
+        action_out = "WAIT"
+        risk_gate_out = "hold"
+        watchlist_only = True
+        if not gate_reason:
+            gate_reason = "confidence_below_60_threshold"
+        if not review_reason and review_out:
+            review_reason = "مطلوبة"
+
+    # Check Rule B: Gray Zone 60.0% - 65.0%
+    elif 0.60 <= conf < 0.65:
+        aligned = (dir_norm == "BUY" and struct == "uptrend") or (dir_norm == "SELL" and struct == "downtrend")
+        review_out = True
+        if not review_reason:
+            review_reason = "مطلوبة"
+        if not aligned:
+            action_out = "WAIT"
+            risk_gate_out = "hold"
+            watchlist_only = True
+            gate_reason = "gray_zone_structure_unaligned"
+        else:
+            gate_reason = "gray_zone_structure_aligned"
+
+    return {
+        "action": action_out,
+        "confidence": conf,
+        "risk_status": risk_gate_out,
+        "human_review": review_out,
+        "human_review_reason": review_reason,
+        "gate_reason": gate_reason,
+        "watchlist_only": watchlist_only,
+    }
+
+
 class DecisionGate:
 
     def evaluate(
@@ -80,6 +160,9 @@ class DecisionGate:
         scaling_factor: float,
         drawdown_state: str,
         min_scaling: float = 0.30,
+        confidence: float | None = None,
+        market_structure: str | None = None,
+        action_bias: str | None = None,
     ) -> RiskDecision:
         if scaling_factor < 0.0 or scaling_factor > 1.0:
             raise ValueError("scaling_factor must be in [0, 1]")
@@ -107,6 +190,21 @@ class DecisionGate:
         score = max(0.0, min(1.0, round(score, 4)))
 
         if not_halted and has_room and uncertainty_acceptable and regime_mult >= 0.25:
+            if confidence is not None:
+                gate_check = apply_institutional_risk_gate(
+                    decision=action_bias or "BUY",
+                    confidence=confidence,
+                    structure=market_structure,
+                    current_risk_status="proceed" if not_caution else "scale_down",
+                )
+                components["institutional_confidence_acceptable"] = bool(gate_check["risk_status"] != "hold")
+                if gate_check["risk_status"] == "hold":
+                    return RiskDecision(
+                        action="hold",
+                        reason=f"Institutional risk gate: {gate_check['gate_reason']}",
+                        score=score,
+                        components=components,
+                    )
             if not_caution:
                 return RiskDecision(
                     action="proceed",

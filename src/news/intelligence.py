@@ -92,6 +92,9 @@ class ClassifiedNewsItem:
     sentiment_confidence: float
     sentiment_available: bool
     topics: tuple[str, ...] = ()
+    currency: str = "USD"
+    country: str = "US"
+    is_primary_usd_catalyst: bool = True
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -114,6 +117,9 @@ class ClassifiedNewsItem:
             "sentiment_confidence": self.sentiment_confidence,
             "sentiment_available": self.sentiment_available,
             "topics": list(self.topics),
+            "currency": self.currency,
+            "country": self.country,
+            "is_primary_usd_catalyst": self.is_primary_usd_catalyst,
         }
 
 
@@ -271,13 +277,49 @@ def classify_article(headline: str, summary: str = "") -> dict[str, Any]:
     event_type, hits = classify_event(text_lower)
     relevance = _RELEVANCE_BY_EVENT[event_type]
     direction, basis = _direction_for(event_type, text_lower)
+    score = _GOLD_RELEVANCE_SCORES[relevance]
+
+    # Currency and Country detection for Macro Events
+    currency = "USD"
+    country = "US"
+    is_primary_usd = True
+
+    # Check for secondary currency markers
+    is_uk = any(k in text_lower for k in ("uk ", "u.k.", "britain", "british", "england", "boe", "gbp"))
+    is_ca = any(k in text_lower for k in ("canada", "canadian", "boc", "cad"))
+    is_eu = any(k in text_lower for k in ("eurozone", "ecb", "europe ", "eur"))
+    is_jp = any(k in text_lower for k in ("japan", "japanese", "boj", "yen", "jpy"))
+    has_us_explicit = any(k in text_lower for k in ("us ", "u.s.", "united states", "fed ", "federal reserve", "fomc", "bls", "dollar", "dxy"))
+
+    if (is_uk or is_ca or is_eu or is_jp) and not has_us_explicit:
+        is_primary_usd = False
+        if is_uk:
+            currency = "GBP"
+            country = "UK"
+        elif is_ca:
+            currency = "CAD"
+            country = "CA"
+        elif is_eu:
+            currency = "EUR"
+            country = "EU"
+        elif is_jp:
+            currency = "JPY"
+            country = "JP"
+
+        # Reduce macro weight on Gold by 70% for secondary currency events
+        if event_type in (EVENT_CPI_INFLATION, EVENT_GENERIC_MACRO):
+            score = round(score * 0.30, 4)
+
     return {
         "event_type": event_type,
         "gold_relevance": relevance,
-        "gold_relevance_score": _GOLD_RELEVANCE_SCORES[relevance],
+        "gold_relevance_score": score,
         "directional_implication": direction,
         "direction_basis": basis,
         "confidence": _confidence_for(hits, relevance),
+        "currency": currency,
+        "country": country,
+        "is_primary_usd_catalyst": is_primary_usd,
     }
 
 

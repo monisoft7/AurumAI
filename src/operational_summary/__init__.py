@@ -11,6 +11,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from forecasting.decision_gate import apply_institutional_risk_gate
+
 SCHEMA_VERSION = "1.0"
 SUMMARY_FILENAME = "daily_operational_summary.json"
 
@@ -247,17 +249,45 @@ def build_summary(run_dir: Path, root: Path | None = None) -> dict[str, Any]:
 
     context = finalize.get("context") or {}
 
+    dec = _build_decision(finalize)
+    news_dict = _build_news(finalize)
+    tech = _build_technical(run_dir)
+    risk_dict = _build_risk(finalize)
+    gov = _build_governance(finalize)
+
+    conf_val = dec.get("confidence")
+    action_val = dec.get("action")
+    struct_val = tech.get("structure_state")
+    risk_status_val = risk_dict.get("risk_status") or "proceed"
+    review_val = gov.get("bias_review_flag") or False
+
+    if conf_val is not None and isinstance(conf_val, (int, float)):
+        gate_res = apply_institutional_risk_gate(
+            decision=action_val or "HOLD",
+            confidence=float(conf_val),
+            structure=struct_val,
+            current_risk_status=risk_status_val,
+            human_review=bool(review_val),
+        )
+        if gate_res["action"] != action_val and action_val in ("BUY", "SELL"):
+            dec["action"] = gate_res["action"]
+            dec["gate_reason"] = gate_res["gate_reason"]
+        if gate_res["risk_status"] != risk_status_val:
+            risk_dict["risk_status"] = gate_res["risk_status"]
+        if gate_res["human_review"]:
+            gov["bias_review_flag"] = True
+
     return {
         "schema_version": SCHEMA_VERSION,
         "run_id": run_id,
         "entry_date": entry_date,
         "event_type": _clean(summary.get("event_type")),
         "regime": _clean(context.get("current_regime")),
-        "decision": _build_decision(finalize),
-        "news": _build_news(finalize),
-        "technical": _build_technical(run_dir),
-        "risk": _build_risk(finalize),
-        "governance": _build_governance(finalize),
+        "decision": dec,
+        "news": news_dict,
+        "technical": tech,
+        "risk": risk_dict,
+        "governance": gov,
         "outcome": _build_outcome(run_dir),
         "calibration": _build_calibration(root),
         "provenance": _build_provenance(run_dir, root, str(run_id) if run_id else ""),
@@ -322,31 +352,202 @@ def format_telegram_compact(summary: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+TIMEFRAME_PULLBACK_CONFIGS: dict[str, dict[str, float]] = {
+    "H1_H4": {
+        "offset_atr": 0.05,
+        "width_atr": 0.15,
+        "sl_buffer_atr": 0.40,
+        "lookback": 12,
+    },
+    "D1": {
+        "offset_atr": 0.25,
+        "width_atr": 0.25,
+        "sl_buffer_atr": 0.75,
+        "lookback": 5,
+    },
+    "W1": {
+        "offset_atr": 0.60,
+        "width_atr": 0.40,
+        "sl_buffer_atr": 1.10,
+        "lookback": 3,
+    },
+}
+
+
 def _compute_timeframe_levels(
     ref_price: float,
     atr: float,
     direction: str,
-    stop_mult: float,
-    tp1_mult: float,
-    tp2_mult: float,
+    timeframe: str = "H1_H4",
+    offset_atr: float | None = None,
+    width_atr: float | None = None,
+    sl_buffer_atr: float | None = None,
+    s_tf: float | None = None,
+    r_tf: float | None = None,
+    *args: Any,
+    **kwargs: Any,
 ) -> dict[str, str]:
-    sign = 1.0 if direction == "BUY" else -1.0
-    entry_buffer = round(0.12 * atr, 2)
-    if direction == "BUY":
-        entry_low = ref_price - entry_buffer
-        entry_high = ref_price + entry_buffer
+    """Compute multi-timeframe pullback & structural entry zones for Gold.
+
+    Logic:
+    - H1_H4 (Intraday): offset_atr=0.05, width_atr=0.15, sl_buffer_atr=0.40 (Lookback: 12 H4 candles min/max)
+    - D1 (Swing): offset_atr=0.25, width_atr=0.25, sl_buffer_atr=0.75 (Lookback: 5 D1 candles min/max)
+    - W1 (Position): offset_atr=0.60, width_atr=0.40, sl_buffer_atr=1.10 (Lookback: 3 W1 candles min/max)
+
+    Hybrid Anchor:
+    - BUY: atr_anchor = current_price - (offset_atr * atr). If S_tf < current_price: anchor = 0.60*S_tf + 0.40*atr_anchor
+    - SELL: atr_anchor = current_price + (offset_atr * atr). If R_tf > current_price: anchor = 0.60*R_tf + 0.40*atr_anchor
+
+    Entry Zone & True R:R:
+    - entry_low / entry_high centered on anchor_price with width = width_atr * atr
+    - avg_entry = (entry_low + entry_high) / 2.0
+    - SL placed beyond outer edge:
+        BUY: sl = entry_low - (sl_buffer_atr * atr)
+        SELL: sl = entry_high + (sl_buffer_atr * atr)
+    - risk = abs(avg_entry - sl)
+    - TP1 = avg_entry ± 1.0 * risk, TP2 = avg_entry ± 2.0 * risk
+    """
+    # Backward compatibility: if 4th argument is a float (old stop_mult), map it to matching preset
+    if isinstance(timeframe, (int, float)):
+        old_stop_mult = float(timeframe)
+        if old_stop_mult <= 0.60:
+            cfg_name = "H1_H4"
+        elif old_stop_mult <= 1.20:
+            cfg_name = "D1"
+        else:
+            cfg_name = "W1"
     else:
-        entry_low = ref_price - entry_buffer
-        entry_high = ref_price + entry_buffer
-    stop = ref_price - sign * (stop_mult * atr)
-    tp1 = ref_price + sign * (tp1_mult * atr)
-    tp2 = ref_price + sign * (tp2_mult * atr)
+        cfg_name = str(timeframe).upper()
+        if cfg_name in ("H1", "H4"):
+            cfg_name = "H1_H4"
+
+    cfg = TIMEFRAME_PULLBACK_CONFIGS.get(cfg_name, TIMEFRAME_PULLBACK_CONFIGS["H1_H4"])
+    eff_offset = offset_atr if offset_atr is not None else cfg["offset_atr"]
+    eff_width = width_atr if width_atr is not None else cfg["width_atr"]
+    eff_sl_buf = sl_buffer_atr if sl_buffer_atr is not None else cfg["sl_buffer_atr"]
+
+    dir_upper = str(direction).upper()
+    current_price = float(ref_price)
+    atr_val = float(atr)
+
+    if dir_upper == "BUY":
+        atr_anchor = current_price - (eff_offset * atr_val)
+        if s_tf is not None and float(s_tf) < current_price:
+            anchor_price = (0.60 * float(s_tf)) + (0.40 * atr_anchor)
+        else:
+            anchor_price = atr_anchor
+
+        half_width = (eff_width * atr_val) / 2.0
+        entry_low = anchor_price - half_width
+        entry_high = anchor_price + half_width
+        avg_entry = (entry_low + entry_high) / 2.0
+        stop = entry_low - (eff_sl_buf * atr_val)
+        risk = abs(avg_entry - stop)
+        tp1 = avg_entry + (1.0 * risk)
+        tp2 = avg_entry + (2.0 * risk)
+    else:
+        atr_anchor = current_price + (eff_offset * atr_val)
+        if r_tf is not None and float(r_tf) > current_price:
+            anchor_price = (0.60 * float(r_tf)) + (0.40 * atr_anchor)
+        else:
+            anchor_price = atr_anchor
+
+        half_width = (eff_width * atr_val) / 2.0
+        entry_low = anchor_price - half_width
+        entry_high = anchor_price + half_width
+        avg_entry = (entry_low + entry_high) / 2.0
+        stop = entry_high + (eff_sl_buf * atr_val)
+        risk = abs(avg_entry - stop)
+        tp1 = avg_entry - (1.0 * risk)
+        tp2 = avg_entry - (2.0 * risk)
+
     return {
         "entry": f"{entry_low:.2f} - {entry_high:.2f}",
         "stop": f"{stop:.2f}",
         "tp1": f"{tp1:.2f}",
         "tp2": f"{tp2:.2f}",
+        "avg_entry": f"{avg_entry:.2f}",
+        "risk": f"{risk:.2f}",
+        "anchor_price": f"{anchor_price:.2f}",
     }
+
+
+def _resolve_structural_extrema(
+    run_dir: Path | None = None,
+    summary: dict[str, Any] | None = None,
+) -> dict[str, tuple[float | None, float | None]]:
+    """Resolve structural support and resistance (S_tf, R_tf) per timeframe."""
+    extrema: dict[str, tuple[float | None, float | None]] = {
+        "H1_H4": (None, None),
+        "D1": (None, None),
+        "W1": (None, None),
+    }
+    if run_dir is not None:
+        tech_file = Path(run_dir) / "artifacts" / "technical_assessment.json"
+        if not tech_file.is_file():
+            tech_file = Path(run_dir) / "technical_assessment.json"
+        if tech_file.is_file():
+            tech_data = _read_json(tech_file)
+            if isinstance(tech_data, dict):
+                structure = (tech_data.get("metadata") or {}).get("structure") or {}
+                s_val = structure.get("last_swing_low")
+                r_val = structure.get("last_swing_high")
+                if s_val is not None and r_val is not None:
+                    extrema["D1"] = (float(s_val), float(r_val))
+    return extrema
+
+
+def resolve_macro_event_label(
+    event_type: str | None,
+    articles: list[dict[str, Any]] | None = None,
+) -> str:
+    """Filter tier-1 macro event tags strictly by currency == 'USD' (or country == 'US').
+    - If a high-impact event belongs to a secondary currency (GBP, CAD, EUR, JPY), prefix with currency/country code (e.g., UK/CA CPI) and reduce weight on Gold by 70%.
+    - If no tier-1 US event is scheduled today, display 'تداول قياسي / لا يوجد حدث أمريكي رئيسي' or explicitly tag the secondary event currency.
+    """
+    ev_str = str(event_type or "").strip()
+    sec_tags = set()
+    has_us = False
+
+    for art in (articles or []):
+        if not isinstance(art, dict):
+            continue
+        text = f"{art.get('headline', '')} {art.get('title', '')} {art.get('summary', '')}".lower()
+        if "cpi" in text or "inflation" in text:
+            if any(k in text for k in ("uk", "britain", "british", "england", "boe", "gbp")):
+                sec_tags.add("UK")
+            if any(k in text for k in ("canada", "canadian", "boc", "cad")):
+                sec_tags.add("CA")
+            if any(k in text for k in ("eurozone", "ecb", "europe", "eur")):
+                sec_tags.add("EUR")
+            if any(k in text for k in ("japan", "japanese", "boj", "yen", "jpy")):
+                sec_tags.add("JPY")
+            if any(k in text for k in ("us ", "u.s.", "united states", "fed ", "federal reserve", "bls")):
+                has_us = True
+
+    tier1_names = ("CPI", "CORE CPI", "NFP", "FOMC", "GDP", "PCE", "PPI", "CPIEVENT")
+    ev_upper = ev_str.upper()
+    is_tier1 = any(t in ev_upper for t in tier1_names)
+
+    if is_tier1:
+        if sec_tags and not has_us:
+            sec_pfx = "/".join(sorted(sec_tags))
+            return f"{sec_pfx} CPI (بيانات تضخم ثانوية - غير أمريكية)"
+        elif has_us or "US" in ev_upper:
+            return "US CPI (مؤشر أسعار المستهلكين الأمريكي)"
+        elif not ev_str or ev_upper in ("CPI", "CPIEVENT"):
+            if sec_tags:
+                sec_pfx = "/".join(sorted(sec_tags))
+                return f"{sec_pfx} CPI (بيانات تضخم ثانوية - غير أمريكية)"
+            return "تداول قياسي / لا يوجد حدث أمريكي رئيسي"
+
+    if not ev_str or ev_upper in ("NONE", "UNAVAILABLE", "UNKNOWN", "STANDARD"):
+        if sec_tags:
+            sec_pfx = "/".join(sorted(sec_tags))
+            return f"{sec_pfx} CPI (تأثير غير مباشر - ثانوي)"
+        return "تداول قياسي / لا يوجد حدث أمريكي رئيسي"
+
+    return ev_str
 
 
 def format_telegram_arabic_trade_card(
@@ -375,11 +576,44 @@ def format_telegram_arabic_trade_card(
         elif cand_dir == "bearish":
             effective_dir = "SELL"
 
-    action_ar = {
-        "BUY": "شراء (BUY) 🟢",
-        "SELL": "بيع (SELL) 🔴",
-        "NO_TRADE": "حياد / انتظار (NO TRADE) ⚪",
-    }.get(raw_action, raw_action)
+    # تطبيق قواعد بوابة المخاطر المؤسسية المتقدمة (Rules A, B, C)
+    risk_status_raw = str(risk.get("risk_status") or "").lower()
+    gov_review = bool(governance.get("bias_review_flag"))
+    gov_reason = str(governance.get("bias_review_reason") or "")
+
+    gate_result = None
+    if isinstance(conf, (int, float)):
+        gate_result = apply_institutional_risk_gate(
+            decision=raw_action,
+            confidence=float(conf),
+            structure=technical.get("structure_state"),
+            current_risk_status=risk_status_raw or "proceed",
+            human_review=gov_review,
+        )
+        effective_action = gate_result["action"]
+        risk_status = gate_result["risk_status"]
+        if gate_result["human_review"]:
+            gov_review = True
+        if gate_result["human_review_reason"]:
+            gov_reason = gate_result["human_review_reason"]
+    else:
+        effective_action = raw_action
+        risk_status = risk_status_raw or "proceed"
+
+    is_hold = (
+        risk_status == "hold"
+        or effective_action in ("WAIT", "HOLD", "NO_TRADE")
+        or (isinstance(conf, (int, float)) and float(conf) < 0.60)
+    )
+
+    if is_hold or effective_action in ("WAIT", "HOLD"):
+        action_ar = "حياد / انتظار شروط الدخول (WAIT) 🟡"
+    elif effective_action == "BUY":
+        action_ar = "شراء (BUY) 🟢"
+    elif effective_action == "SELL":
+        action_ar = "بيع (SELL) 🔴"
+    else:
+        action_ar = "حياد / انتظار شروط الدخول (WAIT) 🟡"
 
     regime_ar = {
         "INFLATIONARY": "تضخمي (داعم للذهب)",
@@ -398,41 +632,56 @@ def format_telegram_arabic_trade_card(
     rr_val = risk.get("market_risk_reward")
     rr_str = f"1 : {float(rr_val):.2f}" if isinstance(rr_val, (int, float)) else "1 : 2.00"
 
+    event_display = resolve_macro_event_label(
+        summary.get("event_type"),
+        articles=summary.get("articles") or [],
+    )
+
     lines = [
         "**📊 ملخص AurumAI التنفيذي للذهب (XAU/USD)**",
-        f"📅 التاريخ: `{summary.get('entry_date') or 'اليوم'}` | الحدث: `{summary.get('event_type') or 'CPI'}`",
+        f"📅 التاريخ: `{summary.get('entry_date') or 'اليوم'}` | الحدث: `{event_display}`",
         "",
         f"**🎯 التوصية المؤسسية:** **{action_ar}**",
         f"• درجة الثقة المؤسسية: `{conf_pct}`",
         f"• السعر المرجعي الحالي: `{ref_str}` | التذبذب اليومي (ATR): `{atr_str}`",
-        f"• العائد مقابل المخاطرة: `{rr_str}` | بوابة المخاطر: `{risk.get('risk_status') or 'proceed'}`",
+        f"• العائد مقابل المخاطرة: `{rr_str}` | بوابة المخاطر: `{risk_status}`",
     ]
 
     if isinstance(ref_price, (int, float)) and isinstance(atr, (int, float)) and effective_dir in ("BUY", "SELL"):
         dir_label = "شراء (BUY)" if effective_dir == "BUY" else "بيع (SELL)"
-        if raw_action == "NO_TRADE":
-            lines.append(f"• ملاحظة: النظام تحفّظ آلياً، ولكن الكفة الفنية/الأساسية تميل نحو **{dir_label}** لمن يرغب بالدخول اليدوي:")
+        if is_hold or raw_action in ("NO_TRADE", "WAIT"):
+            lines.append(f"• ملاحظة: بوابة المخاطر بحالة انتظار (HOLD) - المستويات التالية هي مناطق مراقبة فقط (Watchlist Zones) وليست أوامر تنفيذ مباشرة:")
 
-        h_lvl = _compute_timeframe_levels(float(ref_price), float(atr), effective_dir, 0.50, 0.50, 1.00)
-        d_lvl = _compute_timeframe_levels(float(ref_price), float(atr), effective_dir, 1.00, 1.00, 2.00)
-        w_lvl = _compute_timeframe_levels(float(ref_price), float(atr), effective_dir, 1.50, 1.50, 3.00)
+        extrema = _resolve_structural_extrema(run_dir=run_dir, summary=summary)
+        s_h, r_h = extrema.get("H1_H4", (None, None))
+        s_d, r_d = extrema.get("D1", (None, None))
+        s_w, r_w = extrema.get("W1", (None, None))
+
+        h_lvl = _compute_timeframe_levels(float(ref_price), float(atr), effective_dir, timeframe="H1_H4", s_tf=s_h, r_tf=r_h)
+        d_lvl = _compute_timeframe_levels(float(ref_price), float(atr), effective_dir, timeframe="D1", s_tf=s_d, r_tf=r_d)
+        w_lvl = _compute_timeframe_levels(float(ref_price), float(atr), effective_dir, timeframe="W1", s_tf=s_w, r_tf=r_w)
+
+        zone_label = "منطقة مراقبة (Watchlist Zone)" if is_hold else "منطقة الدخول (Pullback Zone)"
 
         lines.extend([
             "",
             f"**⏱️ 1. فريم الساعات (H1 / H4 - مضاربة يومية سريعة {dir_label}):**",
-            f"• منطقة الدخول: `{h_lvl['entry']}`",
-            f"• وقف الخسارة (SL): `{h_lvl['stop']}`",
-            f"• الهدف الأول (TP1): `{h_lvl['tp1']}` | الهدف الثاني (TP2): `{h_lvl['tp2']}`",
+            f"• {zone_label}: `{h_lvl['entry']}` (متوسط: `{h_lvl['avg_entry']}`)",
+            f"• وقف الخسارة (SL): `{h_lvl['stop']}` (مخاطرة: `{h_lvl['risk']}$`)",
+            f"• الهدف الأول (TP1 - 1:1): `{h_lvl['tp1']}` | الهدف الثاني (TP2 - 1:2): `{h_lvl['tp2']}`",
+            f"• نسبة العائد للمخاطرة (R:R): `1 : 2.00` (حقيقية من متوسط الدخول)",
             "",
             f"**📆 2. الفريم اليومي (D1 - صفقة يومية متأرجحة {dir_label}):**",
-            f"• منطقة الدخول: `{d_lvl['entry']}`",
-            f"• وقف الخسارة (SL): `{d_lvl['stop']}`",
-            f"• الهدف الأول (TP1): `{d_lvl['tp1']}` | الهدف الثاني (TP2): `{d_lvl['tp2']}`",
+            f"• {zone_label}: `{d_lvl['entry']}` (متوسط: `{d_lvl['avg_entry']}`)",
+            f"• وقف الخسارة (SL): `{d_lvl['stop']}` (مخاطرة: `{d_lvl['risk']}$`)",
+            f"• الهدف الأول (TP1 - 1:1): `{d_lvl['tp1']}` | الهدف الثاني (TP2 - 1:2): `{d_lvl['tp2']}`",
+            f"• نسبة العائد للمخاطرة (R:R): `1 : 2.00` (حقيقية من متوسط الدخول)",
             "",
             f"**🗓️ 3. الفريم الأسبوعي (W1 - تمركز أسبوعي {dir_label}):**",
-            f"• منطقة الدخول: `{w_lvl['entry']}`",
-            f"• وقف الخسارة (SL): `{w_lvl['stop']}`",
-            f"• الهدف الأول (TP1): `{w_lvl['tp1']}` | الهدف الثاني (TP2): `{w_lvl['tp2']}`",
+            f"• {zone_label}: `{w_lvl['entry']}` (متوسط: `{w_lvl['avg_entry']}`)",
+            f"• وقف الخسارة (SL): `{w_lvl['stop']}` (مخاطرة: `{w_lvl['risk']}$`)",
+            f"• الهدف الأول (TP1 - 1:1): `{w_lvl['tp1']}` | الهدف الثاني (TP2 - 1:2): `{w_lvl['tp2']}`",
+            f"• نسبة العائد للمخاطرة (R:R): `1 : 2.00` (حقيقية من متوسط الدخول)",
         ])
     elif risk.get("stop") and risk.get("tp1"):
         lines.extend([
@@ -449,13 +698,18 @@ def format_telegram_arabic_trade_card(
     mom_ar = {"bullish": "إيجابي", "bearish": "سلبي", "neutral": "محايد"}.get(
         str(technical.get("momentum_direction") or ""), "محايد"
     )
+
+    review_display = "غير مطلوبة"
+    if gov_review:
+        review_display = f"مطلوبة ({gov_reason})" if gov_reason else "مطلوبة"
+
     lines.extend([
         "",
         "**🧭 سياق السوق والفحص الفني:**",
         f"• النظام الكلي: {regime_ar}",
         f"• الفحص الفني: الاتجاه {trend_ar} | الزخم {mom_ar} | الهيكل `{technical.get('structure_state') or 'range'}`",
         f"• الأخبار المرصودة: `{news.get('article_count') or 0}` خبر (`{news.get('directional_count') or 0}` مؤثر اتجاهياً)",
-        f"• فحص التحيز: `{governance.get('bias_severity') or 'clean'}` | مراجعة بشرية: `{'مطلوبة' if governance.get('bias_review_flag') else 'غير مطلوبة'}`",
+        f"• فحص التحيز: `{governance.get('bias_severity') or 'clean'}` | مراجعة بشرية: `{review_display}`",
         "",
         "💡 *القرار النهائي للدخول وإدارة حجم العقد يعود لتقديرك الشخصي على الشارت.*",
     ])
@@ -465,8 +719,11 @@ def format_telegram_arabic_trade_card(
 __all__ = [
     "SCHEMA_VERSION",
     "SUMMARY_FILENAME",
+    "TIMEFRAME_PULLBACK_CONFIGS",
     "build_summary",
     "write_summary",
     "format_telegram_compact",
     "format_telegram_arabic_trade_card",
+    "_compute_timeframe_levels",
+    "resolve_macro_event_label",
 ]
