@@ -19,6 +19,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -214,7 +216,7 @@ def test_compute_calibration_statistics(tmp_path):
     assert stats["sample_count"] == 10
     # 5 correct (|0.8-1|=0.2), 5 wrong (|0.8-0|=0.8) -> mean abs error 0.5
     assert stats["mean_abs_error"] == 0.5
-    assert stats["oos_ece"] == 0.5
+    assert stats["oos_ece"] == 0.3
     assert stats["accuracy"] == 0.5
     assert stats["mean_confidence"] == 0.8
     assert stats["brier"] == pytest.approx(0.5 * 0.04 + 0.5 * 0.64)
@@ -231,6 +233,17 @@ def test_calibration_not_published_below_min_samples():
     )
     assert stats["sample_count"] == 1
     assert stats["oos_ece"] is None
+
+
+@pytest.mark.parametrize("confidence,wins,total", [(0.5, 10, 20), (0.8, 16, 20)])
+def test_perfectly_calibrated_bin_has_zero_ece(confidence, wins, total):
+    records = [
+        {"institutional_confidence": confidence, "decision_correct": i < wins}
+        for i in range(total)
+    ]
+    stats = compute_calibration(records)
+    assert stats["oos_ece"] == 0.0
+    assert stats["mean_abs_error"] > 0.0
 
 
 def test_update_and_load_roundtrip(tmp_path):
@@ -256,8 +269,10 @@ def test_update_and_load_roundtrip(tmp_path):
     again = update_calibration_file(tmp_path, calibration_path, as_of_date=AS_OF)
     assert again["oos_ece"] == payload["oos_ece"]
 
+    assert payload["method"] == "equal_width_ece_10"
+    assert payload["eligible_for_confidence_cap"] is False
     loaded = load_oos_ece(calibration_path)
-    assert loaded == payload["oos_ece"]
+    assert loaded is None  # Support scores have not been validated as probabilities.
 
     # determinism: identical inputs produce the identical statistic
     assert again["statistics"] == payload["statistics"]
@@ -273,6 +288,8 @@ def test_load_oos_ece_absent_or_invalid_is_none(tmp_path):
     bad.write_text(json.dumps({"oos_ece": 1.7}), encoding="utf-8")
     assert load_oos_ece(bad) is None
     bad.write_text(json.dumps({"oos_ece": 0.21}), encoding="utf-8")
+    assert load_oos_ece(bad) is None  # Old, unversioned MAE artifact.
+    bad.write_text(json.dumps({"method": "equal_width_ece_10", "eligible_for_confidence_cap": True, "oos_ece": 0.21}), encoding="utf-8")
     assert load_oos_ece(bad) == 0.21
 
 
@@ -326,6 +343,3 @@ def test_w9_cap_consumes_published_calibration():
     ) in (None, "none")
     assert capped.theses_confidence[0].final_confidence <= 0.35 + 1e-9
     assert capped.theses_confidence[0].metadata["oos_calibration"]["cap_applied"] == "low"
-
-
-import pytest  # noqa: E402

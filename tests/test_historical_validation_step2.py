@@ -189,16 +189,21 @@ def test_knowledge_eligibility_cutoff(case_2021, snapshot_2021: ValidationSnapsh
     ids_later = {r["knowledge_id"] for r in asof_knowledge_records(later)}
     assert ids_early <= ids_later
 
-    # Boundary law: before the first lesson exists there is NO knowledge,
-    # and the first episode's aggregate appears exactly on its own date
-    # (as-of is inclusive of D itself).
+    # Boundary law: the first episode cannot enter knowledge on its event
+    # date because its future gold return has not yet happened.
     first_date = min(dates_by_id.values())
     pre_first = date.fromisoformat(first_date) - timedelta(days=1)
     assert asof_knowledge_records(pre_first) == []
     first_ids = {
         r["knowledge_id"] for r in asof_knowledge_records(date.fromisoformat(first_date))
     }
-    assert first_ids and first_ids <= ids_early
+    assert first_ids == set()
+    matured_ids = {
+        r["knowledge_id"] for r in asof_knowledge_records(
+            date.fromisoformat(first_date) + timedelta(days=91)
+        )
+    }
+    assert matured_ids and matured_ids <= ids_later
 
 
 # ---------------------------------------------------------------------------

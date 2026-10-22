@@ -230,6 +230,9 @@ def build_sections(data: dict[str, Any]) -> list[Section]:
     )
     md_1 = [
         f"- **Decision:** {_md_escape(summary.get('decision'))}",
+        f"- **Research direction:** {_md_escape(summary.get('research_decision'))}",
+        f"- **Execution gate:** {_md_escape((summary.get('execution_decision') or {}).get('gate_reason'))}",
+        f"- **Unavailable sources:** {_md_escape(', '.join((summary.get('execution_decision') or {}).get('unavailable_sources') or []))}",
         f"- **Decision confidence:** {_fmt(summary.get('decision_confidence'))}",
         f"- **Event type:** {_md_escape(summary.get('event_type'))}",
         f"- **Asset:** {_md_escape(cfg.get('asset'))} | **Horizon:** {_fmt(cfg.get('horizon'))} months",
@@ -250,6 +253,9 @@ def build_sections(data: dict[str, Any]) -> list[Section]:
 
     rows_1 = [
         ["Decision", _fmt(summary.get("decision"))],
+        ["Research direction", _fmt(summary.get("research_decision"))],
+        ["Execution gate", _fmt((summary.get("execution_decision") or {}).get("gate_reason"))],
+        ["Unavailable sources", _fmt(", ".join((summary.get("execution_decision") or {}).get("unavailable_sources") or []))],
         ["Decision confidence", _fmt(summary.get("decision_confidence"))],
         ["Event type", _fmt(summary.get("event_type"))],
         ["Asset", _fmt(cfg.get("asset"))],
@@ -882,8 +888,14 @@ def build_sections(data: dict[str, Any]) -> list[Section]:
     recommendation = finalize.get("trade_recommendation") or {}
     if isinstance(recommendation, dict) and recommendation:
         action = recommendation.get("recommendation_action", "")
+        execution_gate = finalize.get("execution_decision") or {}
+        research_only = execution_gate.get("execution_allowed") is False
         levels_rows: list[list[str]] = []
-        if action in ("BUY", "SELL"):
+        if research_only:
+            levels_rows.append(["Research direction", _md_escape(action), ""])
+            levels_rows.append(["Execution status", "WAIT", ""])
+            levels_rows.append(["Gate reason", _md_escape(execution_gate.get("gate_reason")), ""])
+        elif action in ("BUY", "SELL"):
             entry_zone = recommendation.get("entry_zone") or ()
             levels_rows.append(["Action", _md_escape(action), ""])
             if len(entry_zone) >= 1:
@@ -898,13 +910,14 @@ def build_sections(data: dict[str, Any]) -> list[Section]:
         metadata_14b = recommendation.get("metadata") or {}
         market_summary = metadata_14b.get("market_risk_summary") or {}
         levels_basis = metadata_14b.get("levels_basis", "unknown")
-        rr_market = market_summary.get("market_reward_risk_ratio")
+        rr_market = None if research_only else market_summary.get("market_reward_risk_ratio")
         conviction_rr = (decision.get("risk_reward_summary") or {}).get(
             "risk_reward_ratio"
         )
         md_levels = [
             f"**Recommendation:** {_md_escape(action or 'n/a')} "
             f"(levels basis: {_md_escape(levels_basis)})",
+            "**Research only: no executable levels are approved.**" if research_only else "",
             "",
             _md_table(
                 ["Level", "Value"],

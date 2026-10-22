@@ -212,8 +212,9 @@ def test_scenario_a_simulation_low_conf_downtrend():
     assert "بوابة المخاطر: `hold`" in card_a
     # 3. Macro event tagged as UK/CA or secondary, not generic CPI
     assert ("UK/CA CPI" in card_a) or ("غير أمريكية" in card_a)
-    # 4. Levels marked as watchlist zones
-    assert "مناطق مراقبة فقط (Watchlist Zones)" in card_a
+    # 4. WAIT carries a research bias but no executable price plan.
+    assert "منطقة الدخول" not in card_a
+    assert "وقف الخسارة" not in card_a
     # 5. Human review required due to structural conflict
     assert "مراجعة بشرية: `مطلوبة (مطلوبة - تعارض هيكلي)`" in card_a or "مطلوبة" in card_a
 

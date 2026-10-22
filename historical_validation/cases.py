@@ -87,8 +87,14 @@ def verify_cohort_integrity(rows: list[dict[str, str]], path: Path) -> None:
     )
     if not expected:
         return
-    actual = hashlib.sha256(Path(path).read_bytes()).hexdigest()
-    if actual != expected:
+    raw = Path(path).read_bytes()
+    actual = hashlib.sha256(raw).hexdigest()
+    # Git may check out text files with LF or CRLF. Accept the manifest's
+    # newline representation without accepting any changed CSV fields.
+    newline_equivalent = hashlib.sha256(
+        raw.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+    ).hexdigest()
+    if actual != expected and newline_equivalent != expected:
         raise CohortIntegrityError(
             f"COHORT L3 ARTIFACT-HASH LOCK FAILED: sha256(cpi_gold_lessons.csv)"
             f"={actual[:16]}... manifest expects {expected[:16]}.... "

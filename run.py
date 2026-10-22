@@ -39,6 +39,7 @@ if str(SRC) not in sys.path:
 from dotenv import load_dotenv  # noqa: E402
 
 from decision_engine.engine import NO_TRADE_CONFIDENCE, NO_TRADE_RR_RATIO  # noqa: E402
+from execution_policy import final_execution_decision, publishable_recommendation  # noqa: E402
 from knowledge.events.registry import EventRegistry  # noqa: E402
 from orchestration.orchestrator import InstitutionalOrchestrator  # noqa: E402
 from runtime_registry.outputs import date_dir  # noqa: E402
@@ -60,8 +61,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "event_type": "CPI",
     "data_path": "data/economic/CPIAUCSL.csv",
     "gold_path": "data/history/gold/gold.csv",
+    "gold_provider": "yfinance_futures",
     "gold_lessons_path": None,
-    "release_calendar_path": "data/calendar/cpi_releases.csv",
+    "release_calendar_path": "data/calendar/cpi_releases_bls_verified.csv",
     "yield_data_path": "data/economic/DFII10.csv",
     "dxy_data_path": "data/context/dxy/dxy.csv",
     "breakeven_data_path": "data/economic/T5YIE.csv",
@@ -112,8 +114,16 @@ def _validate_config(config: dict[str, Any]) -> list[str]:
         value = config.get(key)
         if not value:
             errors.append(f"{key} is required")
-        elif not (ROOT / str(value)).exists():
+        elif not (ROOT / str(value)).exists() and not (
+            key == "gold_path" and config.get("gold_provider") == "twelvedata_spot"
+        ):
             errors.append(f"{key} not found: {value}")
+
+    provider = config.get("gold_provider", "yfinance_futures")
+    if provider not in {"yfinance_futures", "twelvedata_spot"}:
+        errors.append(f"unsupported gold_provider: {provider}")
+    if provider == "twelvedata_spot" and Path(str(config.get("gold_path", ""))).name != "xauusd_spot.csv":
+        errors.append("twelvedata_spot requires a dedicated xauusd_spot.csv history")
 
     for key in ("gold_lessons_path", "release_calendar_path", "yield_data_path", "dxy_data_path", "breakeven_data_path"):
         value = config.get(key)
@@ -621,6 +631,18 @@ def main(argv: list[str] | None = None) -> int:
         source_freshness.update(_refresh_fred_yields_before_run())
         source_freshness["DXY"] = _refresh_dxy_before_run()
 
+    if (
+        config.get("gold_provider") == "twelvedata_spot"
+        and not (ROOT / str(config["gold_path"])).exists()
+    ):
+        error = "spot gold history unavailable; check TWELVE_DATA_API_KEY and provider access"
+        LOG.error(error)
+        _write_json(run_dir / "summary.json", {
+            "pipeline_id": pipeline_id, "success": False,
+            "fatal_error": error, "source_freshness": source_freshness,
+        })
+        return EXIT_RUN_FAILED
+
     checkpoint_dir = config.get("checkpoint_dir")
     if checkpoint_dir is not None:
         checkpoint_dir = str(ROOT / str(checkpoint_dir))
@@ -643,6 +665,8 @@ def main(argv: list[str] | None = None) -> int:
         "asset": config.get("asset", "XAU/USD"),
         "horizon": int(config["horizon"]),
         "query": config.get("query", ""),
+        "reference_as_of": run_date,
+        "reference_max_age_days": 7,
     }
     for key in ("gold_lessons_path", "release_calendar_path", "yield_data_path", "dxy_data_path", "breakeven_data_path"):
         value = config.get(key)
@@ -678,6 +702,38 @@ def main(argv: list[str] | None = None) -> int:
     decision = finalize.get("decision")
     decision_label = _decision_label(decision)
     decision_confidence = _decision_confidence(decision)
+    risk_decision = finalize.get("risk_decision") or {}
+    metadata = _decision_field(decision, "metadata") or {}
+    bias_review = metadata.get("bias_review") or {} if isinstance(metadata, dict) else {}
+    try:
+        technical = json.loads((artifacts_dir / "technical_assessment.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        technical = {}
+    recommendation = finalize.get("trade_recommendation") or {}
+    plan_ready = isinstance(recommendation, dict) and all(
+        recommendation.get(key)
+        for key in ("entry_zone", "stop_loss", "take_profit_1", "take_profit_2")
+    )
+    execution = final_execution_decision(
+        decision_label,
+        decision_confidence,
+        _decision_field(risk_decision, "action"),
+        source_freshness,
+        as_of=datetime.date.fromisoformat(run_date),
+        structure=technical.get("structure_state") if isinstance(technical, dict) else None,
+        human_review=bool(bias_review.get("human_review_flag")),
+        asset=str(config.get("asset", "XAU/USD")),
+        price_source=source_freshness.get("Gold", {}).get("source"),
+        plan_ready=plan_ready,
+    )
+    finalize["execution_decision"] = execution
+    finalize["source_freshness"] = source_freshness
+    if isinstance(recommendation, dict) and recommendation and "error" not in recommendation:
+        recommendation = publishable_recommendation(recommendation, execution)
+        finalize["trade_recommendation"] = recommendation
+        _write_json(artifacts_dir / "trade_recommendation.json", recommendation)
+    execution_label = execution["action"]
+    LOG.info("Final execution action=%s, reasons=%s", execution_label, execution["reasons"])
 
     stage_records = [r.to_dict() for r in assessment.stages]
     success = not assessment.errors and all(
@@ -687,6 +743,9 @@ def main(argv: list[str] | None = None) -> int:
     stage_outputs = _stage_outputs_payload(
         assessment, source_freshness=source_freshness
     )
+    stage_outputs["outputs"]["finalize"] = finalize
+    if isinstance(recommendation, dict) and recommendation and "error" not in recommendation:
+        stage_outputs["outputs"]["trade_recommendation"] = recommendation
     _write_json(run_dir / "stages.json", stage_records)
     _write_json(run_dir / "finalize.json", finalize)
     _write_json(run_dir / STAGE_OUTPUTS_FILENAME, stage_outputs)
@@ -707,7 +766,9 @@ def main(argv: list[str] | None = None) -> int:
             status: count
             for status, count in _stage_counts(assessment).items()
         },
-        "decision": decision_label,
+        "decision": execution_label,
+        "research_decision": decision_label,
+        "execution_decision": execution,
         "decision_confidence": decision_confidence,
         "errors": list(assessment.errors),
         "failed_stages": [
@@ -724,15 +785,18 @@ def main(argv: list[str] | None = None) -> int:
             horizon=int(config["horizon"]),
             gold_path=config["gold_path"],
             entry_date=run_date,
-            decision=decision_label,
+            decision=execution_label,
             institutional_confidence=decision_confidence,
             decision_id=_decision_id(finalize),
-            decision_snapshot=_decision_snapshot(decision),
+            decision_snapshot={
+                **_decision_snapshot(decision),
+                "execution_gate_reasons": execution["reasons"],
+            },
         ))
         LOG.info("Outcome record written to %s", run_dir / "outcome.json")
 
     LOG.info("Outputs written to %s", run_dir)
-    _print_summary(assessment, run_dir, decision_label,
+    _print_summary(assessment, run_dir, execution_label,
                    decision_confidence, success)
 
     exit_code = EXIT_OK if success else EXIT_RUN_FAILED
@@ -747,7 +811,7 @@ def main(argv: list[str] | None = None) -> int:
                 execution_duration_seconds=round(wall_seconds, 4),
                 exit_code=exit_code,
                 pipeline_status="success",
-                institutional_decision=decision_label,
+                institutional_decision=execution_label,
                 confidence=decision_confidence,
                 report_path=str(run_dir / "institutional_report.md"),
                 output_directory=str(run_dir),
@@ -812,7 +876,10 @@ def _refresh_gold_before_run(config: dict[str, Any]) -> dict[str, Any]:
 
     gold_path = ROOT / str(config["gold_path"])
     try:
-        report = refresh_gold_data(gold_path, logger=LOG)
+        report = refresh_gold_data(
+            gold_path, logger=LOG,
+            provider=str(config.get("gold_provider", "yfinance_futures")),
+        )
         LOG.info(
             "Gold data refresh: status=%s rows %d -> %d (+%d), "
             "last date %s -> %s",
@@ -1082,7 +1149,9 @@ def _refresh_dxy_before_run() -> dict[str, Any]:
     try:
         series = fetcher.get_series(
             use_cache=True,
-            max_age_days=DXY_DAILY_SERIES_MAX_AGE_DAYS,
+            # Reconcile yesterday's close each run; a seven-day cache fast
+            # path can freeze a provisional Yahoo daily bar for a week.
+            max_age_days=0,
         )
         if len(series) > 0:
             runtime_record = {

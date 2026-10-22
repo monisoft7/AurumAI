@@ -51,6 +51,7 @@ def _file_sha256(path: Path) -> str:
 def resolve_reference_price(
     gold_path: str | None,
     as_of: str | None = None,
+    max_age_days: int | None = None,
 ) -> tuple[ReferencePrice | None, str]:
     """Return ``(ReferencePrice, "")`` or ``(None, reason)``.
 
@@ -111,7 +112,16 @@ def resolve_reference_price(
                 continue
             if value <= 0.0:
                 continue
-            bar_date = pd.Timestamp(row.bar_date).isoformat()
+            bar_timestamp = pd.Timestamp(row.bar_date)
+            if max_age_days is not None:
+                boundary_date = (
+                    pd.Timestamp(str(as_of)).date() if as_of is not None
+                    else pd.Timestamp.now(tz="UTC").date()
+                )
+                age = (boundary_date - bar_timestamp.date()).days
+                if age < 0 or age > max_age_days:
+                    return None, f"reference_price_stale: age_days={age}, max_age_days={max_age_days}"
+            bar_date = bar_timestamp.isoformat()
             provenance = ReferencePrice(
                 value=value,
                 method="last_valid_close",

@@ -252,7 +252,7 @@ def test_uncached_yield_and_dxy_provider_results_are_structured(
 
     class DxyClient:
         def get_series(self, **kwargs) -> pd.Series:
-            assert kwargs == {"use_cache": True, "max_age_days": 7}
+            assert kwargs == {"use_cache": True, "max_age_days": 0}
             return _series("2026-09-09")
 
         def freshness_report(self) -> dict[str, object]:

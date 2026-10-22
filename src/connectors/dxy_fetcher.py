@@ -108,6 +108,7 @@ class DXYFetcher:
     def _read_cached_series(cache_path: Path) -> pd.Series:
         df = pd.read_csv(cache_path, parse_dates=["Date"])
         df = df.dropna(subset=["Date", "Value"]).sort_values("Date")
+        df = df.loc[df["Date"].dt.date < datetime.now(timezone.utc).date()]
         series = df.set_index("Date")["Value"]
         return pd.to_numeric(series, errors="coerce")
 
@@ -136,6 +137,11 @@ class DXYFetcher:
             raise ConnectionError(f"yfinance returned no {self.TICKER} data")
         close = data["Close"].squeeze()
         close = close.dropna()
+        # The current Yahoo daily bar can still move until the session ends.
+        # Keep only dates before the current UTC day for live downloads.
+        if end is None and len(close) > 0:
+            today_utc = datetime.now(timezone.utc).date()
+            close = close.loc[pd.to_datetime(close.index).date < today_utc]
         if len(close) == 0:
             raise ConnectionError(f"yfinance returned no {self.TICKER} data")
         return close

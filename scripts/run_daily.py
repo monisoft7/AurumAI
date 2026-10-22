@@ -123,10 +123,8 @@ def _refresh_yields() -> None:
 
 
 def _run_pipeline() -> int:
-    _refresh_gold()
-    _refresh_yields()
     return subprocess.run(
-        [sys.executable, str(PIPELINE_SCRIPT), "--no-refresh"],
+        [sys.executable, str(PIPELINE_SCRIPT)],
         cwd=str(ROOT),
     ).returncode
 
@@ -243,7 +241,7 @@ def _evaluate_outcomes() -> tuple[bool, str]:
 
 def _print_summary(run_dir: Path, rc: int, report_ok: bool, registry_ok: bool,
                    telegram_note: str, telegram_compact_note: str,
-                   success: bool) -> None:
+                   success: bool, summary_ok: bool, delivery_ok: bool | None) -> None:
     summary = _load_summary(run_dir)
     decision = summary.get("decision", "n/a")
     confidence = summary.get("decision_confidence")
@@ -261,11 +259,12 @@ def _print_summary(run_dir: Path, rc: int, report_ok: bool, registry_ok: bool,
     print(f"Exit code          : {rc}")
     print(f"Report generated   : {run_dir / 'institutional_report.md'}")
     print(f"Registry path      : {REGISTRY_PATH}")
-    print(f"Verification       : exit_code={rc == 0}, report={report_ok}, "
-          f"registry={registry_ok}")
+    print(f"Verification       : exit_code={rc == 0}, summary={summary_ok}, "
+          f"report={report_ok}, registry={registry_ok}")
     print(f"Telegram           : {telegram_note}")
     print(f"Telegram compact   : {telegram_compact_note}")
-    print(f"Result             : {'SUCCESS' if success else 'FAILED'}")
+    print(f"Computation        : {'SUCCESS' if success else 'FAILED'}")
+    print(f"Delivery           : {'SENT' if delivery_ok else 'FAILED' if delivery_ok is False else 'SKIPPED'}")
     print("=" * 60)
 
 
@@ -286,6 +285,7 @@ def main(argv: list[str] | None = None) -> int:
     rc = _run_pipeline()
 
     report_ok = False
+    summary_ok = False
     registry_ok = False
     run_dir = _resolve_run_dir(run_date) or _run_dir(run_date)
 
@@ -304,13 +304,17 @@ def main(argv: list[str] | None = None) -> int:
             and records[-1].get("output_directory") == str(run_dir)
         )
 
-    success = rc == 0 and report_ok and registry_ok
+    success = rc == 0 and summary_ok and report_ok and registry_ok
 
     telegram_note = "skipped (run not verified)"
     telegram_compact_note = "skipped (run not verified)"
+    delivery_ok: bool | None = None
     if success:
         telegram_sent, telegram_note = _send_telegram(run_dir)
-        _, telegram_compact_note = _send_telegram_compact(run_dir)
+        compact_sent, telegram_compact_note = _send_telegram_compact(run_dir)
+        delivery_ok = compact_sent
+        if not compact_sent:
+            print(f"Delivery status      : {telegram_compact_note}", file=sys.stderr)
 
     evaluation_ok, evaluation_note = _evaluate_outcomes()
     print(f"Outcome evaluation : {evaluation_note}")
@@ -320,9 +324,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Summary refresh    : {summary_refresh_note}")
 
     _print_summary(run_dir, rc, report_ok, registry_ok, telegram_note,
-                   telegram_compact_note, success)
+                   telegram_compact_note, success, summary_ok, delivery_ok)
 
-    return EXIT_OK if success else EXIT_RUN_FAILED
+    delivery_failed = delivery_ok is False and "not configured" not in telegram_compact_note
+    return EXIT_OK if success and not delivery_failed else EXIT_RUN_FAILED
 
 
 if __name__ == "__main__":

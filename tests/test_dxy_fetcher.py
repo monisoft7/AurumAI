@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock, patch
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 import pytest
@@ -59,6 +60,15 @@ class TestFetch:
         mock.assert_called_once()
         call_kwargs = mock.call_args[1]
         assert call_kwargs.get("period") == "1y"
+
+    def test_live_fetch_excludes_unfinished_utc_day(self, fetcher: DXYFetcher) -> None:
+        today = datetime.now(timezone.utc).date()
+        dates = pd.to_datetime([today - timedelta(days=1), today])
+        df = pd.DataFrame({"Close": [100.0, 105.0]}, index=dates)
+        with patch("connectors.dxy_fetcher.yf.download", return_value=df):
+            result = fetcher.fetch()
+        assert len(result) == 1
+        assert float(result.iloc[-1]) == 100.0
 
 
 class TestFetchLatest:

@@ -7,7 +7,7 @@ from knowledge.features.engine import FeatureExtractionEngine
 from knowledge.features.extractors.cpi import CPIFeatureExtractor
 
 
-DEFAULT_CPI_RELEASE_CALENDAR = "data/calendar/cpi_releases.csv"
+DEFAULT_CPI_RELEASE_CALENDAR = "data/calendar/cpi_releases_bls_verified.csv"
 
 
 class CPIEvent(MacroEvent):
