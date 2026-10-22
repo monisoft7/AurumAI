@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-WORKFLOWS_DOC = REPO_ROOT / "IMPLEMENTATION_WORKFLOWS.md"
+WORKFLOWS_DOC = REPO_ROOT / "docs" / "reference" / "IMPLEMENTATION_WORKFLOWS.md"
 SRC = REPO_ROOT / "src"
 
 # Every implemented institutional workflow package and its canonical workflow

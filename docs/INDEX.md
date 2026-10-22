@@ -133,3 +133,17 @@ All documentation is governed by the following hierarchy:
 | OpenSource_Approved | References Constitution §11 |
 | MEMORY | References ROADMAP, PROJECT_STATUS, NORTH_STAR |
 | README | References NORTH_STAR, Constitution, PROJECT_IDENTITY |
+
+---
+
+## Repository Layout Note
+
+The repository root keeps only the canonical governance and state documents
+(`PROJECT_NORTH_STAR.md`, `CURRENT_STATE.md`, `PROJECT_STATUS.md`, `ROADMAP.md`, `PROJECT_IDENTITY.md`, `MEMORY.md`)
+plus `Institutional_Gold_Knowledge_Base.md`, which is loaded at runtime by the evidence collector.
+
+| Moved to | What |
+|---|---|
+| [`docs/history/waves/`](history/waves/) | Wave completion and readiness reports (`Wave-*.md`, `W1_W2_INTEGRATION_REVIEW.md`, `Implementation-Wave-1-Readiness.md`) |
+| [`docs/history/`](history/README.md) | `Git-Commit-Plan.md`, `OPERATIONAL_VALIDATION_CHECKLIST_002.md` |
+| [`docs/reference/`](reference/README.md) | `IMPLEMENTATION_MAPPING.md`, `IMPLEMENTATION_WORKFLOWS.md`, `INSTITUTIONAL_CONTRACTS.md`, `Institutional_Gold_Methodology.md` |
