@@ -86,7 +86,7 @@ ARTIFACT = "decision_outcome"
 PENDING_STATUS = "pending"
 EVALUATED_STATUS = "evaluated"
 
-ABSTENTION_DECISIONS = frozenset({"NO_TRADE", "INSUFFICIENT_EVIDENCE"})
+ABSTENTION_DECISIONS = frozenset({"NO_TRADE", "INSUFFICIENT_EVIDENCE", "WAIT"})
 ABSTENTION_VERDICT_UNSCORED = "unscored"
 VERDICT_JUSTIFIED_ABSTENTION = "justified_abstention"
 VERDICT_MISSED_OPPORTUNITY = "missed_opportunity"
@@ -217,6 +217,12 @@ def _resolve_abstention(
     """
     if not snapshot:
         return ABSTENTION_VERDICT_UNSCORED, []
+    execution_reasons = set(snapshot.get("execution_gate_reasons") or [])
+    if execution_reasons & {
+        "data_unavailable_or_stale", "instrument_mismatch",
+        "trade_plan_unavailable", "risk_status_halt", "risk_status_delay",
+    }:
+        return VERDICT_UNRESOLVABLE, sorted(execution_reasons)
     gates = snapshot.get("gate_reasons") or {}
     rr_pass = gates.get("rr_gate_pass")
     sign = _candidate_sign((snapshot.get("best_rejected") or {}).get("direction"))
@@ -329,7 +335,9 @@ def evaluate_run(run_dir: Path, force: bool = False) -> dict[str, Any]:
             if realized is not None:
                 record["realized_gold_return"] = round(float(realized), 4)
                 direction = _classify_actual_direction(float(realized))
-                record["decision_correct"] = _decision_is_correct(decision, direction)
+                record["decision_correct"] = (
+                    None if is_abstention else _decision_is_correct(decision, direction)
+                )
                 if is_abstention:
                     record["abstention_return"] = record["realized_gold_return"]
             record["status"] = EVALUATED_STATUS

@@ -1,9 +1,10 @@
 {
   "event_type": "CPI",
   "data_path": "data/economic/CPIAUCSL.csv",
-  "gold_path": "data/history/gold/gold.csv",
+  "gold_path": "data/history/gold/xauusd_spot.csv",
+  "gold_provider": "twelvedata_spot",
   "gold_lessons_path": null,
-  "release_calendar_path": "data/calendar/cpi_releases.csv",
+  "release_calendar_path": "data/calendar/cpi_releases_bls_verified.csv",
   "yield_data_path": "data/economic/DFII10.csv",
   "dxy_data_path": "data/context/dxy/dxy.csv",
   "breakeven_data_path": "data/economic/T5YIE.csv",

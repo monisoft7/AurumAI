@@ -62,12 +62,21 @@ def _load_registry_record(root: Path, run_id: str) -> dict[str, Any] | None:
 def _build_decision(finalize: dict[str, Any]) -> dict[str, Any]:
     decision = finalize.get("decision") or {}
     metadata = decision.get("metadata") or {}
-    return {
-        "action": _clean(decision.get("decision")),
+    execution = finalize.get("execution_decision") or {}
+    result = {
+        "action": _clean(execution.get("action")) if execution else _clean(decision.get("decision")),
         "confidence": _clean(decision.get("institutional_confidence")),
         "selected_thesis_id": _clean(decision.get("selected_thesis_id")),
-        "gate_reason": _clean(metadata.get("gate_reason")),
+        "gate_reason": _clean(execution.get("gate_reason")) if execution else _clean(metadata.get("gate_reason")),
     }
+    if execution:
+        result.update({
+            "research_direction": _clean(decision.get("decision")),
+            "execution_allowed": execution.get("execution_allowed"),
+            "execution_reasons": execution.get("reasons"),
+            "unavailable_sources": execution.get("unavailable_sources"),
+        })
+    return result
 
 
 def _build_news(finalize: dict[str, Any]) -> dict[str, Any]:
@@ -137,7 +146,7 @@ def _build_risk(finalize: dict[str, Any]) -> dict[str, Any]:
     atr = _clean(atr_provenance.get("atr_14"))
     if atr is None and market_summary:
         atr = _clean(market_summary.get("atr_14"))
-    return {
+    result = {
         "status": "ok" if recommendation else _UNAVAILABLE,
         "reference_price": reference_price,
         "atr": atr,
@@ -147,6 +156,15 @@ def _build_risk(finalize: dict[str, Any]) -> dict[str, Any]:
         "market_risk_reward": _clean(market_summary.get("market_reward_risk_ratio")),
         "risk_status": _clean(risk_decision.get("action")),
     }
+    if finalize.get("execution_decision"):
+        provenance = metadata.get("reference_price_provenance") or {}
+        result.update({
+            "instrument": _clean(recommendation.get("instrument")),
+            "entry_zone": recommendation.get("entry_zone") or None,
+            "price_bar_date": _clean(provenance.get("bar_date")),
+            "price_source": finalize["execution_decision"].get("price_source"),
+        })
+    return result
 
 
 def _build_governance(finalize: dict[str, Any]) -> dict[str, Any]:
@@ -193,7 +211,9 @@ def _build_calibration(root: Path) -> dict[str, Any]:
     minimum = statistics.get("min_samples_required")
     if sample_count is not None and isinstance(minimum, (int, float)):
         calibration_status = (
-            "dormant" if sample_count < minimum else "active"
+            "dormant" if sample_count < minimum
+            else "active" if calibration.get("eligible_for_confidence_cap") is True
+            else "diagnostic_only"
         )
     elif sample_count == 0:
         calibration_status = "dormant"
@@ -261,7 +281,12 @@ def build_summary(run_dir: Path, root: Path | None = None) -> dict[str, Any]:
     risk_status_val = risk_dict.get("risk_status") or "proceed"
     review_val = gov.get("bias_review_flag") or False
 
-    if conf_val is not None and isinstance(conf_val, (int, float)):
+    execution = finalize.get("execution_decision") or {}
+    if execution:
+        risk_dict["risk_status"] = execution.get("risk_status")
+        if execution.get("human_review"):
+            gov["bias_review_flag"] = True
+    elif conf_val is not None and isinstance(conf_val, (int, float)):
         gate_res = apply_institutional_risk_gate(
             decision=action_val or "HOLD",
             confidence=float(conf_val),
@@ -566,7 +591,8 @@ def format_telegram_arabic_trade_card(
     conf_pct = f"{float(conf) * 100:.1f}%" if isinstance(conf, (int, float)) else "غير متاح"
 
     # استخراج الاتجاه المرشح حتى في حالة NO_TRADE ليتمكن المتداول من اتخاذ قراره
-    effective_dir = raw_action if raw_action in ("BUY", "SELL") else None
+    research_dir = str(decision.get("research_direction") or "").upper()
+    effective_dir = research_dir if research_dir in ("BUY", "SELL") else (raw_action if raw_action in ("BUY", "SELL") else None)
     if effective_dir is None and run_dir is not None:
         finalize = _read_json(Path(run_dir) / "finalize.json") or {}
         dec_meta = ((finalize.get("decision") or {}).get("metadata")) or {}
@@ -582,7 +608,10 @@ def format_telegram_arabic_trade_card(
     gov_reason = str(governance.get("bias_review_reason") or "")
 
     gate_result = None
-    if isinstance(conf, (int, float)):
+    if decision.get("execution_allowed") is not None:
+        effective_action = raw_action
+        risk_status = risk_status_raw or "unknown"
+    elif isinstance(conf, (int, float)):
         gate_result = apply_institutional_risk_gate(
             decision=raw_action,
             confidence=float(conf),
@@ -601,7 +630,7 @@ def format_telegram_arabic_trade_card(
         risk_status = risk_status_raw or "proceed"
 
     is_hold = (
-        risk_status == "hold"
+        risk_status in ("hold", "halt", "delay", "unknown", "unavailable")
         or effective_action in ("WAIT", "HOLD", "NO_TRADE")
         or (isinstance(conf, (int, float)) and float(conf) < 0.60)
     )
@@ -630,11 +659,14 @@ def format_telegram_arabic_trade_card(
     ref_str = f"{float(ref_price):.2f}$" if isinstance(ref_price, (int, float)) else "غير متاح"
     atr_str = f"{float(atr):.2f}$" if isinstance(atr, (int, float)) else "غير متاح"
     rr_val = risk.get("market_risk_reward")
-    rr_str = f"1 : {float(rr_val):.2f}" if isinstance(rr_val, (int, float)) else "1 : 2.00"
+    rr_str = f"1 : {float(rr_val):.2f}" if isinstance(rr_val, (int, float)) else "غير متاح"
+    if is_hold:
+        rr_str = "لا توجد صفقة صالحة"
 
-    event_display = resolve_macro_event_label(
-        summary.get("event_type"),
-        articles=summary.get("articles") or [],
+    event_display = (
+        resolve_macro_event_label(summary.get("event_type"), articles=summary["articles"])
+        if isinstance(summary.get("articles"), list) and summary["articles"]
+        else "لم يتم التحقق من تقويم الأحداث"
     )
 
     lines = [
@@ -642,12 +674,37 @@ def format_telegram_arabic_trade_card(
         f"📅 التاريخ: `{summary.get('entry_date') or 'اليوم'}` | الحدث: `{event_display}`",
         "",
         f"**🎯 التوصية المؤسسية:** **{action_ar}**",
-        f"• درجة الثقة المؤسسية: `{conf_pct}`",
-        f"• السعر المرجعي الحالي: `{ref_str}` | التذبذب اليومي (ATR): `{atr_str}`",
+        f"• درجة الدعم المؤسسي (ليست احتمال نجاح): `{conf_pct}`",
+        f"• آخر إغلاق مرجعي محفوظ: `{ref_str}` | التذبذب اليومي (ATR): `{atr_str}`",
         f"• العائد مقابل المخاطرة: `{rr_str}` | بوابة المخاطر: `{risk_status}`",
     ]
 
-    if isinstance(ref_price, (int, float)) and isinstance(atr, (int, float)) and effective_dir in ("BUY", "SELL"):
+    unavailable_sources = decision.get("unavailable_sources") or []
+    if unavailable_sources:
+        lines.append(f"• بيانات غير صالحة للتنفيذ: `{', '.join(unavailable_sources)}`")
+    if risk.get("price_source"):
+        lines.append(f"• مصدر سعر الذهب: `{risk['price_source']}` | تاريخ الإغلاق: `{risk.get('price_bar_date') or 'غير متاح'}`")
+
+    # A hard risk stop or stale critical input cannot produce an actionable
+    # price plan.  Preserve a research direction without showing entry/SL/TP.
+    hard_stop = is_hold or bool(unavailable_sources)
+    if hard_stop:
+        lines.append("• الاتجاه البحثي للمراقبة فقط؛ لا توجد خطة دخول صالحة حتى تزول أسباب المنع.")
+
+    if decision.get("execution_allowed") is not None:
+        if not hard_stop:
+            zone = risk.get("entry_zone") or []
+            if zone and risk.get("stop") and risk.get("tp1") and risk.get("tp2"):
+                lines.extend([
+                    "",
+                    "**📌 خطة W14 المحفوظة لهذا القرار:**",
+                    f"• الأداة: `{risk.get('instrument') or 'غير متاح'}` | منطقة الدخول: `{' - '.join(str(v) for v in zone)}`",
+                    f"• وقف الخسارة: `{risk['stop']}` | الهدف الأول: `{risk['tp1']}` | الهدف الثاني: `{risk['tp2']}`",
+                    "• نسبة العائد/المخاطرة أعلاه محسوبة عند السعر المرجعي، وتتغير حسب سعر التعبئة والتكاليف.",
+                ])
+            else:
+                lines.append("• خطة الدخول غير مكتملة؛ لا توجد مستويات تنفيذ معتمدة.")
+    elif not hard_stop and isinstance(ref_price, (int, float)) and isinstance(atr, (int, float)) and effective_dir in ("BUY", "SELL"):
         dir_label = "شراء (BUY)" if effective_dir == "BUY" else "بيع (SELL)"
         if is_hold or raw_action in ("NO_TRADE", "WAIT"):
             lines.append(f"• ملاحظة: بوابة المخاطر بحالة انتظار (HOLD) - المستويات التالية هي مناطق مراقبة فقط (Watchlist Zones) وليست أوامر تنفيذ مباشرة:")
@@ -683,7 +740,7 @@ def format_telegram_arabic_trade_card(
             f"• الهدف الأول (TP1 - 1:1): `{w_lvl['tp1']}` | الهدف الثاني (TP2 - 1:2): `{w_lvl['tp2']}`",
             f"• نسبة العائد للمخاطرة (R:R): `1 : 2.00` (حقيقية من متوسط الدخول)",
         ])
-    elif risk.get("stop") and risk.get("tp1"):
+    elif not hard_stop and risk.get("stop") and risk.get("tp1"):
         lines.extend([
             "",
             "**📌 مستويات التنفيذ الأساسية:**",
@@ -708,8 +765,8 @@ def format_telegram_arabic_trade_card(
         "**🧭 سياق السوق والفحص الفني:**",
         f"• النظام الكلي: {regime_ar}",
         f"• الفحص الفني: الاتجاه {trend_ar} | الزخم {mom_ar} | الهيكل `{technical.get('structure_state') or 'range'}`",
-        f"• الأخبار المرصودة: `{news.get('article_count') or 0}` خبر (`{news.get('directional_count') or 0}` مؤثر اتجاهياً)",
-        f"• فحص التحيز: `{governance.get('bias_severity') or 'clean'}` | مراجعة بشرية: `{review_display}`",
+        f"• الأخبار المرصودة: `{news.get('article_count') if news.get('article_count') is not None else 'غير متاح'}` خبر (`{news.get('directional_count') if news.get('directional_count') is not None else 'غير متاح'}` مؤثر اتجاهياً)",
+        f"• فحص التحيز: `{governance.get('bias_severity') or 'غير متاح'}` | مراجعة بشرية: `{review_display}`",
         "",
         "💡 *القرار النهائي للدخول وإدارة حجم العقد يعود لتقديرك الشخصي على الشارت.*",
     ])

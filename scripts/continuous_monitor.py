@@ -64,7 +64,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "recovery_lookback_minutes": 1440,
     "scheduled_slots": ["09:30"],
     "event_types": ["CPI", "FOMC"],
-    "release_calendar_path": "data/calendar/cpi_releases.csv",
+    "release_calendar_path": "data/calendar/cpi_releases_bls_verified.csv",
     "fomc_calendar_path": "data/calendar/fomc_meetings.csv",
     "news_min_relevance": 0.7,
     "backoff_seconds": [300, 900, 1800],

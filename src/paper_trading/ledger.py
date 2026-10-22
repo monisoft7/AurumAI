@@ -119,6 +119,7 @@ def _normalise_decision(value: Any) -> str:
         "HOLD": "NO_TRADE",
         "NEUTRAL": "NO_TRADE",
         "INSUFFICIENT_EVIDENCE": "NO_TRADE",
+        "WAIT": "NO_TRADE",
     }
     result = aliases.get(raw, raw)
     if result not in ALLOWED_DECISIONS:

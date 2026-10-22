@@ -31,6 +31,7 @@ jobs:
       AUTOMATION_MODE: ${{ github.event_name == 'schedule' && 'live-paper' || inputs.mode || 'dry-run' }}
       PAPER_LEDGER_REPOSITORY: ${{ vars.PAPER_LEDGER_REPOSITORY }}
       FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+      TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       PAPER_LEDGER_TOKEN: ${{ secrets.PAPER_LEDGER_TOKEN }}
@@ -89,18 +90,19 @@ jobs:
           fetch-depth: 0
 
       - name: Install strategy dependencies
-        if: env.AUTOMATION_MODE == 'live-paper'
         run: |
           python -m pip install --upgrade pip
           python -m pip install "./harness[technical]"
 
-      - name: Install dependencies (dry-run fallback)
+      - name: Validate dry-run without market refresh or messaging
         if: env.AUTOMATION_MODE != 'live-paper'
+        working-directory: harness
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install "./harness[technical]"
+          python -m compileall -q run.py src scripts historical_validation
+          python scripts/paper_trading.py --help > /dev/null
 
       - name: Run daily gold summary and send concise Arabic Telegram card
+        if: env.AUTOMATION_MODE == 'live-paper'
         working-directory: harness
         run: |
           mkdir -p ../automation-artifacts

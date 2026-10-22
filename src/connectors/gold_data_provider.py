@@ -1,10 +1,10 @@
-"""Gold Data Provider V1.
+"""Validated, append-only daily gold history provider.
 
 Maintains the local gold OHLCV history (``data/history/gold/gold.csv``) used by
 the forecast pipeline. Implements the ``GOLD_DATA_PROVIDER_V1`` design:
 
-  - source: yfinance ``GC=F`` (already a project dependency, used by
-    ``dxy_fetcher.py`` / ``overnight_fetcher.py`` / ``positioning.py``);
+  - default source: yfinance ``GC=F`` futures;
+  - optional separate spot source: Twelve Data ``XAU/USD`` daily OHLC;
   - forward-only merge: existing rows are never modified or dropped;
   - never shrink: a truncated or shorter remote payload never truncates the file;
   - validation: schema, chronology, duplicate dates, missing dates, invalid prices,
@@ -13,9 +13,8 @@ the forecast pipeline. Implements the ``GOLD_DATA_PROVIDER_V1`` design:
   - fail-safe: on any failure the previous dataset is preserved and the caller
     (the runtime entry point) continues with the existing data.
 
-This module only ever writes ``gold.csv`` (plus a ``gold.csv.bak`` safety copy
-on a successful refresh). It does not modify any forecast, decision, confidence,
-threshold, contract, or orchestration code.
+Each configured source writes its own CSV path (plus a sibling backup on
+successful refresh). The caller must never reuse the futures CSV path for spot.
 """
 
 from __future__ import annotations
@@ -23,6 +22,10 @@ from __future__ import annotations
 import datetime
 import logging
 import os
+import json
+import urllib.parse
+import urllib.request
+import urllib.error
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -35,6 +38,8 @@ LOG = logging.getLogger("aurumai.gold_provider")
 DEFAULT_GOLD_CSV = "data/history/gold/gold.csv"
 GOLD_TICKER = "GC=F"
 SOURCE_LABEL = f"yfinance:{GOLD_TICKER}"
+SPOT_SOURCE_LABEL = "twelvedata:XAU/USD"
+SPOT_API_KEY_ENV = "TWELVE_DATA_API_KEY"
 SCHEMA_COLUMNS = ("Date", "Close", "High", "Low", "Open", "Volume")
 PRICE_COLUMNS = ("Close", "High", "Low", "Open")
 
@@ -77,10 +82,12 @@ class GoldDataProvider:
         path: str | Path = DEFAULT_GOLD_CSV,
         fetcher: Callable[[], pd.DataFrame] | None = None,
         logger: logging.Logger | None = None,
+        source: str = SOURCE_LABEL,
     ) -> None:
         self._path = Path(path)
         self._fetcher = fetcher
         self._log = logger or LOG
+        self._source = source
 
     # ------------------------------------------------------------------ public
 
@@ -105,7 +112,7 @@ class GoldDataProvider:
                 rows_added=0,
                 last_date_before=None,
                 last_date_after=None,
-                source=SOURCE_LABEL,
+                source=self._source,
                 timestamp=_utc_now_iso(),
                 message=f"unexpected failure: {exc}",
             )
@@ -120,7 +127,7 @@ class GoldDataProvider:
             self._log.error("gold provider: %s; keeping existing dataset", load_error)
             return GoldRefreshReport(
                 status="failed", rows_before=0, rows_after=0, rows_added=0,
-                last_date_before=None, last_date_after=None, source=SOURCE_LABEL,
+                last_date_before=None, last_date_after=None, source=self._source,
                 timestamp=timestamp, message=load_error,
             )
 
@@ -144,6 +151,12 @@ class GoldDataProvider:
 
         try:
             remote = self._normalize(remote)
+            # A daily futures bar can be revised until its session closes.
+            # The exchange session calendar is not recorded here, so use the
+            # conservative UTC-date boundary for the default live feed.
+            if self._fetcher is None:
+                today_utc = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+                remote = remote.loc[remote["Date"] < today_utc].reset_index(drop=True)
         except Exception as exc:
             message = f"remote payload invalid: {exc}"
             self._log.warning("gold provider: %s; keeping existing dataset", message)
@@ -181,7 +194,7 @@ class GoldDataProvider:
             return GoldRefreshReport(
                 status="ok", rows_before=rows_before, rows_after=rows_after,
                 rows_added=0, last_date_before=last_before,
-                last_date_after=last_after, source=SOURCE_LABEL,
+                last_date_after=last_after, source=self._source,
                 timestamp=timestamp, message="already current",
             )
 
@@ -200,7 +213,7 @@ class GoldDataProvider:
         return GoldRefreshReport(
             status="ok", rows_before=rows_before, rows_after=rows_after,
             rows_added=rows_added, last_date_before=last_before,
-            last_date_after=last_after, source=SOURCE_LABEL,
+            last_date_after=last_after, source=self._source,
             timestamp=timestamp, message="refreshed",
         )
 
@@ -217,7 +230,7 @@ class GoldDataProvider:
         return GoldRefreshReport(
             status=status, rows_before=rows_before, rows_after=rows_before,
             rows_added=0, last_date_before=last_before,
-            last_date_after=last_before, source=SOURCE_LABEL,
+            last_date_after=last_before, source=self._source,
             timestamp=timestamp, message=message,
         )
 
@@ -262,14 +275,13 @@ class GoldDataProvider:
         missing = [c for c in PRICE_COLUMNS if c not in df.columns]
         if missing:
             raise ValueError(f"frame missing required columns: {missing}")
+        if "Volume" not in df.columns:
+            df["Volume"] = np.nan
         df = df[list(SCHEMA_COLUMNS)].copy()
         df["Date"] = df["Date"].map(cls._date_str)
         for col in PRICE_COLUMNS:
             df[col] = pd.to_numeric(df[col], errors="coerce")
-        if "Volume" not in df.columns:
-            df["Volume"] = np.nan
-        else:
-            df["Volume"] = pd.to_numeric(df["Volume"], errors="coerce")
+        df["Volume"] = pd.to_numeric(df["Volume"], errors="coerce")
         df = df.sort_values("Date")
         df = df.drop_duplicates(subset="Date", keep="first")
         return df.reset_index(drop=True)
@@ -289,9 +301,11 @@ class GoldDataProvider:
         local: pd.DataFrame,
         remote: pd.DataFrame,
     ) -> tuple[pd.DataFrame, int]:
-        """Forward-only merge: keep local rows; add only remote dates that are
-        strictly after the local max date, or that fill an internal local gap.
-        Remote dates before the local first date are never prepended."""
+        """Append new dates and finalize the previous latest bar on rollover.
+
+        A changed last local row is accepted only when the remote feed also
+        contains a later completed date. Older committed rows stay frozen.
+        """
         local_min = str(local["Date"].iloc[0])
         local_max = str(local["Date"].iloc[-1])
         local_dates = set(local["Date"])
@@ -304,7 +318,14 @@ class GoldDataProvider:
         added = remote[forward | gaps]
         if len(added) == 0:
             return local.reset_index(drop=True), 0
-        merged = pd.concat([local, added], ignore_index=True)
+        # The former latest row may have been provisional when first stored.
+        # Reconcile it only after a newer daily bar proves rollover.
+        replacement = remote.loc[remote["Date"] == local_max]
+        if not replacement.empty and bool(forward.any()):
+            base = local.loc[local["Date"] != local_max]
+            merged = pd.concat([base, replacement, added], ignore_index=True)
+        else:
+            merged = pd.concat([local, added], ignore_index=True)
         merged = merged.sort_values("Date")
         merged = merged.drop_duplicates(subset="Date", keep="first")
         return merged.reset_index(drop=True), len(added)
@@ -391,6 +412,60 @@ def _utc_now_iso() -> str:
 def refresh_gold_data(
     path: str | Path = DEFAULT_GOLD_CSV,
     logger: logging.Logger | None = None,
+    provider: str = "yfinance_futures",
 ) -> GoldRefreshReport:
     """Convenience entry point for the runtime entry scripts."""
-    return GoldDataProvider(path=path, logger=logger).refresh()
+    if provider == "yfinance_futures":
+        return GoldDataProvider(path=path, logger=logger).refresh()
+    if provider == "twelvedata_spot":
+        if Path(path).name != "xauusd_spot.csv":
+            raise ValueError("spot provider requires a dedicated xauusd_spot.csv path")
+        return GoldDataProvider(
+            path=path, fetcher=fetch_twelvedata_spot_history,
+            logger=logger, source=SPOT_SOURCE_LABEL,
+        ).refresh()
+    raise ValueError(f"unsupported gold provider: {provider}")
+
+
+def fetch_twelvedata_spot_history() -> pd.DataFrame:
+    """Fetch completed daily XAU/USD bars; credentials never enter the report."""
+    key = os.environ.get(SPOT_API_KEY_ENV, "").strip()
+    if not key:
+        raise RuntimeError(f"{SPOT_API_KEY_ENV} is missing")
+    yesterday = datetime.datetime.now(datetime.timezone.utc).date() - datetime.timedelta(days=1)
+    params = urllib.parse.urlencode({
+        "symbol": "XAU/USD", "interval": "1day", "start_date": "2015-01-01",
+        "end_date": yesterday.isoformat(), "outputsize": 5000,
+        "apikey": key,
+    })
+    request = urllib.request.Request(
+        f"https://api.twelvedata.com/time_series?{params}",
+        headers={"User-Agent": "AurumAI/1.0"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=25) as response:
+            payload = json.load(response)
+    except urllib.error.HTTPError as exc:
+        raise RuntimeError(f"Twelve Data HTTP {exc.code}") from None
+    except urllib.error.URLError:
+        raise RuntimeError("Twelve Data connection unavailable") from None
+    except Exception:
+        # urllib errors may contain the URL and its API key.
+        raise RuntimeError("Twelve Data request failed") from None
+    if not isinstance(payload, dict) or payload.get("status") == "error":
+        raise RuntimeError("Twelve Data returned an error or invalid payload")
+    meta = payload.get("meta")
+    if not isinstance(meta, dict) or str(meta.get("symbol", "")).upper() != "XAU/USD":
+        raise RuntimeError("Twelve Data instrument did not match XAU/USD")
+    values = payload.get("values")
+    if not isinstance(values, list) or not values:
+        raise RuntimeError("Twelve Data returned no daily bars")
+    frame = pd.DataFrame(values).rename(columns={
+        "datetime": "Date", "open": "Open", "high": "High",
+        "low": "Low", "close": "Close", "volume": "Volume",
+    })
+    if "Date" not in frame or pd.to_datetime(frame["Date"], errors="coerce").isna().any():
+        raise RuntimeError("Twelve Data returned invalid bar dates")
+    if (pd.to_datetime(frame["Date"]).dt.date > yesterday).any():
+        raise RuntimeError("Twelve Data returned an unfinished daily bar")
+    return frame

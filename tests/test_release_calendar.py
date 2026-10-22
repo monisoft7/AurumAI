@@ -59,6 +59,18 @@ CPI_RELEASE_CSV = PROJECT_ROOT / "data" / "calendar" / "cpi_releases.csv"
 
 
 class TestReleaseCalendarLoading:
+    def test_verified_calendar_uses_bls_archive_dates(self) -> None:
+        path = PROJECT_ROOT / "data" / "calendar" / "cpi_releases_bls_verified.csv"
+        rows = pd.read_csv(path).set_index("reference_period")
+        assert len(rows) == 140
+        assert rows.loc["2015-02-01", "release_date"] == "2015-03-24"
+        assert rows.loc["2015-06-01", "release_date"] == "2015-07-17"
+        assert rows.loc["2026-09-01", "release_date"] == "2026-10-14"
+        assert "2025-10-01" not in rows.index  # No BLS release for this month.
+        assert rows["source_url"].str.startswith(
+            "https://www.bls.gov/news.release/archives/cpi_"
+        ).all()
+
     def test_calendar_csv_exists(self) -> None:
         assert CPI_RELEASE_CSV.exists(), f"Missing: {CPI_RELEASE_CSV}"
 
@@ -105,7 +117,7 @@ class TestCPIEventCalendar:
 
     def test_cpi_event_supports_default_constant(self) -> None:
         from knowledge.events.cpi import DEFAULT_CPI_RELEASE_CALENDAR
-        assert DEFAULT_CPI_RELEASE_CALENDAR == "data/calendar/cpi_releases.csv"
+        assert DEFAULT_CPI_RELEASE_CALENDAR == "data/calendar/cpi_releases_bls_verified.csv"
 
 
 # ===========================================================================

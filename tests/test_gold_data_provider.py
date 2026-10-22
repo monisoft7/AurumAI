@@ -73,6 +73,21 @@ def test_no_new_market_data(tmp_path: Path) -> None:
     assert path.read_bytes() == before
 
 
+def test_previous_latest_bar_is_reconciled_after_new_session(tmp_path: Path) -> None:
+    path = tmp_path / "gold.csv"
+    _write_local(path, ["2026-01-02", "2026-01-05"], [100.0, 101.0])
+    remote = _frame(
+        ["2026-01-02", "2026-01-05", "2026-01-06"],
+        [100.0, 110.0, 111.0],
+    )
+    report = GoldDataProvider(path=path, fetcher=lambda: remote).refresh()
+    written = pd.read_csv(path)
+    assert report.status == "ok"
+    assert report.rows_added == 1
+    assert written.loc[written["Date"] == "2026-01-05", "Close"].iloc[0] == 110.0
+    assert written.loc[written["Date"] == "2026-01-02", "Close"].iloc[0] == 100.0
+
+
 def test_duplicate_dates_in_remote_deduped(tmp_path: Path) -> None:
     path = tmp_path / "gold.csv"
     _write_local(path, ["2025-12-30", "2025-12-31"])

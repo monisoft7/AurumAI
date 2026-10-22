@@ -136,6 +136,9 @@ celerybeat.pid
 
 # Environments
 .env
+.env.*
+data/history/gold/xauusd_spot.csv
+data/history/gold/xauusd_spot.csv.bak
 .venv
 env/
 venv/

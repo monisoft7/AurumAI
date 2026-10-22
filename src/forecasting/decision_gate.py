@@ -93,6 +93,19 @@ def apply_institutional_risk_gate(
     gate_reason = ""
     watchlist_only = False
 
+    # A pre-existing risk stop takes precedence over confidence and structure.
+    # The research direction may remain useful, but it is never executable.
+    if risk_gate_out in {"halt", "delay", "hold"}:
+        return {
+            "action": "WAIT",
+            "confidence": conf,
+            "risk_status": risk_gate_out,
+            "human_review": review_out,
+            "human_review_reason": review_reason,
+            "gate_reason": f"risk_status_{risk_gate_out}",
+            "watchlist_only": True,
+        }
+
     # Check Rule C: Structure vs. Direction Conflict
     is_conflict = (dir_norm == "BUY" and struct == "downtrend") or (dir_norm == "SELL" and struct == "uptrend")
     if is_conflict:

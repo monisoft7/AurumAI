@@ -1491,6 +1491,7 @@ def _trade_recommendation(params: dict[str, Any], results: dict[str, Any]) -> An
         resolved, reason = resolve_reference_price(
             params.get("gold_path"),
             as_of=params.get("reference_as_of"),
+            max_age_days=params.get("reference_max_age_days"),
         )
         if resolved is not None:
             reference_price = resolved.value

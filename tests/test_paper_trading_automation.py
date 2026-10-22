@@ -396,7 +396,11 @@ def test_workflow_yaml_policy_is_valid_and_read_only() -> None:
         step for step in data["jobs"]["paper-trading"]["steps"]
         if step.get("name") == "Install strategy dependencies"
     )
-    assert install["if"] == "env.AUTOMATION_MODE == 'live-paper'"
+    assert "if" not in install
+    dry = next(step for step in data["jobs"]["paper-trading"]["steps"] if step.get("name") == "Validate dry-run without market refresh or messaging")
+    live = next(step for step in data["jobs"]["paper-trading"]["steps"] if step.get("name") == "Run daily gold summary and send concise Arabic Telegram card")
+    assert dry["if"] == "env.AUTOMATION_MODE != 'live-paper'"
+    assert live["if"] == "env.AUTOMATION_MODE == 'live-paper'"
     assert "pull_request_target" not in data["on"]
     assert "\t" not in WORKFLOW.read_text(encoding="utf-8")
 

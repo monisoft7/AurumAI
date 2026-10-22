@@ -1,18 +1,14 @@
-"""Final Hardening (Group E, D-05) -- outcome-driven confidence calibration.
+"""Outcome diagnostics for the institutional confidence score.
 
 Closes the learning loop that Corrections 054 / 055-A started:
 
     decision -> outcome -> evaluation -> aggregation/calibration
              -> future confidence (via the existing W9 ``oos_ece`` cap)
 
-This module aggregates the immutable ``outcome.evaluated.json`` artifacts
-(point-in-time-safe by construction -- decision-time inputs are frozen and
-never recomputed) into a single calibration error statistic, persisted to
-``runtime/calibration.json``.  The next run reads that file and passes the
-value into the pipeline as ``oos_ece``; the W9 ConfidenceEngine already
-caps institutional confidence when observed calibration error is high
-(> 0.15 -> cap at 0.60, > 0.25 -> cap at 0.35).  No new ML loop, no new
-scoring semantics: only existing infrastructure is connected.
+The score currently represents weighted institutional support, not a
+validated probability of trade success. ECE is therefore diagnostic only;
+the feedback cap is disabled unless a future, separately validated artifact
+explicitly declares itself eligible.
 
 Only SCORED decisions contribute (``decision_correct`` is not None);
 abstentions (NO_TRADE / INSUFFICIENT_EVIDENCE) are excluded exactly as the
@@ -102,9 +98,9 @@ def collect_evaluated_outcomes(
 def compute_calibration(records: list[dict[str, Any]]) -> dict[str, Any]:
     """Aggregate scored outcome records into calibration statistics.
 
-    ``mean_abs_error`` is the mean absolute gap between emitted institutional
-    confidence and realized correctness (1.0/0.0) -- the same statistic the
-    W9 ``oos_ece`` cap is designed to consume.
+    ``mean_abs_error`` is per-outcome error. ``oos_ece`` is ten-bin expected
+    calibration error: a sample-weighted gap between mean score and frequency
+    of correct directions in each bin. The latter is not individual MAE.
     """
     scored = [
         (float(r["institutional_confidence"]), 1.0 if r["decision_correct"] else 0.0)
@@ -137,7 +133,18 @@ def compute_calibration(records: list[dict[str, Any]]) -> dict[str, Any]:
         }
     )
     if sample_count >= MIN_CALIBRATION_SAMPLES:
-        stats["oos_ece"] = stats["mean_abs_error"]
+        bins: list[list[tuple[float, float]]] = [[] for _ in range(10)]
+        for confidence, correct in scored:
+            bins[min(9, max(0, int(confidence * 10)))].append((confidence, correct))
+        ece = sum(
+            (len(bucket) / sample_count)
+            * abs(
+                sum(c for c, _ in bucket) / len(bucket)
+                - sum(k for _, k in bucket) / len(bucket)
+            )
+            for bucket in bins if bucket
+        )
+        stats["oos_ece"] = round(ece, 6)
     return stats
 
 
@@ -154,8 +161,11 @@ def update_calibration_file(
     records = collect_evaluated_outcomes(outputs_root, as_of_date=effective_as_of)
     stats = compute_calibration(records)
     payload = {
-        "schema_version": "1.0",
+        "schema_version": "2.0",
         "artifact": "outcome_calibration",
+        "method": "equal_width_ece_10",
+        "score_semantics": "institutional_support_not_validated_probability",
+        "eligible_for_confidence_cap": False,
         "as_of": effective_as_of.isoformat(),
         "source": "outcome.evaluated.json sweep",
         "sample_count": stats["sample_count"],
@@ -187,6 +197,10 @@ def load_oos_ece(calibration_path: str | Path) -> float | None:
     except (OSError, ValueError):
         return None
     if not isinstance(data, dict):
+        return None
+    # Legacy files called individual MAE ECE. Neither that metric nor a new
+    # diagnostic ECE may silently alter W9 until score semantics are validated.
+    if data.get("method") != "equal_width_ece_10" or data.get("eligible_for_confidence_cap") is not True:
         return None
     value = data.get("oos_ece")
     if not isinstance(value, (int, float)) or isinstance(value, bool):

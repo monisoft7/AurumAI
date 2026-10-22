@@ -1,7 +1,8 @@
 """Historical Validation Run 001 -- Step 2 as-of snapshot engine (READ-ONLY).
 
-Builds a deterministic, validation-only snapshot for one evaluation date D
-containing ONLY information available at or before D.
+Builds a deterministic, validation-only snapshot for one evaluation date D.
+The legacy CPI release calendar and outcome alignment are not validated, so
+this module alone cannot certify a historical backtest as lookahead-free.
 
 Reuse-only adapter semantics (no new scoring/thresholds/sub-systems):
 
@@ -19,12 +20,12 @@ Reuse-only adapter semantics (no new scoring/thresholds/sub-systems):
            ``InstitutionalRegimeDetector(random_state=42)`` fit.  Fails
            explicitly when the historical source is unavailable.
 * KNOWLEDGE: deterministic AS-OF knowledge view derived IN MEMORY from the
-           canonical lesson artifact restricted to event_date <= D using the
+           canonical lesson artifact after outcome maturity using the
            EXISTING ``LessonSummaryAggregator`` producer semantics
            (identical grouping/horizons/statistics fields), then filtered by
-           the unchanged eligibility rule: a record is eligible only when
-           every one of its ``source_lesson_ids`` resolves to a lesson with
-           event_date <= D.  The persisted convenience artifact under
+           an eligibility rule that excludes the current episode and any
+           result unavailable before D. Legacy lessons without publication
+           times are quarantined for 90 days. The persisted artifact under
            ``data/economic/output/knowledge.json`` aggregates its own
            extraction window and is therefore NOT authoritative for
            historical dates; it remains readable through
@@ -404,7 +405,7 @@ def knowledge_eligible_records(
 
 
 # ---------------------------------------------------------------------------
-# As-of knowledge derivation (existing producer semantics, <= D, in memory)
+# As-of knowledge derivation (matured outcomes only, in memory)
 # ---------------------------------------------------------------------------
 
 # Mirrors the economic pipeline knowledge configuration for CPI / XAU/USD
@@ -415,6 +416,35 @@ ASOF_KNOWLEDGE_HORIZONS: tuple[int, ...] = (1, 5, 20)
 ASOF_KNOWLEDGE_EVENT_TYPE = "CPI"
 ASOF_KNOWLEDGE_ASSET = "XAU/USD"
 ASOF_KNOWLEDGE_PREFIX = "knowledge_summary_v1"
+LEGACY_LESSON_QUARANTINE_DAYS = 90
+
+
+def _outcome_available_before(row: dict[str, str], horizon: int, as_of: date) -> bool:
+    """Admit a lesson only after its specific outcome was knowable.
+
+    New corpora can carry explicit publication and outcome timestamps. The
+    frozen v1 corpus carries neither; quarantine those rows for 90 days from
+    its reference month. This is conservative protection, not validation of
+    the historical CPI release calendar or the v1 outcome alignment.
+    """
+    try:
+        event = date.fromisoformat(row["event_date"][:10])
+    except (KeyError, TypeError, ValueError):
+        return False
+    if event >= as_of:
+        return False
+    release = row.get("release_timestamp") or row.get("available_at")
+    outcome = row.get(f"outcome_available_at_{horizon}d") or row.get("outcome_available_at")
+    if bool(release) != bool(outcome):
+        return False
+    if release and outcome:
+        try:
+            release_date = date.fromisoformat(release[:10])
+            outcome_date = date.fromisoformat(outcome[:10])
+            return event <= release_date <= outcome_date < as_of
+        except ValueError:
+            return False
+    return event + timedelta(days=LEGACY_LESSON_QUARANTINE_DAYS) < as_of
 
 
 def asof_knowledge_records(
@@ -422,13 +452,12 @@ def asof_knowledge_records(
     *,
     lessons_path: Path = DEFAULT_LESSONS_PATH,
 ) -> list[dict[str, object]]:
-    """Derive the knowledge records a real-time system could have held at D.
+    """Derive a conservative knowledge view as of D.
 
-    Reuses the EXISTING ``LessonSummaryAggregator`` record projection
-    (``_summarize_group``) over the canonical lesson rows restricted to
-    ``event_date <= as_of``.  Deterministic: same artifact + date yield the
-    identical record set (grouping/horizons/statistics/identifiers are the
-    producer's own code paths).  Empty when no lessons exist at or before D.
+    Uses the existing producer projection over only outcomes known before D.
+    Legacy rows without release/outcome timestamps remain quarantined for 90
+    days from their reference date. This prevents same-episode leakage but
+    does not repair the historical release calendar or v1 price alignment.
     """
     import pandas as pd
 
@@ -436,16 +465,9 @@ def asof_knowledge_records(
 
     from .cases import load_lessons
 
-    cutoff = as_of.isoformat()
-    rows = [
-        row for row in load_lessons(lessons_path) if row["event_date"] <= cutoff
-    ]
+    rows = load_lessons(lessons_path)
     if not rows:
         return []
-    df = pd.DataFrame(rows)
-    for horizon in ASOF_KNOWLEDGE_HORIZONS:
-        col = f"gold_return_{horizon}d_pct"
-        df[col] = pd.to_numeric(df[col], errors="raise")
     config = LessonSummaryConfig(
         lessons_path=Path(lessons_path),
         condition_columns=ASOF_KNOWLEDGE_CONDITION_COLUMNS,
@@ -458,15 +480,21 @@ def asof_knowledge_records(
     aggregator = LessonSummaryAggregator(config)
 
     records: list[dict[str, object]] = []
-    for condition_values, group in df.groupby(
-        list(ASOF_KNOWLEDGE_CONDITION_COLUMNS), sort=True
-    ):
-        if not isinstance(condition_values, tuple):
-            condition_values = (condition_values,)
-        condition_dict = dict(
-            zip(ASOF_KNOWLEDGE_CONDITION_COLUMNS, condition_values)
-        )
-        for horizon in ASOF_KNOWLEDGE_HORIZONS:
+    for horizon in ASOF_KNOWLEDGE_HORIZONS:
+        matured = [row for row in rows if _outcome_available_before(row, horizon, as_of)]
+        if not matured:
+            continue
+        df = pd.DataFrame(matured)
+        col = f"gold_return_{horizon}d_pct"
+        df[col] = pd.to_numeric(df[col], errors="raise")
+        for condition_values, group in df.groupby(
+            list(ASOF_KNOWLEDGE_CONDITION_COLUMNS), sort=True
+        ):
+            if not isinstance(condition_values, tuple):
+                condition_values = (condition_values,)
+            condition_dict = dict(
+                zip(ASOF_KNOWLEDGE_CONDITION_COLUMNS, condition_values)
+            )
             records.append(aggregator._summarize_group(condition_dict, group, horizon))
     return records
 

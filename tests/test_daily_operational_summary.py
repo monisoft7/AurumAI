@@ -335,7 +335,7 @@ def test_calibration_dormant_below_minimum(run_dir: Path) -> None:
     _write(root / "runtime" / "calibration.json", calibration)
 
     summary = build_summary(run_dir, root)
-    assert summary["calibration"]["calibration_status"] == "active"
+    assert summary["calibration"]["calibration_status"] == "diagnostic_only"
     assert summary["calibration"]["oos_ece"] == 0.07
 
 

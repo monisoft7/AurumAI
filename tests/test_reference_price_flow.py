@@ -66,6 +66,16 @@ def _level_float(text: str) -> float:
     return float(str(text))
 
 
+def test_reference_price_age_guard_rejects_old_close(tmp_path: Path) -> None:
+    path = tmp_path / "old_gold.csv"
+    path.write_text("Date,Close\n2020-01-02,1500.0\n", encoding="utf-8")
+    price, reason = resolve_reference_price(
+        str(path), as_of="2026-10-21", max_age_days=7,
+    )
+    assert price is None
+    assert reason.startswith("reference_price_stale:")
+
+
 @pytest.fixture
 def buy_decision() -> InstitutionalDecision:
     return _decision("BUY")
