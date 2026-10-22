@@ -427,15 +427,20 @@ def refresh_gold_data(
     raise ValueError(f"unsupported gold provider: {provider}")
 
 
-def fetch_twelvedata_spot_history() -> pd.DataFrame:
+def fetch_twelvedata_spot_history(*, now: datetime.datetime | None = None) -> pd.DataFrame:
     """Fetch completed daily XAU/USD bars; credentials never enter the report."""
     key = os.environ.get(SPOT_API_KEY_ENV, "").strip()
     if not key:
         raise RuntimeError(f"{SPOT_API_KEY_ENV} is missing")
-    yesterday = datetime.datetime.now(datetime.timezone.utc).date() - datetime.timedelta(days=1)
+    as_of = now or datetime.datetime.now(datetime.timezone.utc)
+    if as_of.tzinfo is None:
+        raise ValueError("spot history clock must be timezone-aware")
+    yesterday = as_of.astimezone(datetime.timezone.utc).date() - datetime.timedelta(days=1)
     params = urllib.parse.urlencode({
         "symbol": "XAU/USD", "interval": "1day", "start_date": "2015-01-01",
-        "end_date": yesterday.isoformat(), "outputsize": 5000,
+        # A date-only end_date is interpreted at midnight and excludes that
+        # day's bar. Include the full previous UTC day, never today's open bar.
+        "end_date": f"{yesterday.isoformat()} 23:59:59", "outputsize": 5000,
         "apikey": key,
     })
     request = urllib.request.Request(

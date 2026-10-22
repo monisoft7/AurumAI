@@ -110,7 +110,7 @@ jobs:
       - name: Execution Safety And Outcome Calibration
         run: |
           mkdir -p .pytest-tmp
-          python -m pytest -q tests/test_execution_policy.py tests/test_hardening_outcome_calibration.py tests/test_gold_data_provider.py tests/test_reference_price_flow.py tests/test_historical_knowledge_availability.py --tb=short --basetemp=.pytest-tmp/execution-safety
+          python -m pytest -q tests/test_execution_policy.py tests/test_hardening_outcome_calibration.py tests/test_gold_data_provider.py tests/test_spot_gold_provider.py tests/test_gold_freshness_calendar.py tests/test_market_calendar.py tests/test_daily_operational_summary.py tests/test_reference_price_flow.py tests/test_historical_knowledge_availability.py --tb=short --basetemp=.pytest-tmp/execution-safety
 
       - name: Paper Trading Integrity Regression Pack
         run: |

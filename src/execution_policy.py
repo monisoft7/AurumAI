@@ -6,8 +6,12 @@ risk and data-availability gates before any consumer treats it as actionable.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Any, Mapping
+from zoneinfo import ZoneInfo
+
+from connectors.gold_freshness import assess_gold_freshness
+from connectors.market_calendar import SCOPE
 
 from forecasting.decision_gate import apply_institutional_risk_gate
 
@@ -28,6 +32,7 @@ def final_execution_decision(
     asset: str | None = None,
     price_source: str | None = None,
     plan_ready: bool = True,
+    event_calendar: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Fail closed when required evidence or a risk gate is unavailable."""
     direction = str(decision or "NO_TRADE").upper()
@@ -36,6 +41,8 @@ def final_execution_decision(
     records = freshness or {}
     for source in REQUIRED_SOURCES:
         record = records.get(source) or {}
+        if source == "Gold":
+            record = assess_gold_freshness(record, as_of)
         status = str(record.get("status") or "unknown").lower()
         if status not in GOOD_FRESHNESS:
             bad_sources.append(f"{source}:{status}")
@@ -56,6 +63,28 @@ def final_execution_decision(
         if "XAUUSD" not in source_symbol:
             bad_sources.append("Gold:instrument_mismatch_or_unknown_source")
             reasons.append("instrument_mismatch")
+        calendar = event_calendar or {}
+        calendar_verified = (
+            calendar.get("status") == "verified"
+            and set(calendar.get("scope") or ()) == set(SCOPE)
+            and all((calendar.get("sources") or {}).get(s, {}).get("status") == "verified"
+                    for s in ("FRED_BLS", "BEA", "FederalReserve"))
+        )
+        try:
+            checked = datetime.fromisoformat(str(calendar.get("checked_at")))
+            calendar_date = checked.astimezone(ZoneInfo("America/New_York")).date()
+            calendar_verified = (
+                calendar_verified and checked.tzinfo is not None
+                and checked.astimezone(timezone.utc).date() == as_of
+                and calendar.get("as_of_date") == calendar_date.isoformat()
+                and isinstance(calendar.get("events_today"), list)
+            )
+        except (TypeError, ValueError):
+            calendar_verified = False
+        if not calendar_verified:
+            reasons.append("event_calendar_unverified_or_stale")
+        elif calendar["events_today"]:
+            reasons.append("scheduled_high_impact_event_day")
 
     if direction not in {"BUY", "SELL"}:
         reasons.append("no_directional_research_signal")

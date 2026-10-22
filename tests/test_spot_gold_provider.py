@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import io
 import json
+from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import pandas as pd
 import pytest
@@ -72,3 +74,30 @@ def test_spot_bootstrap_is_separate_from_futures_history(
 def test_spot_provider_rejects_futures_history_path(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="dedicated xauusd_spot.csv"):
         refresh_gold_data(tmp_path / "gold.csv", provider="twelvedata_spot")
+
+
+def test_date_only_end_boundary_does_not_drop_previous_completed_bar(monkeypatch):
+    monkeypatch.setenv("TWELVE_DATA_API_KEY", "test-secret")
+
+    def response(request, timeout):
+        params = parse_qs(urlparse(request.full_url).query)
+        # Reproduce the observed provider behavior: a midnight end boundary
+        # returns Oct 20; the end-of-day boundary returns the completed Oct 21.
+        boundary = params["end_date"][0]
+        last = "2026-10-21" if boundary == "2026-10-21 23:59:59" else "2026-10-20"
+        return io.BytesIO(json.dumps({"meta": {"symbol": "XAU/USD"}, "values": [{
+            "datetime": last, "open": "4100", "high": "4120", "low": "4090", "close": "4110",
+        }]}).encode())
+
+    monkeypatch.setattr("urllib.request.urlopen", response)
+    frame = fetch_twelvedata_spot_history(now=datetime(2026, 10, 22, 13, tzinfo=timezone.utc))
+    assert frame.loc[0, "Date"] == "2026-10-21"
+
+
+def test_unfinished_bar_is_rejected(monkeypatch):
+    monkeypatch.setenv("TWELVE_DATA_API_KEY", "test-secret")
+    monkeypatch.setattr("urllib.request.urlopen", lambda *a, **kw: io.BytesIO(json.dumps({
+        "meta": {"symbol": "XAU/USD"}, "values": [{"datetime": "2026-10-22", "close": "4100"}],
+    }).encode()))
+    with pytest.raises(RuntimeError, match="unfinished"):
+        fetch_twelvedata_spot_history(now=datetime(2026, 10, 22, 13, tzinfo=timezone.utc))
