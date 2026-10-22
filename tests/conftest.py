@@ -54,6 +54,27 @@ def _is_protected_repository_path(path) -> bool:
     return any(resolved.is_relative_to(root.resolve()) for root in _PROTECTED_REPOSITORY_ROOTS)
 
 
+def _resolve_dir_fd_path(path, dir_fd):
+    """Return *path* anchored to the directory that *dir_fd* refers to.
+
+    Audit events for ``os.rmdir(name, dir_fd=fd)`` and friends carry only the
+    relative ``name``. ``shutil.rmtree`` (used by pytest's temp-dir cleanup)
+    works this way, and resolving such a name against the current working
+    directory wrongly maps a temp folder called ``data``/``outputs``/``runtime``
+    onto the protected repository folders. Returns ``None`` when the anchor
+    cannot be determined (non-Linux), in which case the path is not checked.
+    """
+    if isinstance(path, int):
+        return path
+    if dir_fd is None or dir_fd == -1 or os.path.isabs(os.fsdecode(path)):
+        return path
+    try:
+        base = os.readlink(f"/proc/self/fd/{dir_fd}")
+    except OSError:
+        return None
+    return os.path.join(base, os.fsdecode(path))
+
+
 def _guard_repository_writes(event, args) -> None:
     paths = ()
     if event == "open":
@@ -64,13 +85,22 @@ def _guard_repository_writes(event, args) -> None:
         )
         if writing:
             paths = (path,)
-    elif event in {"os.remove", "os.rmdir", "os.mkdir", "os.chmod", "os.utime", "os.truncate"}:
+    elif event in {"os.remove", "os.rmdir"}:
+        paths = (_resolve_dir_fd_path(args[0], args[1] if len(args) > 1 else None),)
+    elif event in {"os.mkdir", "os.chmod"}:
+        paths = (_resolve_dir_fd_path(args[0], args[2] if len(args) > 2 else None),)
+    elif event == "os.utime":
+        paths = (_resolve_dir_fd_path(args[0], args[3] if len(args) > 3 else None),)
+    elif event == "os.truncate":
         paths = args[:1]
     elif event in {"os.rename", "os.link"}:
-        paths = args[:2]
+        paths = (
+            _resolve_dir_fd_path(args[0], args[2] if len(args) > 2 else None),
+            _resolve_dir_fd_path(args[1], args[3] if len(args) > 3 else None),
+        )
     elif event == "os.symlink":
-        paths = args[1:2]
-    if any(_is_protected_repository_path(path) for path in paths):
+        paths = (_resolve_dir_fd_path(args[1], args[2] if len(args) > 2 else None),)
+    if any(p is not None and _is_protected_repository_path(p) for p in paths):
         raise AssertionError("write to protected repository data/outputs/runtime forbidden")
 
 
