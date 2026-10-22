@@ -90,7 +90,7 @@ def test_missing_source_or_observation_timestamp_fails_closed():
     )
     assert result["action"] == "WAIT"
     assert "DXY:unknown" in result["unavailable_sources"]
-    assert "Gold:missing_observation_date" in result["unavailable_sources"]
+    assert "Gold:unavailable" in result["unavailable_sources"]
 
 
 def test_futures_price_cannot_authorize_spot_execution_levels():

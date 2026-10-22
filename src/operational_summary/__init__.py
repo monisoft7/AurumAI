@@ -13,7 +13,7 @@ from typing import Any
 
 from forecasting.decision_gate import apply_institutional_risk_gate
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
 SUMMARY_FILENAME = "daily_operational_summary.json"
 
 _UNAVAILABLE = "unavailable"
@@ -163,6 +163,7 @@ def _build_risk(finalize: dict[str, Any]) -> dict[str, Any]:
             "entry_zone": recommendation.get("entry_zone") or None,
             "price_bar_date": _clean(provenance.get("bar_date")),
             "price_source": finalize["execution_decision"].get("price_source"),
+            "price_freshness": (finalize.get("source_freshness") or {}).get("Gold"),
         })
     return result
 
@@ -307,6 +308,7 @@ def build_summary(run_dir: Path, root: Path | None = None) -> dict[str, Any]:
         "run_id": run_id,
         "entry_date": entry_date,
         "event_type": _clean(summary.get("event_type")),
+        "event_calendar": finalize.get("event_calendar") or {"status": "unavailable"},
         "regime": _clean(context.get("current_regime")),
         "decision": dec,
         "news": news_dict,
@@ -663,11 +665,12 @@ def format_telegram_arabic_trade_card(
     if is_hold:
         rr_str = "لا توجد صفقة صالحة"
 
-    event_display = (
-        resolve_macro_event_label(summary.get("event_type"), articles=summary["articles"])
-        if isinstance(summary.get("articles"), list) and summary["articles"]
-        else "لم يتم التحقق من تقويم الأحداث"
-    )
+    calendar = summary.get("event_calendar") or {}
+    if calendar.get("status") == "verified":
+        names = sorted({str(e["event"]) for e in calendar.get("events_today", [])})
+        event_display = " / ".join(names) if names else "لا حدث اليوم ضمن التغطية المتحققة"
+    else:
+        event_display = "تقويم الأحداث غير متحقق"
 
     lines = [
         "**📊 ملخص AurumAI التنفيذي للذهب (XAU/USD)**",
@@ -684,6 +687,22 @@ def format_telegram_arabic_trade_card(
         lines.append(f"• بيانات غير صالحة للتنفيذ: `{', '.join(unavailable_sources)}`")
     if risk.get("price_source"):
         lines.append(f"• مصدر سعر الذهب: `{risk['price_source']}` | تاريخ الإغلاق: `{risk.get('price_bar_date') or 'غير متاح'}`")
+    price_freshness = risk.get("price_freshness") or {}
+    if price_freshness:
+        fresh_label = "حديث" if price_freshness.get("status") in ("ok", "fresh", "refreshed") else "متأخر أو غير متاح"
+        lines.append(f"• حالة الإغلاق: `{fresh_label}` | آخر يوم تداول مكتمل متوقع: `{price_freshness.get('expected_observation_date') or 'غير متاح'}`")
+    if calendar.get("scope"):
+        lines.append(f"• تغطية التقويم: `{', '.join(calendar['scope'])}` | يوم التقويم: `{calendar.get('as_of_date')}` بتوقيت نيويورك")
+    reason_labels = {
+        "data_unavailable_or_stale": "بيانات لازمة متأخرة أو غير متاحة",
+        "confidence_below_60_threshold": "درجة الدعم أقل من حد الدخول 60%",
+        "risk_status_hold": "بوابة المخاطر في وضع الانتظار",
+        "event_calendar_unverified_or_stale": "تعذر التحقق من تقويم الأحداث الحالي",
+        "scheduled_high_impact_event_day": "يوم حدث مجدول ضمن التغطية؛ الدخول محجوب وفق السياسة اليومية",
+    }
+    reasons = decision.get("execution_reasons") or []
+    if reasons:
+        lines.append("• أسباب الانتظار: " + "؛ ".join(reason_labels.get(r, str(r)) for r in reasons))
 
     # A hard risk stop or stale critical input cannot produce an actionable
     # price plan.  Preserve a research direction without showing entry/SL/TP.

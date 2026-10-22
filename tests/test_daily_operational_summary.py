@@ -32,6 +32,7 @@ CONTRACT_TOP_LEVEL_KEYS = {
     "run_id",
     "entry_date",
     "event_type",
+    "event_calendar",
     "regime",
     "decision",
     "news",

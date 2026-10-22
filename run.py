@@ -595,7 +595,7 @@ def main(argv: list[str] | None = None) -> int:
             LOG.error("Configuration error: %s", error)
         return EXIT_CONFIG_ERROR
 
-    run_date = datetime.date.today().isoformat()
+    run_date = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
     output_base = ROOT / str(config["output_base_dir"])
     pipeline_id = _new_pipeline_id(output_base, run_date)
     run_dir = date_dir(output_base, run_date) / pipeline_id
@@ -621,7 +621,7 @@ def main(argv: list[str] | None = None) -> int:
             "DFII10": 7,
             "T5YIE": 7,
             "CPI": 90,
-            "Gold": 7,
+            "Gold": 1,
             "DXY": 7,
         }.items()
     }
@@ -630,6 +630,17 @@ def main(argv: list[str] | None = None) -> int:
         source_freshness["CPI"] = _refresh_cpi_before_run(config)
         source_freshness.update(_refresh_fred_yields_before_run())
         source_freshness["DXY"] = _refresh_dxy_before_run()
+
+    from connectors.market_calendar import fetch_market_calendar
+
+    event_calendar = (
+        fetch_market_calendar()
+        if not args.no_refresh
+        else {"status": "unavailable", "reason": "runtime_refresh_disabled"}
+    )
+    _write_json(run_dir / "event_calendar.json", event_calendar)
+    LOG.info("Event calendar: status=%s events_today=%s",
+             event_calendar["status"], event_calendar.get("events_today", []))
 
     if (
         config.get("gold_provider") == "twelvedata_spot"
@@ -666,7 +677,7 @@ def main(argv: list[str] | None = None) -> int:
         "horizon": int(config["horizon"]),
         "query": config.get("query", ""),
         "reference_as_of": run_date,
-        "reference_max_age_days": 7,
+        "reference_max_age_days": source_freshness["Gold"]["max_age_days"],
     }
     for key in ("gold_lessons_path", "release_calendar_path", "yield_data_path", "dxy_data_path", "breakeven_data_path"):
         value = config.get(key)
@@ -725,9 +736,11 @@ def main(argv: list[str] | None = None) -> int:
         asset=str(config.get("asset", "XAU/USD")),
         price_source=source_freshness.get("Gold", {}).get("source"),
         plan_ready=plan_ready,
+        event_calendar=event_calendar,
     )
     finalize["execution_decision"] = execution
     finalize["source_freshness"] = source_freshness
+    finalize["event_calendar"] = event_calendar
     if isinstance(recommendation, dict) and recommendation and "error" not in recommendation:
         recommendation = publishable_recommendation(recommendation, execution)
         finalize["trade_recommendation"] = recommendation
@@ -873,6 +886,7 @@ def _provider_freshness(
 def _refresh_gold_before_run(config: dict[str, Any]) -> dict[str, Any]:
     """Refresh local gold history before a production run (fail-safe)."""
     from connectors.gold_data_provider import refresh_gold_data
+    from connectors.gold_freshness import assess_gold_freshness
 
     gold_path = ROOT / str(config["gold_path"])
     try:
@@ -891,20 +905,26 @@ def _refresh_gold_before_run(config: dict[str, Any]) -> dict[str, Any]:
                 "Gold data refresh incomplete (%s); proceeding with existing "
                 "dataset", report.message,
             )
-        return {
+        freshness = {
             "status": report.status,
             "observation_date": report.last_date_after,
             "retrieved_at": report.timestamp,
-            "max_age_days": 7,
+            "max_age_days": 1,
             "reason": report.message,
             "source": report.source,
         }
+        freshness = assess_gold_freshness(
+            freshness, datetime.datetime.now(datetime.timezone.utc).date()
+        )
+        if freshness["status"] != "ok":
+            LOG.warning("Gold execution freshness: %s (%s)", freshness["status"], freshness["reason"])
+        return freshness
     except Exception as exc:  # pragma: no cover - defensive
         LOG.error(
             "Gold data refresh failed (%s); proceeding with existing dataset",
             exc,
         )
-        return _unknown_freshness("Gold", 7, f"provider refresh failed: {exc}")
+        return _unknown_freshness("Gold", 1, f"provider refresh failed: {type(exc).__name__}")
 
 
 def _cpi_release_threshold(
