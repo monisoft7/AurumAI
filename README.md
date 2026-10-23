@@ -212,30 +212,34 @@ Generated run outputs are archived in `outputs/YYYY-MM-DD/` containing:
 
 ```text
 AurumAI/
-├── .github/
-│   └── workflows/
-│       ├── paper-trading-daily.yml   # Daily scheduled paper-trading workflow
-│       └── validation-ci.yml         # Continuous integration & stabilization gates
+├── .github/workflows/
+│   ├── paper-trading-daily.yml       # Scheduled paper-trading run (Mon-Fri, 07:17 UTC)
+│   └── validation-ci.yml             # CI: test collection gate + regression pack
 ├── config/                           # Baseline configurations and cohort parameters
-├── data/                             # Historical datasets (Protected with SHA-256 locks)
-│   ├── gold.csv
-│   └── lessons/cpi_gold_lessons.csv
-├── docs/                             # Documentation, architecture traces, and pitch guide
-│   ├── AMBASSADOR_PITCH.md           # OpenAI Codex Ambassador pitch script & answers
-│   └── architecture/                 # DAG designs and system contracts
-├── scripts/
-│   ├── run_daily.py                  # Main automated scheduler entrypoint
-│   └── generate_institutional_report.py
-├── src/                              # Core institutional engine packages
+├── data/                             # Historical datasets (SHA-256 provenance checks)
+├── docs/
+│   ├── INDEX.md                      # Documentation index (start here)
+│   ├── architecture/  adr/  audit/   # Design, decisions, audits
+│   ├── reference/                    # Implementation specs and methodology
+│   ├── history/                      # Wave completion reports and planning notes
+│   └── AMBASSADOR_PITCH.md           # OpenAI Codex Ambassador pitch script & answers
+├── scripts/                          # run_daily.py, report generators, monitors
+├── src/                              # Engine packages
 │   ├── connectors/                   # FRED client, gold fetchers, FOMC calendar
 │   ├── decision_engine/              # Thesis scoring and candidate selection
-│   ├── forecasting/                  # Macro forecasting and decision gate
-│   ├── news/                         # NLP news intelligence & RSS collector
+│   ├── forecasting/                  # Macro forecasting, decision gate, data provenance
+│   ├── news/                         # News intelligence & RSS collector
 │   ├── operational_summary/          # Telegram trade card & summary builder
-│   ├── orchestration/                # 14-Stage DAG orchestrator
+│   ├── orchestration/                # DAG orchestrator
 │   ├── technical/                    # Technical research desk & swing pivots
 │   └── trade_recommendation/         # Level anchor & multi-timeframe engine
-└── tests/                            # 18+ comprehensive pytest verification suites
+├── tests/                            # pytest suite (3,800+ tests)
+├── archive/  research/  outputs/     # Past reports, research notes, run artifacts
+├── AOS/                              # Project-operating documents (constitution, state, onboarding)
+├── CURRENT_STATE.md  ROADMAP.md  PROJECT_STATUS.md  PROJECT_NORTH_STAR.md  PROJECT_IDENTITY.md  MEMORY.md
+├── Institutional_Gold_Knowledge_Base.md   # Loaded at runtime by the evidence collector
+├── run.py  runtime_config.json  pyproject.toml  LICENSE
+└── README.md
 ```
 
 ---

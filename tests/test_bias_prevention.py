@@ -117,6 +117,25 @@ def _make_confidence(
     )
 
 
+def _force_critical(monkeypatch):
+    """Make the reviewer emit a "critical" finding.
+
+    Since the Phase 8 calibration only ``critical`` findings set
+    ``human_review_flag`` (and thus gate a decision), and no detector currently
+    emits ``critical`` on its own, gating tests must force that severity.
+    """
+    from bias_prevention.contracts import BiasFinding, SEVERITY_IMPACT
+
+    critical = BiasFinding(
+        bias_name="overconfidence",
+        severity="critical",
+        evidence="forced critical finding",
+        required_action="Stop and review",
+        confidence_impact=SEVERITY_IMPACT["critical"],
+    )
+    monkeypatch.setattr(BiasReviewer, "_check_overconfidence", lambda self, *a, **k: critical)
+
+
 def _review(**kwargs):
     update = kwargs.pop("update", _make_update())
     assessment = kwargs.pop("assessment", _make_assessment())
@@ -263,12 +282,26 @@ def test_clean_review():
     assert not review.validate()
 
 
-def test_human_review_flag_on_high_severity():
+def test_high_severity_is_advisory_and_does_not_request_human_review():
+    """Phase 8 calibration: only "critical" findings set human_review_flag.
+
+    "high" findings (e.g. overconfidence) stay visible in ``overall_severity``
+    and ``required_actions`` but no longer veto the decision on their own.
+    """
     thesis = _make_thesis(weight=0.4, support=0.32)
     confidence = _make_confidence(final_confidence=0.8)
     review = _review(update=_make_update(thesis=thesis), confidence=confidence)
-    assert review.human_review_flag is True
     assert review.overall_severity == "high"
+    assert "overconfidence" in [f.bias_name for f in review.findings]
+    assert review.required_actions
+    assert review.human_review_flag is False
+
+
+def test_critical_finding_requests_human_review(monkeypatch):
+    _force_critical(monkeypatch)
+    review = _review()
+    assert review.overall_severity == "critical"
+    assert review.human_review_flag is True
 
 
 def test_severity_and_impact_aggregation():
@@ -294,7 +327,8 @@ def test_severity_and_impact_aggregation():
     assert len(review.required_actions) == len(review.findings)
 
 
-def test_apply_bias_review_gates_directional_decision():
+def test_apply_bias_review_gates_directional_decision(monkeypatch):
+    _force_critical(monkeypatch)
     decision = InstitutionalDecision(
         decision_id="dec-1",
         decision="BUY",
@@ -346,7 +380,8 @@ def test_apply_bias_review_does_not_gate_clean_review():
     assert result.metadata["bias_review"]["human_review_flag"] is False
 
 
-def test_apply_bias_review_annotates_existing_no_trade():
+def test_apply_bias_review_annotates_existing_no_trade(monkeypatch):
+    _force_critical(monkeypatch)
     decision = InstitutionalDecision(
         decision_id="dec-1",
         decision="NO_TRADE",
@@ -567,7 +602,8 @@ def test_decision_stage_backward_compatible_without_bias_review():
     assert "bias_review" not in result.metadata
 
 
-def test_decision_stage_gates_on_human_review():
+def test_decision_stage_gates_on_human_review(monkeypatch):
+    _force_critical(monkeypatch)
     thesis = _make_thesis(weight=0.4, support=0.32)
     confidence = _make_confidence(final_confidence=0.8)
     results = _decision_stage_results(bias_review=True)
