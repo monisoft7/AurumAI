@@ -1,0 +1,7 @@
+# XAU/USD shadow experiment, frozen before scoring
+
+Compare the eight consecutive most recent completed production runs on 24 November 2026. Accept only the artifact generated on each run date. Keep direction, execution, publication timing and outcome separate.
+
+Test a price-only M15 continuation hypothesis, a four-hour direction filter and a competing range reversal hypothesis. Use 16 completed M15 bars for directional efficiency (absolute displacement divided by total close-to-close movement), threshold 0.35. Trend orders retrace half of the mean 16-bar true range. Range orders fade the nearest 16-bar extreme. Each order risks one mean true range for a target of 1.5 times risk. Expire entries after one hour and close open positions after four hours. Only one outstanding position per policy. Compare against long-only and unfiltered momentum with the same execution model. Charge an assumed USD 0.50 spread and USD 0.10 slippage per side per ounce, with a double-cost check. Treat same-bar ambiguity conservatively. No grid search.
+
+Use the latest 5,000 provider bars ending November 23 UTC, with the first half for development diagnostics and the second half for chronological evaluation, resetting exposure at the boundary. Report both halves and all policy variants. Score the eight actual issue timestamps separately. Keep unavailable data, unfilled orders and censored positions explicit. Bar-close observations cannot establish a tradable bid/ask. No automatic promotion or strategy updates.

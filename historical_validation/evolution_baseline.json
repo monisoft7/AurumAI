@@ -1,0 +1,324 @@
+{
+  "43253520258": {
+    "run": "runtime_20261112_155853",
+    "issued": "2026-11-12T15:59:25.090681+00:00",
+    "commit": "49a790b",
+    "action": "WAIT",
+    "research": "SELL",
+    "reasons": [
+      "confidence_below_60_threshold",
+      "risk_status_hold"
+    ],
+    "score": 0.5061,
+    "regime": "LATE_CYCLE",
+    "ref_price": 3987.03243,
+    "bar": "2026-11-11T00:00:00",
+    "source": "twelvedata:XAU/USD",
+    "legacy_retrieved": 3,
+    "institutional_items": 26,
+    "links_with_lessons": 2,
+    "unresolved_claims": 0,
+    "news": {
+      "article_count": 20,
+      "directional_count": 0,
+      "relevant_count": 15,
+      "sentiment_status": "skipped_none",
+      "status": "ok",
+      "unknown_count": 20
+    },
+    "calibration": {
+      "calibration_status": "dormant",
+      "oos_ece": null,
+      "sample_count": 0
+    },
+    "outcome": {
+      "abstention_verdict": "unevaluable",
+      "decision_correct": null,
+      "realized_return": null,
+      "status": "pending"
+    },
+    "summary_sha256": "2da3d669bf75cba1b390732e81fde46d22b6b8cafafb19a006ba0b45b6cb9b76"
+  },
+  "43452178743": {
+    "run": "runtime_20261113_152417",
+    "issued": "2026-11-13T15:25:02.014665+00:00",
+    "commit": "49a790b",
+    "action": "WAIT",
+    "research": "BUY",
+    "reasons": [
+      "scheduled_high_impact_event_day",
+      "confidence_below_60_threshold",
+      "risk_status_hold"
+    ],
+    "score": 0.4315,
+    "regime": "LATE_CYCLE",
+    "ref_price": 3883.65515,
+    "bar": "2026-11-12T00:00:00",
+    "source": "twelvedata:XAU/USD",
+    "legacy_retrieved": 3,
+    "institutional_items": 27,
+    "links_with_lessons": 1,
+    "unresolved_claims": 0,
+    "news": {
+      "article_count": 20,
+      "directional_count": 0,
+      "relevant_count": 13,
+      "sentiment_status": "skipped_none",
+      "status": "ok",
+      "unknown_count": 20
+    },
+    "calibration": {
+      "calibration_status": "dormant",
+      "oos_ece": null,
+      "sample_count": 0
+    },
+    "outcome": {
+      "abstention_verdict": "unevaluable",
+      "decision_correct": null,
+      "realized_return": null,
+      "status": "pending"
+    },
+    "summary_sha256": "d831f7b3dec45371fb0a6c4c42501d09dc6a448850af61a7cb5350be6cafc376"
+  },
+  "43913875674": {
+    "run": "runtime_20261116_170151",
+    "issued": "2026-11-16T17:02:26.121906+00:00",
+    "commit": "49a790b",
+    "action": "WAIT",
+    "research": "SELL",
+    "reasons": [
+      "confidence_below_60_threshold",
+      "risk_status_hold"
+    ],
+    "score": 0.5204,
+    "regime": "LATE_CYCLE",
+    "ref_price": 3880.51921,
+    "bar": "2026-11-15T00:00:00",
+    "source": "twelvedata:XAU/USD",
+    "legacy_retrieved": 3,
+    "institutional_items": 24,
+    "links_with_lessons": 1,
+    "unresolved_claims": 0,
+    "news": {
+      "article_count": 20,
+      "directional_count": 0,
+      "relevant_count": 9,
+      "sentiment_status": "skipped_none",
+      "status": "ok",
+      "unknown_count": 20
+    },
+    "calibration": {
+      "calibration_status": "dormant",
+      "oos_ece": null,
+      "sample_count": 0
+    },
+    "outcome": {
+      "abstention_verdict": "unevaluable",
+      "decision_correct": null,
+      "realized_return": null,
+      "status": "pending"
+    },
+    "summary_sha256": "355b5c80f245f2fe96482ca387eb5555a6ba36c17c184606f0801393799b97ca"
+  },
+  "44130755897": {
+    "run": "runtime_20261117_165328",
+    "issued": "2026-11-17T16:54:25.238490+00:00",
+    "commit": "49a790b",
+    "action": "WAIT",
+    "research": "BUY",
+    "reasons": [
+      "confidence_below_60_threshold",
+      "risk_status_hold"
+    ],
+    "score": 0.4551,
+    "regime": "LATE_CYCLE",
+    "ref_price": 3864.43532,
+    "bar": "2026-11-16T00:00:00",
+    "source": "twelvedata:XAU/USD",
+    "legacy_retrieved": 3,
+    "institutional_items": 26,
+    "links_with_lessons": 1,
+    "unresolved_claims": 0,
+    "news": {
+      "article_count": 20,
+      "directional_count": 0,
+      "relevant_count": 10,
+      "sentiment_status": "skipped_none",
+      "status": "ok",
+      "unknown_count": 20
+    },
+    "calibration": {
+      "calibration_status": "dormant",
+      "oos_ece": null,
+      "sample_count": 0
+    },
+    "outcome": {
+      "abstention_verdict": "unevaluable",
+      "decision_correct": null,
+      "realized_return": null,
+      "status": "pending"
+    },
+    "summary_sha256": "025f3ee0a33510ebe3a29ca05cc12a459e383847b222c62df5296d58c0c364b4"
+  },
+  "44347453703": {
+    "run": "runtime_20261118_162808",
+    "issued": "2026-11-18T16:28:53.836034+00:00",
+    "commit": "49a790b",
+    "action": "WAIT",
+    "research": "SELL",
+    "reasons": [
+      "scheduled_high_impact_event_day",
+      "confidence_below_60_threshold",
+      "risk_status_hold"
+    ],
+    "score": 0.5061,
+    "regime": "LATE_CYCLE",
+    "ref_price": 3846.8026,
+    "bar": "2026-11-17T00:00:00",
+    "source": "twelvedata:XAU/USD",
+    "legacy_retrieved": 3,
+    "institutional_items": 26,
+    "links_with_lessons": 1,
+    "unresolved_claims": 0,
+    "news": {
+      "article_count": 20,
+      "directional_count": 0,
+      "relevant_count": 12,
+      "sentiment_status": "skipped_none",
+      "status": "ok",
+      "unknown_count": 20
+    },
+    "calibration": {
+      "calibration_status": "dormant",
+      "oos_ece": null,
+      "sample_count": 0
+    },
+    "outcome": {
+      "abstention_verdict": "unevaluable",
+      "decision_correct": null,
+      "realized_return": null,
+      "status": "pending"
+    },
+    "summary_sha256": "424f25c8a7cc3270e1693f71c6dec95adf377be8b56d23bca43dad38727242fc"
+  },
+  "44567456431": {
+    "run": "runtime_20261119_163414",
+    "issued": "2026-11-19T16:35:18.866321+00:00",
+    "commit": "49a790b",
+    "action": "WAIT",
+    "research": "SELL",
+    "reasons": [
+      "confidence_below_60_threshold",
+      "risk_status_hold"
+    ],
+    "score": 0.5171,
+    "regime": "LATE_CYCLE",
+    "ref_price": 3723.72756,
+    "bar": "2026-11-18T00:00:00",
+    "source": "twelvedata:XAU/USD",
+    "legacy_retrieved": 3,
+    "institutional_items": 26,
+    "links_with_lessons": 1,
+    "unresolved_claims": 0,
+    "news": {
+      "article_count": 20,
+      "directional_count": 0,
+      "relevant_count": 15,
+      "sentiment_status": "skipped_none",
+      "status": "ok",
+      "unknown_count": 20
+    },
+    "calibration": {
+      "calibration_status": "dormant",
+      "oos_ece": null,
+      "sample_count": 0
+    },
+    "outcome": {
+      "abstention_verdict": "unevaluable",
+      "decision_correct": null,
+      "realized_return": null,
+      "status": "pending"
+    },
+    "summary_sha256": "e27f3712a79c1228318ddfb16e8a35aad0d3dcca854e98498cc693381b916b86"
+  },
+  "44770434959": {
+    "run": "runtime_20261120_160948",
+    "issued": "2026-11-20T16:11:23.829123+00:00",
+    "commit": "49a790b",
+    "action": "WAIT",
+    "research": "BUY",
+    "reasons": [
+      "confidence_below_60_threshold",
+      "risk_status_hold"
+    ],
+    "score": 0.4465,
+    "regime": "LATE_CYCLE",
+    "ref_price": 3666.8714,
+    "bar": "2026-11-19T00:00:00",
+    "source": "twelvedata:XAU/USD",
+    "legacy_retrieved": 3,
+    "institutional_items": 28,
+    "links_with_lessons": 1,
+    "unresolved_claims": 0,
+    "news": {
+      "article_count": 20,
+      "directional_count": 1,
+      "relevant_count": 14,
+      "sentiment_status": "skipped_none",
+      "status": "ok",
+      "unknown_count": 19
+    },
+    "calibration": {
+      "calibration_status": "dormant",
+      "oos_ece": null,
+      "sample_count": 0
+    },
+    "outcome": {
+      "abstention_verdict": "unevaluable",
+      "decision_correct": null,
+      "realized_return": null,
+      "status": "pending"
+    },
+    "summary_sha256": "24a378ebd2650d1ba941b39acd2775124ef54356821342fc0ce5f5d569683291"
+  },
+  "45246798716": {
+    "run": "runtime_20261123_191442",
+    "issued": "2026-11-23T19:15:47.788570+00:00",
+    "commit": "49a790b",
+    "action": "WAIT",
+    "research": "BUY",
+    "reasons": [
+      "confidence_below_60_threshold",
+      "risk_status_hold"
+    ],
+    "score": 0.4696,
+    "regime": "LATE_CYCLE",
+    "ref_price": 3532.82841,
+    "bar": "2026-11-22T00:00:00",
+    "source": "twelvedata:XAU/USD",
+    "legacy_retrieved": 3,
+    "institutional_items": 32,
+    "links_with_lessons": 1,
+    "unresolved_claims": 0,
+    "news": {
+      "article_count": 20,
+      "directional_count": 0,
+      "relevant_count": 13,
+      "sentiment_status": "skipped_none",
+      "status": "ok",
+      "unknown_count": 20
+    },
+    "calibration": {
+      "calibration_status": "dormant",
+      "oos_ece": null,
+      "sample_count": 0
+    },
+    "outcome": {
+      "abstention_verdict": "unevaluable",
+      "decision_correct": null,
+      "realized_return": null,
+      "status": "pending"
+    },
+    "summary_sha256": "389e2236c2ee49197c5a191049ca6f75d385710e84b684e83a34d394dcb1d84c"
+  }
+}
