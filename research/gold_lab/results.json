@@ -1,0 +1,821 @@
+{
+  "experiments": [
+    {
+      "conclusion": "nonpositive chronological fold; adjusted lower bound fails cash or active references; drawdown exceeds budget; cost or parameter sensitivity; unobserved execution paths",
+      "data_sha256": {
+        "2023": "89a4f3f7ec2a52b29fbce8d4ca2ab650971817ae371b332f5fe471a488bcffc2",
+        "2024": "6d47f5cb269e0c4f35c63c7532713aae7dcf98901f605458b00dd6a69e7105de",
+        "2025": "dd0b4dc6983c07fafd89ba83b0c7f514aa16977654eaeb4c9fc8884ed359d98e"
+      },
+      "development": {
+        "closed": 228,
+        "expectancy_r": -0.18073,
+        "filled": 251,
+        "max_dd_r": 46.85807,
+        "net_r": -41.20671,
+        "orders": 264,
+        "outcomes": {
+          "stop": 113,
+          "target": 59,
+          "timeout": 56,
+          "unobserved": 36
+        },
+        "profit_factor": 0.69973,
+        "win_rate": 0.39912
+      },
+      "execution": "Use next observed minute bid OHLC, one outstanding order per strategy, conservative ambiguous bars, 1h entry expiry, 4h maximum hold. Bid/ask if observed, otherwise assumed spread USD 0.50 and market slippage USD 0.10; stress doubles costs. ATR risk, target 1.5R. Decision calendar weekdays, no weekend fills. Drop first and last 24 hours of each fold to embargo crossing labels, refuse unobservable paths.",
+      "family": "h4_compression",
+      "final": null,
+      "hypothesis": "An hourly break of the previous four-hour range after compression may persist.",
+      "id": "efa068fa54c63a40c729",
+      "parameter": 0.8,
+      "protocol": "9574e41251678e994e3568285a7515ae56825b9882036125c476e3d8a1da4809",
+      "quality": {
+        "development": {
+          "ambiguous_rows": 120,
+          "excluded_closed": 6815,
+          "first": "2023-01-02T23:00:00+00:00",
+          "full_m15": 19998,
+          "gaps_over_one_minute": 925,
+          "kept": 301877,
+          "last": "2023-12-29T21:57:00+00:00",
+          "max_gap_hours": 75.02,
+          "out_of_order": 1,
+          "raw": 308812
+        },
+        "validation": {
+          "ambiguous_rows": 120,
+          "excluded_closed": 8759,
+          "first": "2024-01-01T23:00:00+00:00",
+          "full_m15": 23070,
+          "gaps_over_one_minute": 307,
+          "kept": 346773,
+          "last": "2024-12-31T21:57:00+00:00",
+          "max_gap_hours": 74.03,
+          "out_of_order": 1,
+          "raw": 355652
+        }
+      },
+      "rationale": "An hourly break of the previous four-hour range after compression may persist. Prior unrestricted combined baseline lost 0.4014R per fill.",
+      "required_data": "completed H1 and H4",
+      "stage": "RESEARCH",
+      "status": "rejected",
+      "validation": {
+        "double_cost": {
+          "closed": 387,
+          "expectancy_r": -0.30027,
+          "filled": 398,
+          "max_dd_r": 119.14172,
+          "net_r": -116.20632,
+          "orders": 408,
+          "outcomes": {
+            "stop": 201,
+            "target": 94,
+            "timeout": 92,
+            "unobserved": 21
+          },
+          "profit_factor": 0.55191,
+          "win_rate": 0.35917
+        },
+        "folds": [
+          {
+            "closed": 192,
+            "expectancy_r": -0.08432,
+            "filled": 197,
+            "max_dd_r": 21.68454,
+            "net_r": -16.18855,
+            "orders": 203,
+            "outcomes": {
+              "stop": 90,
+              "target": 55,
+              "timeout": 47,
+              "unobserved": 11
+            },
+            "profit_factor": 0.8486,
+            "win_rate": 0.43229
+          },
+          {
+            "closed": 194,
+            "expectancy_r": -0.20428,
+            "filled": 200,
+            "max_dd_r": 41.37638,
+            "net_r": -39.62943,
+            "orders": 204,
+            "outcomes": {
+              "stop": 100,
+              "target": 46,
+              "timeout": 48,
+              "unobserved": 10
+            },
+            "profit_factor": 0.65996,
+            "win_rate": 0.37629
+          }
+        ],
+        "lower_daily_r": {
+          "cash": -0.391764,
+          "long_only": 1.134721,
+          "momentum": 0.912513
+        },
+        "neighbor_expectancies": [
+          -0.10492,
+          -0.10954
+        ],
+        "reasons": [
+          "nonpositive chronological fold",
+          "adjusted lower bound fails cash or active references",
+          "drawdown exceeds budget",
+          "cost or parameter sensitivity",
+          "unobserved execution paths"
+        ],
+        "references": {
+          "long_only": {
+            "closed": 1870,
+            "expectancy_r": -0.25212,
+            "filled": 1870,
+            "max_dd_r": 472.95646,
+            "net_r": -471.45646,
+            "orders": 2788,
+            "outcomes": {
+              "expired": 917,
+              "stop": 1280,
+              "target": 570,
+              "timeout": 20,
+              "unobserved": 1
+            },
+            "profit_factor": 0.64637,
+            "win_rate": 0.31123
+          },
+          "momentum": {
+            "closed": 1874,
+            "expectancy_r": -0.222,
+            "filled": 1874,
+            "max_dd_r": 420.27171,
+            "net_r": -416.03073,
+            "orders": 2731,
+            "outcomes": {
+              "expired": 856,
+              "stop": 1256,
+              "target": 587,
+              "timeout": 31,
+              "unobserved": 1
+            },
+            "profit_factor": 0.68238,
+            "win_rate": 0.32391
+          }
+        },
+        "summary": {
+          "closed": 386,
+          "expectancy_r": -0.14461,
+          "filled": 397,
+          "max_dd_r": 59.00195,
+          "net_r": -55.81798,
+          "orders": 407,
+          "outcomes": {
+            "stop": 190,
+            "target": 101,
+            "timeout": 95,
+            "unobserved": 21
+          },
+          "profit_factor": 0.75022,
+          "win_rate": 0.40415
+        }
+      },
+      "windows": [
+        [
+          "2023-01-01",
+          "2024-01-01"
+        ],
+        [
+          [
+            "2024-01-01",
+            "2024-07-01"
+          ],
+          [
+            "2024-07-01",
+            "2025-01-01"
+          ]
+        ],
+        [
+          "2025-01-01",
+          "2026-01-01"
+        ]
+      ]
+    },
+    {
+      "conclusion": "nonpositive chronological fold; adjusted lower bound fails cash or active references; cost or parameter sensitivity",
+      "data_sha256": {
+        "2023": "89a4f3f7ec2a52b29fbce8d4ca2ab650971817ae371b332f5fe471a488bcffc2",
+        "2024": "6d47f5cb269e0c4f35c63c7532713aae7dcf98901f605458b00dd6a69e7105de",
+        "2025": "dd0b4dc6983c07fafd89ba83b0c7f514aa16977654eaeb4c9fc8884ed359d98e"
+      },
+      "development": {
+        "closed": 77,
+        "expectancy_r": -0.33683,
+        "filled": 103,
+        "max_dd_r": 26.20825,
+        "net_r": -25.93598,
+        "orders": 103,
+        "outcomes": {
+          "stop": 21,
+          "target": 3,
+          "timeout": 53,
+          "unobserved": 26
+        },
+        "profit_factor": 0.2566,
+        "win_rate": 0.2987
+      },
+      "execution": "Use next observed minute bid OHLC, one outstanding order per strategy, conservative ambiguous bars, 1h entry expiry, 4h maximum hold. Bid/ask if observed, otherwise assumed spread USD 0.50 and market slippage USD 0.10; stress doubles costs. ATR risk, target 1.5R. Decision calendar weekdays, no weekend fills. Drop first and last 24 hours of each fold to embargo crossing labels, refuse unobservable paths.",
+      "family": "london_asia",
+      "final": null,
+      "hypothesis": "A close outside the 00-06 UTC range during the first two hours after 08:00 London may continue as European liquidity arrives.",
+      "id": "0115d07c9261317b3e07",
+      "parameter": 2,
+      "protocol": "9574e41251678e994e3568285a7515ae56825b9882036125c476e3d8a1da4809",
+      "quality": {
+        "development": {
+          "ambiguous_rows": 120,
+          "excluded_closed": 6815,
+          "first": "2023-01-02T23:00:00+00:00",
+          "full_m15": 19998,
+          "gaps_over_one_minute": 925,
+          "kept": 301877,
+          "last": "2023-12-29T21:57:00+00:00",
+          "max_gap_hours": 75.02,
+          "out_of_order": 1,
+          "raw": 308812
+        },
+        "validation": {
+          "ambiguous_rows": 120,
+          "excluded_closed": 8759,
+          "first": "2024-01-01T23:00:00+00:00",
+          "full_m15": 23070,
+          "gaps_over_one_minute": 307,
+          "kept": 346773,
+          "last": "2024-12-31T21:57:00+00:00",
+          "max_gap_hours": 74.03,
+          "out_of_order": 1,
+          "raw": 355652
+        }
+      },
+      "rationale": "A close outside the 00-06 UTC range during the first two hours after 08:00 London may continue as European liquidity arrives. Prior unrestricted combined baseline lost 0.4014R per fill.",
+      "required_data": "M15 bid and London civil time",
+      "stage": "RESEARCH",
+      "status": "rejected",
+      "validation": {
+        "double_cost": {
+          "closed": 117,
+          "expectancy_r": -0.10674,
+          "filled": 117,
+          "max_dd_r": 15.92665,
+          "net_r": -12.48833,
+          "orders": 117,
+          "outcomes": {
+            "stop": 21,
+            "target": 11,
+            "timeout": 85
+          },
+          "profit_factor": 0.6923,
+          "win_rate": 0.4188
+        },
+        "folds": [
+          {
+            "closed": 56,
+            "expectancy_r": -0.08143,
+            "filled": 56,
+            "max_dd_r": 12.25734,
+            "net_r": -4.55983,
+            "orders": 56,
+            "outcomes": {
+              "stop": 14,
+              "target": 7,
+              "timeout": 35
+            },
+            "profit_factor": 0.77811,
+            "win_rate": 0.48214
+          },
+          {
+            "closed": 61,
+            "expectancy_r": 0.00677,
+            "filled": 61,
+            "max_dd_r": 4.87975,
+            "net_r": 0.41284,
+            "orders": 61,
+            "outcomes": {
+              "stop": 6,
+              "target": 4,
+              "timeout": 51
+            },
+            "profit_factor": 1.02698,
+            "win_rate": 0.44262
+          }
+        ],
+        "lower_daily_r": {
+          "cash": -0.086566,
+          "long_only": 1.360147,
+          "momentum": 1.09679
+        },
+        "neighbor_expectancies": [
+          -0.02273,
+          -0.06184
+        ],
+        "reasons": [
+          "nonpositive chronological fold",
+          "adjusted lower bound fails cash or active references",
+          "cost or parameter sensitivity"
+        ],
+        "references": {
+          "long_only": {
+            "closed": 1870,
+            "expectancy_r": -0.25212,
+            "filled": 1870,
+            "max_dd_r": 472.95646,
+            "net_r": -471.45646,
+            "orders": 2788,
+            "outcomes": {
+              "expired": 917,
+              "stop": 1280,
+              "target": 570,
+              "timeout": 20,
+              "unobserved": 1
+            },
+            "profit_factor": 0.64637,
+            "win_rate": 0.31123
+          },
+          "momentum": {
+            "closed": 1874,
+            "expectancy_r": -0.222,
+            "filled": 1874,
+            "max_dd_r": 420.27171,
+            "net_r": -416.03073,
+            "orders": 2731,
+            "outcomes": {
+              "expired": 856,
+              "stop": 1256,
+              "target": 587,
+              "timeout": 31,
+              "unobserved": 1
+            },
+            "profit_factor": 0.68238,
+            "win_rate": 0.32391
+          }
+        },
+        "summary": {
+          "closed": 117,
+          "expectancy_r": -0.03544,
+          "filled": 117,
+          "max_dd_r": 12.25734,
+          "net_r": -4.14699,
+          "orders": 117,
+          "outcomes": {
+            "stop": 20,
+            "target": 11,
+            "timeout": 86
+          },
+          "profit_factor": 0.88434,
+          "win_rate": 0.46154
+        }
+      },
+      "windows": [
+        [
+          "2023-01-01",
+          "2024-01-01"
+        ],
+        [
+          [
+            "2024-01-01",
+            "2024-07-01"
+          ],
+          [
+            "2024-07-01",
+            "2025-01-01"
+          ]
+        ],
+        [
+          "2025-01-01",
+          "2026-01-01"
+        ]
+      ]
+    },
+    {
+      "conclusion": "insufficient closed fills; nonpositive chronological fold; adjusted lower bound fails cash or active references; drawdown exceeds budget; cost or parameter sensitivity",
+      "data_sha256": {
+        "2023": "89a4f3f7ec2a52b29fbce8d4ca2ab650971817ae371b332f5fe471a488bcffc2",
+        "2024": "6d47f5cb269e0c4f35c63c7532713aae7dcf98901f605458b00dd6a69e7105de",
+        "2025": "dd0b4dc6983c07fafd89ba83b0c7f514aa16977654eaeb4c9fc8884ed359d98e"
+      },
+      "development": {
+        "closed": 61,
+        "expectancy_r": -0.07521,
+        "filled": 62,
+        "max_dd_r": 8.46656,
+        "net_r": -4.58755,
+        "orders": 80,
+        "outcomes": {
+          "stop": 34,
+          "target": 25,
+          "timeout": 2,
+          "unobserved": 19
+        },
+        "profit_factor": 0.88506,
+        "win_rate": 0.42623
+      },
+      "execution": "Use next observed minute bid OHLC, one outstanding order per strategy, conservative ambiguous bars, 1h entry expiry, 4h maximum hold. Bid/ask if observed, otherwise assumed spread USD 0.50 and market slippage USD 0.10; stress doubles costs. ATR risk, target 1.5R. Decision calendar weekdays, no weekend fills. Drop first and last 24 hours of each fold to embargo crossing labels, refuse unobservable paths.",
+      "family": "ny_exhaustion",
+      "final": null,
+      "hypothesis": "A New York morning hourly shock exceeding two recent mean hourly ranges may reverse as transient demand dissipates.",
+      "id": "883ac83f9a815778a49e",
+      "parameter": 2,
+      "protocol": "9574e41251678e994e3568285a7515ae56825b9882036125c476e3d8a1da4809",
+      "quality": {
+        "development": {
+          "ambiguous_rows": 120,
+          "excluded_closed": 6815,
+          "first": "2023-01-02T23:00:00+00:00",
+          "full_m15": 19998,
+          "gaps_over_one_minute": 925,
+          "kept": 301877,
+          "last": "2023-12-29T21:57:00+00:00",
+          "max_gap_hours": 75.02,
+          "out_of_order": 1,
+          "raw": 308812
+        },
+        "validation": {
+          "ambiguous_rows": 120,
+          "excluded_closed": 8759,
+          "first": "2024-01-01T23:00:00+00:00",
+          "full_m15": 23070,
+          "gaps_over_one_minute": 307,
+          "kept": 346773,
+          "last": "2024-12-31T21:57:00+00:00",
+          "max_gap_hours": 74.03,
+          "out_of_order": 1,
+          "raw": 355652
+        }
+      },
+      "rationale": "A New York morning hourly shock exceeding two recent mean hourly ranges may reverse as transient demand dissipates. Prior unrestricted combined baseline lost 0.4014R per fill.",
+      "required_data": "completed H1 and New York civil time",
+      "stage": "RESEARCH",
+      "status": "rejected",
+      "validation": {
+        "double_cost": {
+          "closed": 75,
+          "expectancy_r": -0.11929,
+          "filled": 75,
+          "max_dd_r": 20.32217,
+          "net_r": -8.94702,
+          "orders": 75,
+          "outcomes": {
+            "stop": 41,
+            "target": 30,
+            "timeout": 4
+          },
+          "profit_factor": 0.8249,
+          "win_rate": 0.44
+        },
+        "folds": [
+          {
+            "closed": 42,
+            "expectancy_r": -0.19443,
+            "filled": 42,
+            "max_dd_r": 17.03144,
+            "net_r": -8.16625,
+            "orders": 42,
+            "outcomes": {
+              "stop": 26,
+              "target": 14,
+              "timeout": 2
+            },
+            "profit_factor": 0.72366,
+            "win_rate": 0.38095
+          },
+          {
+            "closed": 33,
+            "expectancy_r": 0.20033,
+            "filled": 33,
+            "max_dd_r": 3.37901,
+            "net_r": 6.61073,
+            "orders": 33,
+            "outcomes": {
+              "stop": 15,
+              "target": 16,
+              "timeout": 2
+            },
+            "profit_factor": 1.4017,
+            "win_rate": 0.51515
+          }
+        ],
+        "lower_daily_r": {
+          "cash": -0.106009,
+          "long_only": 1.359371,
+          "momentum": 1.113715
+        },
+        "neighbor_expectancies": [
+          -0.1735,
+          -0.04132
+        ],
+        "reasons": [
+          "insufficient closed fills",
+          "nonpositive chronological fold",
+          "adjusted lower bound fails cash or active references",
+          "drawdown exceeds budget",
+          "cost or parameter sensitivity"
+        ],
+        "references": {
+          "long_only": {
+            "closed": 1870,
+            "expectancy_r": -0.25212,
+            "filled": 1870,
+            "max_dd_r": 472.95646,
+            "net_r": -471.45646,
+            "orders": 2788,
+            "outcomes": {
+              "expired": 917,
+              "stop": 1280,
+              "target": 570,
+              "timeout": 20,
+              "unobserved": 1
+            },
+            "profit_factor": 0.64637,
+            "win_rate": 0.31123
+          },
+          "momentum": {
+            "closed": 1874,
+            "expectancy_r": -0.222,
+            "filled": 1874,
+            "max_dd_r": 420.27171,
+            "net_r": -416.03073,
+            "orders": 2731,
+            "outcomes": {
+              "expired": 856,
+              "stop": 1256,
+              "target": 587,
+              "timeout": 31,
+              "unobserved": 1
+            },
+            "profit_factor": 0.68238,
+            "win_rate": 0.32391
+          }
+        },
+        "summary": {
+          "closed": 75,
+          "expectancy_r": -0.02074,
+          "filled": 75,
+          "max_dd_r": 17.03144,
+          "net_r": -1.55552,
+          "orders": 75,
+          "outcomes": {
+            "stop": 41,
+            "target": 30,
+            "timeout": 4
+          },
+          "profit_factor": 0.96619,
+          "win_rate": 0.44
+        }
+      },
+      "windows": [
+        [
+          "2023-01-01",
+          "2024-01-01"
+        ],
+        [
+          [
+            "2024-01-01",
+            "2024-07-01"
+          ],
+          [
+            "2024-07-01",
+            "2025-01-01"
+          ]
+        ],
+        [
+          "2025-01-01",
+          "2026-01-01"
+        ]
+      ]
+    },
+    {
+      "conclusion": "nonpositive chronological fold; adjusted lower bound fails cash or active references; drawdown exceeds budget; cost or parameter sensitivity",
+      "data_sha256": {
+        "2023": "89a4f3f7ec2a52b29fbce8d4ca2ab650971817ae371b332f5fe471a488bcffc2",
+        "2024": "6d47f5cb269e0c4f35c63c7532713aae7dcf98901f605458b00dd6a69e7105de",
+        "2025": "dd0b4dc6983c07fafd89ba83b0c7f514aa16977654eaeb4c9fc8884ed359d98e"
+      },
+      "development": {
+        "closed": 294,
+        "expectancy_r": -0.38895,
+        "filled": 306,
+        "max_dd_r": 114.35058,
+        "net_r": -114.35058,
+        "orders": 442,
+        "outcomes": {
+          "expired": 125,
+          "stop": 216,
+          "target": 76,
+          "timeout": 2,
+          "unobserved": 23
+        },
+        "profit_factor": 0.50017,
+        "win_rate": 0.2619
+      },
+      "execution": "Use next observed minute bid OHLC, one outstanding order per strategy, conservative ambiguous bars, 1h entry expiry, 4h maximum hold. Bid/ask if observed, otherwise assumed spread USD 0.50 and market slippage USD 0.10; stress doubles costs. ATR risk, target 1.5R. Decision calendar weekdays, no weekend fills. Drop first and last 24 hours of each fold to embargo crossing labels, refuse unobservable paths.",
+      "family": "pullback_replication",
+      "final": null,
+      "hypothesis": "Replicate the Phase 1 weekday 06-16 UTC combined-policy trend subgroup, including competition for occupancy by range orders.",
+      "id": "b5af478333ca37ee4b28",
+      "parameter": 0.5,
+      "protocol": "9574e41251678e994e3568285a7515ae56825b9882036125c476e3d8a1da4809",
+      "quality": {
+        "development": {
+          "ambiguous_rows": 120,
+          "excluded_closed": 6815,
+          "first": "2023-01-02T23:00:00+00:00",
+          "full_m15": 19998,
+          "gaps_over_one_minute": 925,
+          "kept": 301877,
+          "last": "2023-12-29T21:57:00+00:00",
+          "max_gap_hours": 75.02,
+          "out_of_order": 1,
+          "raw": 308812
+        },
+        "validation": {
+          "ambiguous_rows": 120,
+          "excluded_closed": 8759,
+          "first": "2024-01-01T23:00:00+00:00",
+          "full_m15": 23070,
+          "gaps_over_one_minute": 307,
+          "kept": 346773,
+          "last": "2024-12-31T21:57:00+00:00",
+          "max_gap_hours": 74.03,
+          "out_of_order": 1,
+          "raw": 355652
+        }
+      },
+      "rationale": "Replicate the Phase 1 weekday 06-16 UTC combined-policy trend subgroup, including competition for occupancy by range orders. Prior exploratory mean 0.0664R over 33 fills.",
+      "required_data": "M15 and completed H4",
+      "stage": "RESEARCH",
+      "status": "rejected",
+      "validation": {
+        "double_cost": {
+          "closed": 419,
+          "expectancy_r": -0.39855,
+          "filled": 419,
+          "max_dd_r": 170.4247,
+          "net_r": -166.99315,
+          "orders": 672,
+          "outcomes": {
+            "expired": 253,
+            "stop": 305,
+            "target": 108,
+            "timeout": 6
+          },
+          "profit_factor": 0.49477,
+          "win_rate": 0.26492
+        },
+        "folds": [
+          {
+            "closed": 239,
+            "expectancy_r": -0.14367,
+            "filled": 239,
+            "max_dd_r": 45.21537,
+            "net_r": -34.33793,
+            "orders": 352,
+            "outcomes": {
+              "expired": 113,
+              "stop": 153,
+              "target": 83,
+              "timeout": 3
+            },
+            "profit_factor": 0.78585,
+            "win_rate": 0.35565
+          },
+          {
+            "closed": 225,
+            "expectancy_r": -0.20498,
+            "filled": 225,
+            "max_dd_r": 46.89923,
+            "net_r": -46.12038,
+            "orders": 318,
+            "outcomes": {
+              "expired": 93,
+              "stop": 149,
+              "target": 71,
+              "timeout": 5
+            },
+            "profit_factor": 0.70187,
+            "win_rate": 0.32889
+          }
+        ],
+        "lower_daily_r": {
+          "cash": -0.498847,
+          "long_only": 1.095183,
+          "momentum": 0.874131
+        },
+        "neighbor_expectancies": [
+          -0.1701,
+          -0.13405
+        ],
+        "reasons": [
+          "nonpositive chronological fold",
+          "adjusted lower bound fails cash or active references",
+          "drawdown exceeds budget",
+          "cost or parameter sensitivity"
+        ],
+        "references": {
+          "long_only": {
+            "closed": 1870,
+            "expectancy_r": -0.25212,
+            "filled": 1870,
+            "max_dd_r": 472.95646,
+            "net_r": -471.45646,
+            "orders": 2788,
+            "outcomes": {
+              "expired": 917,
+              "stop": 1280,
+              "target": 570,
+              "timeout": 20,
+              "unobserved": 1
+            },
+            "profit_factor": 0.64637,
+            "win_rate": 0.31123
+          },
+          "momentum": {
+            "closed": 1874,
+            "expectancy_r": -0.222,
+            "filled": 1874,
+            "max_dd_r": 420.27171,
+            "net_r": -416.03073,
+            "orders": 2731,
+            "outcomes": {
+              "expired": 856,
+              "stop": 1256,
+              "target": 587,
+              "timeout": 31,
+              "unobserved": 1
+            },
+            "profit_factor": 0.68238,
+            "win_rate": 0.32391
+          }
+        },
+        "summary": {
+          "closed": 464,
+          "expectancy_r": -0.1734,
+          "filled": 464,
+          "max_dd_r": 86.61608,
+          "net_r": -80.45831,
+          "orders": 670,
+          "outcomes": {
+            "expired": 206,
+            "stop": 302,
+            "target": 154,
+            "timeout": 8
+          },
+          "profit_factor": 0.74461,
+          "win_rate": 0.34267
+        }
+      },
+      "windows": [
+        [
+          "2023-01-01",
+          "2024-01-01"
+        ],
+        [
+          [
+            "2024-01-01",
+            "2024-07-01"
+          ],
+          [
+            "2024-07-01",
+            "2025-01-01"
+          ]
+        ],
+        [
+          "2025-01-01",
+          "2026-01-01"
+        ]
+      ]
+    }
+  ],
+  "events": [
+    [
+      "0115d07c9261317b3e07",
+      "2026-11-24T08:18:04.903519+00:00",
+      "nonpositive chronological fold; adjusted lower bound fails cash or active references; cost or parameter sensitivity"
+    ],
+    [
+      "883ac83f9a815778a49e",
+      "2026-11-24T08:18:04.903519+00:00",
+      "insufficient closed fills; nonpositive chronological fold; adjusted lower bound fails cash or active references; drawdown exceeds budget; cost or parameter sensitivity"
+    ],
+    [
+      "b5af478333ca37ee4b28",
+      "2026-11-24T08:18:04.903519+00:00",
+      "nonpositive chronological fold; adjusted lower bound fails cash or active references; drawdown exceeds budget; cost or parameter sensitivity"
+    ],
+    [
+      "efa068fa54c63a40c729",
+      "2026-11-24T08:18:04.903519+00:00",
+      "nonpositive chronological fold; adjusted lower bound fails cash or active references; drawdown exceeds budget; cost or parameter sensitivity; unobserved execution paths"
+    ]
+  ],
+  "seals": []
+}

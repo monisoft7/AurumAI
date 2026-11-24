@@ -1,0 +1,129 @@
+{
+  "2023": {
+    "raw": 308812,
+    "out_of_order": 1,
+    "ambiguous_rows": 120,
+    "kept": 301877,
+    "excluded_closed": 6815,
+    "first": "2023-01-02T23:00:00+00:00",
+    "last": "2023-12-29T21:57:00+00:00",
+    "gaps_over_one_minute": 925,
+    "max_gap_hours": 75.02,
+    "sha256": "89a4f3f7ec2a52b29fbce8d4ca2ab650971817ae371b332f5fe471a488bcffc2",
+    "full_m15": 19998,
+    "full_h1": 4922,
+    "months": {
+      "1": 28614,
+      "2": 24746,
+      "3": 22668,
+      "4": 18354,
+      "5": 21986,
+      "6": 20815,
+      "7": 20391,
+      "8": 30301,
+      "9": 27440,
+      "10": 29205,
+      "11": 29824,
+      "12": 27533
+    }
+  },
+  "2024": {
+    "raw": 355652,
+    "out_of_order": 1,
+    "ambiguous_rows": 120,
+    "kept": 346773,
+    "excluded_closed": 8759,
+    "first": "2024-01-01T23:00:00+00:00",
+    "last": "2024-12-31T21:57:00+00:00",
+    "gaps_over_one_minute": 307,
+    "max_gap_hours": 74.03,
+    "sha256": "6d47f5cb269e0c4f35c63c7532713aae7dcf98901f605458b00dd6a69e7105de",
+    "full_m15": 23070,
+    "full_h1": 5732,
+    "months": {
+      "1": 30028,
+      "2": 28808,
+      "3": 27589,
+      "4": 28979,
+      "5": 30204,
+      "6": 26367,
+      "7": 30267,
+      "8": 28980,
+      "9": 27685,
+      "10": 30531,
+      "11": 28572,
+      "12": 28763
+    }
+  },
+  "2025": {
+    "raw": 354011,
+    "out_of_order": 1,
+    "ambiguous_rows": 120,
+    "kept": 345192,
+    "excluded_closed": 8699,
+    "first": "2025-01-01T23:00:00+00:00",
+    "last": "2025-12-31T21:57:00+00:00",
+    "gaps_over_one_minute": 292,
+    "max_gap_hours": 74.02,
+    "sha256": "dd0b4dc6983c07fafd89ba83b0c7f514aa16977654eaeb4c9fc8884ed359d98e",
+    "full_m15": 22977,
+    "full_h1": 5721,
+    "months": {
+      "1": 30197,
+      "2": 27441,
+      "3": 28912,
+      "4": 27689,
+      "5": 28887,
+      "6": 27689,
+      "7": 30179,
+      "8": 27711,
+      "9": 28949,
+      "10": 30479,
+      "11": 27358,
+      "12": 29701
+    }
+  },
+  "tick_execution_audit": {
+    "tick_sha256": "b4225ba3e4480da6490b6fb175623a9a4a4497190a0cfbe621c8cfa5a79df829",
+    "ticks": 2067972,
+    "spread_quantiles_50_95": [
+      0.34,
+      0.417
+    ],
+    "comparison": {
+      "pullback_replication": {
+        "orders": 29,
+        "matching_status": 27,
+        "both_closed": 15,
+        "paired_mean_r_bid_model_and_ticks": [
+          -0.02881,
+          -0.03211
+        ]
+      },
+      "london_asia": {
+        "orders": 5,
+        "matching_status": 5,
+        "both_closed": 2,
+        "paired_mean_r_bid_model_and_ticks": [
+          0.15105,
+          0.17097
+        ]
+      },
+      "ny_exhaustion": {
+        "orders": 4,
+        "matching_status": 4,
+        "both_closed": 0,
+        "paired_mean_r_bid_model_and_ticks": null
+      },
+      "h4_compression": {
+        "orders": 10,
+        "matching_status": 10,
+        "both_closed": 1,
+        "paired_mean_r_bid_model_and_ticks": [
+          1.41043,
+          1.41043
+        ]
+      }
+    }
+  }
+}
