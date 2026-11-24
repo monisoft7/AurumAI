@@ -1,0 +1,19 @@
+{
+  "version": "phase2.1",
+  "symbol": "XAUUSD",
+  "development": ["2023-01-01", "2024-01-01"],
+  "validation": [["2024-01-01", "2024-07-01"], ["2024-07-01", "2025-01-01"]],
+  "sealed": ["2025-01-01", "2026-01-01"],
+  "hypotheses": [
+    {"id":"pullback_replication","mechanism":"Replicate the Phase 1 weekday 06-16 UTC combined-policy trend subgroup, including competition for occupancy by range orders.","previous":"combined_weekday_06_16_utc_sensitivity","data":"M15 and completed H4","parameter":0.5},
+    {"id":"london_asia","mechanism":"A close outside the 00-06 UTC range during the first two hours after 08:00 London may continue as European liquidity arrives.","data":"M15 bid and London civil time","parameter":2},
+    {"id":"ny_exhaustion","mechanism":"A New York morning hourly shock exceeding two recent mean hourly ranges may reverse as transient demand dissipates.","data":"completed H1 and New York civil time","parameter":2},
+    {"id":"h4_compression","mechanism":"An hourly break of the previous four-hour range after compression may persist.","data":"completed H1 and H4","parameter":0.8}
+  ],
+  "references":["cash","long_only","momentum"],
+  "budget":"4 primary hypotheses. One lower and one higher sensitivity per hypothesis, +/-20% (London window +/-30 minutes). No parameter selection. One sealed evaluation only for survivors.",
+  "execution":"Use next observed minute bid OHLC, one outstanding order per strategy, conservative ambiguous bars, 1h entry expiry, 4h maximum hold. Bid/ask if observed, otherwise assumed spread USD 0.50 and market slippage USD 0.10; stress doubles costs. ATR risk, target 1.5R. Decision calendar weekdays, no weekend fills. Drop first and last 24 hours of each fold to embargo crossing labels, refuse unobservable paths.",
+  "gates":{"min_closed_validation":100,"min_closed_per_fold":30,"max_drawdown_r":15,"min_positive_folds":2,"bootstrap":"2000 circular five-trading-day block replicates, seed 1951, include flat days. One-sided Bonferroni 0.05/4 lower bound above zero for total daily net R and paired differences vs both active references.","other":"Require positive net expectancy in each half, positive stressed expectancy, both neighbors positive in validation, no missing-path materiality (>1% of orders). Final year must pass the same economic gates and uncertainty checks. Confirm 60 forward trading days and 50 closed forward fills before owner review. RESEARCH -> SHADOW only after historical gates. APPROVED requires owner."},
+  "prior":"a0ad1e0",
+  "sources":"Local use only. Prefer HistData M1, use MT5 if unavailable with timestamp validation. April 2023 bid/ask tick sample reserved for execution audit. Exclude all Phase 1 prices from performance measurement."
+}
