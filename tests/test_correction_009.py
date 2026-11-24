@@ -34,13 +34,14 @@ CPI_RELEASE_METADATA = {
     "priority": "Tier 1",
     "expected_impact": "high",
     "release_date": "2026-08-12",
+    "published_at": "2026-08-12T08:30:00-04:00",
 }
 
 
 def _make_briefing(**overrides) -> PreMarketBriefing:
     return PreMarketBriefing(
         briefing_id=overrides.get("briefing_id", "premarket_009"),
-        timestamp=overrides.get("timestamp", "2026-08-13T06:00:00"),
+        timestamp=overrides.get("timestamp", "2026-08-13T06:00:00+00:00"),
         regime=overrides.get("regime", "NORMAL_GROWTH"),
         regime_confidence=overrides.get("regime_confidence", 0.85),
         overnight_changes=overrides.get(
@@ -374,3 +375,14 @@ class TestStagingHandoff:
         assert isinstance(snapshot, dict)
         assert snapshot["status"] == "unavailable"
         assert snapshot["reason"]
+@pytest.mark.parametrize("when,published", [
+    ("2026-08-12T12:29:59+00:00", "2026-08-12T08:30:00-04:00"),
+    ("2026-08-13T12:30:00+00:00", "2026-08-12T08:30:00-04:00"),
+    ("2026-08-12T15:00:00+00:00", None),
+])
+def test_release_outside_verified_window_stays_briefing_context(when, published):
+    release = dict(CPI_RELEASE_METADATA, published_at=published)
+    briefing = _cpi_briefing(timestamp=when, metadata={"cpi_release": release})
+    assessment = SignalAssessmentAssembler(regime=briefing.regime).assemble(briefing)
+    assert not any(o.source == "cpi_release" for o in assessment.observations)
+    assert briefing.metadata["cpi_release"] == release

@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import math
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from pre_market.contracts import AnomalyFlag, NewsItem, PreMarketBriefing
@@ -13,6 +13,18 @@ from signal_assessment.contracts import ClassifiedObservation, CriterionScore, S
 from signal_assessment.narrative import NarrativeFitScorer
 from signal_assessment.persistence import PersistenceTracker
 from signal_assessment.volume import ETF_FLOW_THRESHOLD_PCT, VolumeFlowConfirmator
+
+def _recent_release(release, briefing_time):
+    """The daily event channel covers the first 24 hours after verified publication."""
+    try:
+        published = datetime.fromisoformat(release["published_at"])
+        observed = datetime.fromisoformat(briefing_time)
+        if published.tzinfo is None or observed.tzinfo is None:
+            return False
+        return timedelta(0) <= observed - published < timedelta(days=1)
+    except (KeyError, TypeError, ValueError):
+        return False
+
 
 PERSISTENCE_TYPE_BY_INSTRUMENT = {
     "XAU/USD": "COMEX",
@@ -280,16 +292,14 @@ class SignalAssessmentAssembler:
             isinstance(cpi_release, dict)
             and cpi_release.get("event_type") == "CPI"
             and cpi_release.get("reference_period")
+            and _recent_release(cpi_release, briefing.timestamp)
         ):
             impact = str(cpi_release.get("expected_impact", "medium")).lower()
             impact_score = {"high": 0.9, "medium": 0.5, "low": 0.2}.get(impact, 0.5)
-            cpi_persistence_passed = impact in ("high", "medium")
-            cpi_magnitude_score = {"high": 0.8, "medium": 0.4, "low": 0.1}.get(impact, 0.3)
-            cpi_magnitude_passed = impact == "high"
             cpi_criteria = [
-                CriterionScore("persistence", 0.7 if cpi_persistence_passed else 0.0, 0.5, cpi_persistence_passed, f"macro release impact={impact}"),
+                CriterionScore("persistence", 0.0, 0.5, False, "no post-release persistence measurement"),
                 CriterionScore("breadth", 0.0, 0.5, False, "macro release, no breadth series"),
-                CriterionScore("magnitude", cpi_magnitude_score, 2.0, cpi_magnitude_passed, f"CPI impact={impact}"),
+                CriterionScore("magnitude", 0.0, 2.0, False, "no observed surprise against consensus"),
                 CriterionScore("narrative_fit", impact_score, 0.3, impact_score >= 0.3, detail=f"expected_impact={impact}"),
                 CriterionScore("volume_flow", 0.0, 0.5, False, "macro release, no volume flow"),
             ]

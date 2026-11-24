@@ -676,6 +676,17 @@ def _evidence_collection(params: dict[str, Any], results: dict[str, Any]) -> Any
         technical_assessment=results.get("technical_research"),
     )
 
+    # W6 emits new evidence IDs. Record the actual KR parent in the same
+    # typed registry that already contains the lesson -> knowledge edges.
+    registry = results.get("build_legacy_pipeline", {}).get("lineage_registry")
+    if registry is not None and hasattr(registry, "add"):
+        for item in collection.items:
+            kr_id = item.metadata.get("knowledge_record_id")
+            if kr_id:
+                registry.add(kr_id, "knowledge_record", item.evidence_id,
+                             "institutional_evidence",
+                             metadata={"observation_id": item.metadata.get("observation_id")})
+
     tiering_data = results.get("event_triage")
     if tiering_data is not None:
         if isinstance(tiering_data, dict):
@@ -888,7 +899,12 @@ def _cpi_release_snapshot(
                     reference_period
                 )
                 if release is not None:
+                    from datetime import datetime
+                    from zoneinfo import ZoneInfo
+
+                    published = datetime.fromisoformat(f"{release.release_date}T{release.release_time}")
                     snapshot["release_date"] = release.release_date
+                    snapshot["published_at"] = published.replace(tzinfo=ZoneInfo(release.timezone)).isoformat()
             except Exception as exc:
                 snapshot["release_date_status"] = "unavailable"
                 snapshot["release_date_reason"] = f"{type(exc).__name__}: {exc}"

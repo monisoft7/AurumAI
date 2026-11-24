@@ -62,7 +62,8 @@ class TestReleaseCalendarLoading:
     def test_verified_calendar_uses_bls_archive_dates(self) -> None:
         path = PROJECT_ROOT / "data" / "calendar" / "cpi_releases_bls_verified.csv"
         rows = pd.read_csv(path).set_index("reference_period")
-        assert len(rows) == 140
+        assert len(rows.loc[:"2026-10-01"]) == 141
+        assert rows.loc["2026-10-01", "release_date"] == "2026-11-10"
         assert rows.loc["2015-02-01", "release_date"] == "2015-03-24"
         assert rows.loc["2015-06-01", "release_date"] == "2015-07-17"
         assert rows.loc["2026-09-01", "release_date"] == "2026-10-14"

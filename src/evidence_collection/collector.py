@@ -259,6 +259,7 @@ class EvidenceCollector:
         )
 
         metadata: dict[str, Any] = {
+            "observation_id": obs.observation_id,
             "classification": obs.classification,
             "criteria_count": len(obs.evidence),
             "instrument": obs.instrument,
@@ -284,8 +285,10 @@ class EvidenceCollector:
         if knowledge_semantics is not None:
             metadata["knowledge_semantics"] = knowledge_semantics
 
+        identity = f"{assessment.assessment_id}|{obs.observation_id}|{source_kr_id}"
+        evidence_key = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:24]
         return Evidence(
-            evidence_id=f"ev_{source_kr_id}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}",
+            evidence_id=f"ev_{evidence_key}",
             source_kr_id=source_kr_id,
             source_kr_node_id=source_kr_node_id,
             event_type=event_type,

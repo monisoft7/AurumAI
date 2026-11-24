@@ -309,7 +309,11 @@ def main(argv: list[str] | None = None) -> int:
     telegram_note = "skipped (run not verified)"
     telegram_compact_note = "skipped (run not verified)"
     delivery_ok: bool | None = None
-    if success:
+    operational = _load_json(run_dir / SUMMARY_FILENAME) if success else None
+    decision = (operational or {}).get("decision") or {}
+    if success and (decision.get("action") in ("WAIT", "HOLD", "NO_TRADE") or decision.get("execution_allowed") is False):
+        telegram_note = telegram_compact_note = "abstention recorded internally"
+    elif success:
         telegram_sent, telegram_note = _send_telegram(run_dir)
         compact_sent, telegram_compact_note = _send_telegram_compact(run_dir)
         delivery_ok = compact_sent

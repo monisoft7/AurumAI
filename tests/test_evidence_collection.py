@@ -668,11 +668,12 @@ class TestCorrection051RegressionPreservation:
 
         briefing = PreMarketBriefing(
             briefing_id="premarket_c051_cpi",
-            timestamp="2026-08-24T06:00:00",
+            timestamp="2026-08-12T14:00:00+00:00",
             regime="NORMAL_GROWTH",
             regime_confidence=0.85,
             overnight_changes=(),
             metadata={"cpi_release": {
+                "published_at": "2026-08-12T08:30:00-04:00",
                 "event_type": "CPI",
                 "reference_period": "2026-07-01",
                 "value": 332.813,
@@ -1409,3 +1410,26 @@ explanation=ev.explanation,
         assert rich_set.net_institutional_weight == plain_set.net_institutional_weight
         assert rich_set.consensus_score == plain_set.consensus_score
         assert rich_set.confidence_contribution == plain_set.confidence_contribution
+
+
+def test_shared_cpi_record_preserves_distinct_observation_lineage():
+    from knowledge.graph.builder import GraphBuilder
+    from knowledge.integrity.lineage import LineageRegistry
+    from orchestration.stages import _evidence_collection
+
+    kg = GraphBuilder().build(_cpi_knowledge_records())
+    registry = LineageRegistry()
+    assessment = _make_assessment([
+        _make_observation("breakeven", instrument="Breakeven Inflation"),
+        _make_observation("release", instrument="CPI Release"),
+    ])
+    inputs = {"signal_assessment": assessment, "build_legacy_pipeline": {
+        "knowledge_graph": kg, "lineage_registry": registry,
+        "reasoning_condition": {"cpi_pressure": "inflation_pressure_up"}}}
+    a, b = _evidence_collection({}, inputs).items
+    assert a.source_kr_id == b.source_kr_id
+    assert a.evidence_id != b.evidence_id
+    for item in (a, b):
+        parent, = registry.trace(item.evidence_id, "institutional_evidence")
+        assert (parent.source_id, parent.metadata["observation_id"]) == (
+            item.source_kr_id, item.metadata["observation_id"])

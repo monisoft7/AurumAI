@@ -464,6 +464,9 @@ class TestDailyWiring:
         registry.write_text("", encoding="utf-8")
         state = {"calls": 0}
 
+        run_dir.mkdir(parents=True)
+        (run_dir / DAILY.SUMMARY_FILENAME).write_text('{"decision":{"action":"WAIT"}}')
+
         def fake_registry_records():
             state["calls"] += 1
             if state["calls"] == 1:
@@ -487,8 +490,10 @@ class TestDailyWiring:
         monkeypatch.setattr(DAILY, "_generate_report", lambda run_dir_: 0)
         monkeypatch.setattr(DAILY, "_report_exists", lambda run_dir_: True)
         monkeypatch.setattr(DAILY, "_registry_records", fake_registry_records)
-        monkeypatch.setattr(DAILY, "_send_telegram", lambda run_dir_: (True, "test"))
-        monkeypatch.setattr(DAILY, "_send_telegram_compact", lambda run_dir_: (True, "test"))
+        def unexpected_delivery(*args):
+            raise AssertionError("WAIT must stay in the internal journal")
+        monkeypatch.setattr(DAILY, "_send_telegram", unexpected_delivery)
+        monkeypatch.setattr(DAILY, "_send_telegram_compact", unexpected_delivery)
         monkeypatch.setattr(DAILY, "_evaluate_outcomes", fake_evaluate)
 
         rc = DAILY.main([])
