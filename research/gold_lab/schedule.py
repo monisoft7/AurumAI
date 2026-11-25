@@ -8,7 +8,14 @@ from xml.etree import ElementTree as ET
 from .data import CACHE, ROOT, write_atomic
 
 
-def definition(python, root):
+def definition(
+    python,
+    root,
+    *,
+    arguments="-m research.gold_lab.shadow once",
+    duration="PT14H1M",
+    enabled=False,
+):
     ns = "http://schemas.microsoft.com/windows/2004/02/mit/task"
     ET.register_namespace("", ns)
     task = ET.Element("Task", xmlns=ns, version="1.2")
@@ -21,7 +28,7 @@ def definition(python, root):
     trigger = node(node(task, "Triggers"), "CalendarTrigger")
     repeat = node(trigger, "Repetition")
     node(repeat, "Interval", "PT15M")
-    node(repeat, "Duration", "PT14H1M")
+    node(repeat, "Duration", duration)
     node(trigger, "StartBoundary", "2026-01-05T07:00:00Z")
     week = node(trigger, "ScheduleByWeek")
     days = node(week, "DaysOfWeek")
@@ -34,11 +41,11 @@ def definition(python, root):
     settings = node(task, "Settings")
     node(settings, "MultipleInstancesPolicy", "IgnoreNew")
     node(settings, "StartWhenAvailable", "false")
-    node(settings, "Enabled", "false")
+    node(settings, "Enabled", str(enabled).lower())
     node(settings, "ExecutionTimeLimit", "PT5M")
     action = node(node(task, "Actions", Context="Research"), "Exec")
     node(action, "Command", str(python))
-    node(action, "Arguments", "-m research.gold_lab.shadow once")
+    node(action, "Arguments", arguments)
     node(action, "WorkingDirectory", str(root))
     return ET.tostring(task, encoding="utf-16", xml_declaration=True)
 

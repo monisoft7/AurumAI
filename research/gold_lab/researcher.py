@@ -288,9 +288,6 @@ def review(db, target, post=requests.post):
     """On-demand research note, grounded in the frozen results and cached by evidence."""
     from .predictive import RESULT
 
-    model = json.loads(OUT.read_bytes())["selected"]
-    if model not in MODELS:
-        raise ValueError("no qualified research reader")
     results = json.loads(RESULT.read_bytes())
     evidence = {
         "protocol": results["protocol_sha256"],
@@ -310,6 +307,13 @@ def review(db, target, post=requests.post):
             for group, row in results["targets"][target].items()
         },
     }
+    return review_evidence(db, target, evidence, post)
+
+
+def review_evidence(db, target, evidence, post=requests.post):
+    model = json.loads(OUT.read_bytes())["selected"]
+    if model not in MODELS:
+        raise ValueError("no qualified research reader")
     key = hashlib.sha256(
         json.dumps([model, evidence], sort_keys=True).encode()
     ).hexdigest()
@@ -375,7 +379,7 @@ def review(db, target, post=requests.post):
             "target": target,
             "model": model,
             "answer": answer,
-            "source": results["protocol_sha256"],
+            "source": evidence["protocol"],
             "usage": {
                 k: reply.get("usage", {}).get(k, 0)
                 for k in ("prompt_tokens", "completion_tokens")

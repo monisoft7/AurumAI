@@ -51,11 +51,7 @@ def first_touch(minutes, index, prices, distance):
     return pd.Series(out, index=index)
 
 
-def panel(manifest):
-    def minutes(symbol):
-        return pd.concat([load(symbol, year, manifest) for year in YEARS]).sort_index()
-
-    gold = minutes("XAUUSD")
+def gold_features(gold):
     bars = completed(gold, 15).asfreq("15min")
     close = bars.close
     r = shifted_return(close, 1)
@@ -67,6 +63,15 @@ def panel(manifest):
     features["range"] = 1e4 * np.log(bars.high / bars.low)
     angle = 2 * np.pi * (close.index.hour + close.index.minute / 60) / 24
     features["sin"], features["cos"] = np.sin(angle), np.cos(angle)
+    return close, r, features
+
+
+def panel(manifest):
+    def minutes(symbol):
+        return pd.concat([load(symbol, year, manifest) for year in YEARS]).sort_index()
+
+    gold = minutes("XAUUSD")
+    close, r, features = gold_features(gold)
     groups = {"gold": list(features.columns)}
     for symbol in manifest["assets"]:
         if symbol == "XAUUSD":
@@ -131,6 +136,26 @@ def panel(manifest):
     return x, pd.DataFrame(labels).reindex(x.index), groups, gold
 
 
+def logistic_weights(a, y, penalty):
+    def objective(w):
+        z = a @ w
+        return (
+            np.mean(np.logaddexp(0, z) - y * z) + 0.5 * np.dot(penalty, w * w),
+            a.T @ (expit(z) - y) / len(y) + penalty * w,
+        )
+
+    sol = minimize(
+        objective,
+        np.zeros(a.shape[1]),
+        jac=True,
+        method="L-BFGS-B",
+        options={"maxiter": 250, "ftol": 1e-11},
+    )
+    if not sol.success:
+        raise ValueError(sol.message)
+    return sol.x
+
+
 def fit_predict(train, y, test, strength, binary):
     mean, std = train.mean(0), train.std(0)
     std[std < 1e-10] = 1.0
@@ -139,24 +164,7 @@ def fit_predict(train, y, test, strength, binary):
     penalty = np.full(a.shape[1], strength)
     penalty[0] = 0
     if binary:
-
-        def objective(w):
-            z = a @ w
-            return (
-                np.mean(np.logaddexp(0, z) - y * z) + 0.5 * np.dot(penalty, w * w),
-                a.T @ (expit(z) - y) / len(y) + penalty * w,
-            )
-
-        sol = minimize(
-            objective,
-            np.zeros(a.shape[1]),
-            jac=True,
-            method="L-BFGS-B",
-            options={"maxiter": 250, "ftol": 1e-11},
-        )
-        if not sol.success:
-            raise ValueError(sol.message)
-        return expit(b @ sol.x)
+        return expit(b @ logistic_weights(a, y, penalty))
     w = np.linalg.solve(
         a.T @ a / len(y) + np.diag(penalty), a.T @ np.log(y + 0.05) / len(y)
     )
