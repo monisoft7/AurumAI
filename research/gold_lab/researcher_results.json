@@ -1,0 +1,305 @@
+{
+  "availability": {
+    "Groq": {
+      "status": 200,
+      "listed": [
+        "allam-2-7b",
+        "meta-llama/llama-prompt-guard-2-86m",
+        "meta-llama/llama-prompt-guard-2-22m",
+        "canopylabs/orpheus-v1-english",
+        "openai/gpt-oss-20b",
+        "canopylabs/orpheus-arabic-saudi",
+        "openai/gpt-oss-120b",
+        "qwen/qwen3.8-27b",
+        "whisper-large-v3-turbo",
+        "whisper-large-v3",
+        "openai/gpt-oss-safeguard-20b"
+      ]
+    },
+    "Gemini": {
+      "status": 401,
+      "listed": []
+    },
+    "OpenRouter": {
+      "status": "no configured credential"
+    }
+  },
+  "models": {
+    "openai/gpt-oss-20b": {
+      "tasks": [
+        {
+          "case": "failed_replication",
+          "attempts": 1,
+          "score": 3,
+          "tokens": {
+            "prompt_tokens": 229,
+            "completion_tokens": 179
+          },
+          "errors": [],
+          "answer": {
+            "decision": "unsupported",
+            "evidence": [
+              "larger_independent_sample",
+              "two_engines_agree"
+            ],
+            "reason": "The pullback\u2019s initial gain in only 33 fills is contradicted by a larger, independent sample of over 450 fills where two separate simulators consistently reported a negative mean, indicating the observed effect is not robust."
+          },
+          "seconds": 0.94
+        },
+        {
+          "case": "method",
+          "attempts": 1,
+          "score": 1,
+          "tokens": {
+            "prompt_tokens": 217,
+            "completion_tokens": 110
+          },
+          "errors": [],
+          "answer": {
+            "decision": "resampling_error",
+            "evidence": [
+              "reuse_final_year",
+              "freeze_threshold"
+            ],
+            "reason": "The researcher\u2019s choice of threshold based on the final year\u2019s performance and subsequent reporting of that same year\u2019s score constitutes a resampling error, as the model is tuned and evaluated on the same data, inflating performance estimates."
+          },
+          "seconds": 1.19
+        },
+        {
+          "case": "hypothesis",
+          "attempts": 1,
+          "score": 2,
+          "tokens": {
+            "prompt_tokens": 224,
+            "completion_tokens": 99
+          },
+          "errors": [],
+          "answer": {
+            "decision": "test_volatility",
+            "evidence": [
+              "conditional_realized_volatility",
+              "daily_revised_cpi"
+            ],
+            "reason": "The study will test whether incorporating conditional realized volatility and daily revised CPI data improves directional forecasts of market reactions to releases, controlling for matched non-event hours to isolate release effects."
+          },
+          "seconds": 1.94
+        },
+        {
+          "case": "data",
+          "attempts": 1,
+          "score": 3,
+          "tokens": {
+            "prompt_tokens": 222,
+            "completion_tokens": 166
+          },
+          "errors": [],
+          "answer": {
+            "decision": "use_first_print_surprise",
+            "evidence": [
+              "first_published_actual",
+              "timestamped_pre_release_consensus"
+            ],
+            "reason": "The study\u2019s surprise metric is calculated by comparing the first published consensus forecast with the actual inflation release, so the relevant evidence is the initial consensus estimate and the actual figure released at the decision time."
+          },
+          "seconds": 0.72
+        },
+        {
+          "case": "critique",
+          "attempts": 1,
+          "score": 2,
+          "tokens": {
+            "prompt_tokens": 233,
+            "completion_tokens": 144
+          },
+          "errors": [],
+          "answer": {
+            "decision": "insufficient",
+            "evidence": [
+              "contemporaneous_association",
+              "same_bar_accuracy"
+            ],
+            "reason": "The panel data shows gold and the dollar moving together at the exact same timestamp, indicating only a contemporaneous association; there is no evidence of a lagged or out\u2011of\u2011sample lead, and the same\u2011bar accuracy test confirms that the observed co\u2011movement is not due to a lead\u2011lag relationship but merely synchronous price changes."
+          },
+          "seconds": 1.09
+        },
+        {
+          "case": "duplicate",
+          "attempts": 2,
+          "score": 0,
+          "tokens": {
+            "prompt_tokens": 450,
+            "completion_tokens": 340
+          },
+          "errors": [
+            "ValueError",
+            "ValueError"
+          ],
+          "seconds": 4.61
+        },
+        {
+          "case": "leakage",
+          "attempts": 1,
+          "score": 3,
+          "tokens": {
+            "prompt_tokens": 238,
+            "completion_tokens": 174
+          },
+          "errors": [],
+          "answer": {
+            "decision": "time_and_vintage_leak",
+            "evidence": [
+              "date_join_before_release",
+              "revised_value_unavailable"
+            ],
+            "reason": "The backtest joins the CPI value at 08:15, before the first release at 08:30, and uses the unrevised value, creating both a time\u2011leak and a vintage\u2011leak."
+          },
+          "seconds": 1.06
+        }
+      ],
+      "points": 14,
+      "correct_decisions": 5
+    },
+    "openai/gpt-oss-120b": {
+      "tasks": [
+        {
+          "case": "failed_replication",
+          "attempts": 1,
+          "score": 3,
+          "tokens": {
+            "prompt_tokens": 229,
+            "completion_tokens": 130
+          },
+          "errors": [],
+          "answer": {
+            "decision": "unsupported",
+            "evidence": [
+              "larger_independent_sample",
+              "two_engines_agree"
+            ],
+            "reason": "The initial 33\u2011fill pullback is outweighed by the consistent negative means observed across >450 fills in two independent simulators, indicating the effect does not generalize."
+          },
+          "seconds": 1.22
+        },
+        {
+          "case": "method",
+          "attempts": 1,
+          "score": 2,
+          "tokens": {
+            "prompt_tokens": 217,
+            "completion_tokens": 127
+          },
+          "errors": [],
+          "answer": {
+            "decision": "selection_bias",
+            "evidence": [
+              "reuse_final_year",
+              "freeze_threshold"
+            ],
+            "reason": "The researcher tuned the threshold on the final year and then evaluated on the same data, inflating performance; evidence should show whether the threshold was reused on the final year and whether a frozen (pre\u2011specified) threshold was applied to avoid bias."
+          },
+          "seconds": 25.48
+        },
+        {
+          "case": "hypothesis",
+          "attempts": 1,
+          "score": 3,
+          "tokens": {
+            "prompt_tokens": 224,
+            "completion_tokens": 139
+          },
+          "errors": [],
+          "answer": {
+            "decision": "test_volatility",
+            "evidence": [
+              "matched_non_event_hours",
+              "conditional_realized_volatility"
+            ],
+            "reason": "A falsifiable study should compare realized volatility in matched non\u2011event hours to that surrounding the release, controlling for time\u2011of\u2011day, macro news flow, and market liquidity, to test whether shocks are merely volatility spikes without predictive directional power."
+          },
+          "seconds": 1.38
+        },
+        {
+          "case": "data",
+          "attempts": 1,
+          "score": 3,
+          "tokens": {
+            "prompt_tokens": 222,
+            "completion_tokens": 126
+          },
+          "errors": [],
+          "answer": {
+            "decision": "use_first_print_surprise",
+            "evidence": [
+              "first_published_actual",
+              "timestamped_pre_release_consensus"
+            ],
+            "reason": "Surprise is measured by comparing the first published actual inflation figure at decision time to the pre\u2011release consensus timestamped just before the release."
+          },
+          "seconds": 0.58
+        },
+        {
+          "case": "critique",
+          "attempts": 1,
+          "score": 2,
+          "tokens": {
+            "prompt_tokens": 233,
+            "completion_tokens": 179
+          },
+          "errors": [],
+          "answer": {
+            "decision": "insufficient",
+            "evidence": [
+              "contemporaneous_association",
+              "same_bar_accuracy"
+            ],
+            "reason": "Simultaneous price movements only show a contemporaneous association and, because they occur at the exact same timestamp, provide no temporal precedence to substantiate a causal lead."
+          },
+          "seconds": 1.97
+        },
+        {
+          "case": "duplicate",
+          "attempts": 1,
+          "score": 2,
+          "tokens": {
+            "prompt_tokens": 225,
+            "completion_tokens": 263
+          },
+          "errors": [],
+          "answer": {
+            "decision": "retrieve_existing",
+            "evidence": [
+              "identical_fingerprint",
+              "rename_is_novel"
+            ],
+            "reason": "The archived experiment matches the renamed request in data, mechanism, parameters, and cost assumptions, so the lab should reuse the existing results."
+          },
+          "seconds": 1.17
+        },
+        {
+          "case": "leakage",
+          "attempts": 1,
+          "score": 3,
+          "tokens": {
+            "prompt_tokens": 238,
+            "completion_tokens": 165
+          },
+          "errors": [],
+          "answer": {
+            "decision": "time_and_vintage_leak",
+            "evidence": [
+              "date_join_before_release",
+              "revised_value_unavailable"
+            ],
+            "reason": "The backtest joins the CPI at 08:15, before the 08:30 release, causing a time\u2011and\u2011vintage leak, and later fails to incorporate the annual revision, resulting in unavailable revised values."
+          },
+          "seconds": 0.7
+        }
+      ],
+      "points": 18,
+      "correct_decisions": 7
+    }
+  },
+  "actual_incremental_usd": 0,
+  "billing_basis": "owner-confirmed unbilled Groq free plan",
+  "selected": "openai/gpt-oss-120b"
+}
