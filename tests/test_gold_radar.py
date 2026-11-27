@@ -131,6 +131,41 @@ def test_endpoint_requires_exact_path():
         radar.outcome(f.drop(SLOT + pd.Timedelta(minutes=12)), SLOT, 3500, 0.1)
 
 
+@pytest.mark.parametrize("late", [False, True])
+def test_outcome_recovery_deadline(tmp_path, late):
+    model, h = load_frozen()
+    db = radar.open_ledger(tmp_path / "risk.sqlite")
+    t = SLOT + pd.Timedelta(seconds=10)
+    radar.run_once(db, Source(minutes(), t), model, h, "pilot", clock=lambda: t)
+
+    deadline = t + radar.HOUR + radar.RECOVERY
+    now = deadline + pd.Timedelta(seconds=1) if late else deadline
+    radar.run_once(
+        db,
+        Source(minutes(), now),
+        model,
+        h,
+        "pilot",
+        issue_new=False,
+        clock=lambda: now,
+    )
+
+    row = db.execute("SELECT * FROM radar_forecasts").fetchone()
+    assert row["resolved_at"] == now.isoformat()
+    if late:
+        assert row["outcome"] is None
+        assert row["failure"] == "outcome not recovered within 72 hours"
+        # A previously persisted late settlement must also fail the operational gate.
+        with db:
+            db.execute("UPDATE radar_forecasts SET outcome=0, failure=NULL")
+    else:
+        assert row["outcome"] in (0, 1)
+        assert row["failure"] is None
+    report = radar_metrics.daily_report(db, "pilot", "2026-11-25", now, model)
+    assert report["resolved_rate_after_72h"] == (0 if late else 1)
+    db.close()
+
+
 def test_explicit_reserved_window_and_schedule():
     inside = pd.Timestamp("2027-02-01T07:00Z")
     assert radar.allowed_cohort("reserved", inside) and not radar.allowed_cohort(

@@ -18,6 +18,7 @@ from .shadow import ZONE, in_window
 ROOT = CACHE.parent / "phase4"
 QUARTER = pd.Timedelta(minutes=15)
 HOUR = pd.Timedelta(hours=1)
+RECOVERY = pd.Timedelta(hours=72)
 MAX_AGE = 90
 ALERT = 0.60
 MODE = ("smoke", "pilot", "reserved")
@@ -111,18 +112,19 @@ def settle(db, cohort, frame, now):
         "SELECT * FROM radar_forecasts WHERE cohort=? AND outcome IS NULL AND resolved_at IS NULL AND due<=?",
         (cohort, key),
     ).fetchall():
+        deadline = pd.Timestamp(row["due"]) + RECOVERY
         try:
+            if now > deadline:
+                raise ValueError(
+                    row["failure"] or "outcome not recovered within 72 hours"
+                )
             if frame is None:
                 raise ValueError("minute history unavailable")
             result, price = outcome(
                 frame, pd.Timestamp(row["slot"]), row["reference"], row["threshold_bps"]
             )
         except ValueError as exc:
-            final = (
-                key
-                if now - pd.Timestamp(row["due"]) >= pd.Timedelta(hours=72)
-                else None
-            )
+            final = key if now >= deadline else None
             db.execute(
                 "UPDATE radar_forecasts SET failure=?,resolved_at=? WHERE cohort=? AND slot=?",
                 (str(exc), final, cohort, row["slot"]),

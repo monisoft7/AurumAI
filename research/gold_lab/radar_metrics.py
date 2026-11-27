@@ -6,7 +6,7 @@ from datetime import timedelta
 
 import pandas as pd
 
-from .radar import HOUR, QUARTER, allowed_cohort, known_open
+from .radar import HOUR, QUARTER, RECOVERY, allowed_cohort, known_open
 from .radar_model import REFERENCES, bootstrap
 from .shadow import ZONE, send_report
 
@@ -129,13 +129,12 @@ def daily_report(db, cohort, day, now, artifact):
     daily = summarize(selected)
     total = summarize(rows)
     resolved = total["settled"]
-    fully_aged = sum(
-        pd.Timestamp(r["due"]) + pd.Timedelta(hours=72) <= now for r in rows
-    )
+    deadlines = [(r, pd.Timestamp(r["due"]) + RECOVERY) for r in rows]
+    aged = [(r, deadline) for r, deadline in deadlines if deadline <= now]
+    fully_aged = len(aged)
     fully_aged_ok = sum(
-        r["outcome"] is not None
-        and pd.Timestamp(r["due"]) + pd.Timedelta(hours=72) <= now
-        for r in rows
+        r["outcome"] is not None and pd.Timestamp(r["resolved_at"]) <= deadline
+        for r, deadline in aged
     )
     coverage_rate = (
         len(overall_planned & {r["slot"] for r in rows}) / len(overall_planned)
